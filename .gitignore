@@ -1,7 +1,7 @@
-# Env variables (SECURITY: Never commit this!)
 .env
 .env.*
 !.env.example
+.idea
 
 # IDE & Editor folders
 .idea/
