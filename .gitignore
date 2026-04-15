@@ -1,0 +1,16 @@
+# Env variables (SECURITY: Never commit this!)
+.env
+.env.*
+!.env.example
+
+# IDE & Editor folders
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Optional fallback ignores in case submodules don't have them
+node_modules/
+dist/
+target/
+*.jar
