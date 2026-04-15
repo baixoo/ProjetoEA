@@ -63,3 +63,25 @@ Endpoint api teste:
 ```bash
 http://localhost/api/test
 ```
+
+Para emular no Android Studio app(estar dentro da root do frotend):
+
+Depois de ter feito dentro (ProjetoEA_Frontend) :
+```bash
+npm i
+```
+```bash
+npx cap add android
+```
+
+```bash
+npm run dev -- -m capacitor -T android
+```
+
+Usar pt.projetoea depois do comando anterior
+
+Escolher primeiro ip
+
+Correr build gradle no Android studio. (Project: android)
+
+

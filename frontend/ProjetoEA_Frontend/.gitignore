@@ -1,6 +1,7 @@
 .DS_Store
 .thumbs.db
 node_modules
+.vscode/
 
 # Quasar core related directories
 .quasar
@@ -14,6 +15,10 @@ node_modules
 /src-cordova/www
 
 # Capacitor related directories and files
+/android/
+/ios/
+
+/src-capacitor/
 /src-capacitor/www
 /src-capacitor/node_modules
 
