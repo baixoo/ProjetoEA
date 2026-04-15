@@ -52,3 +52,14 @@ Parar e remover containers e apagar volumes
 docker-compose down -v
 ```
 
+### 3. Acessar
+
+Usar browser e acessar:
+```bash
+http://localhost
+```
+
+Endpoint api teste:
+```bash
+http://localhost/api/test
+```
