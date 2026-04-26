@@ -1,16 +1,40 @@
 .env
 .env.*
 !.env.example
-.idea
 
 # IDE & Editor folders
 .idea/
 .vscode/
 *.swp
 *.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Claude Code
+.claude/
 
 # Optional fallback ignores in case submodules don't have them
 node_modules/
 dist/
 target/
 *.jar
+
+# Build outputs and tool caches
+.quasar/
+.vite/
+coverage/
+build/
+out/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
