@@ -61,7 +61,7 @@ https://localhost
 
 Endpoint api teste:
 ```bash
-http://localhost/api/test
+https://localhost/api/test
 ```
 
 Para emular no Android Studio app(estar dentro da root do frotend):
