@@ -25,12 +25,22 @@ Criar o .env na root do projeto com:
 
 ```bash
 # Database configuration
+SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/projetoea
+
 POSTGRES_DB=projetoea
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
+POSTGRES_HOST_PORT=5433
 
+## JWT Secret
+JWT_SECRET=u4qpwiBtWjdzvlKmYB8GpXP9/s82qWJcJvVnwstb8kh4n0OJUJY45y3ePSfj4J5BMmZ8kMwXItPjeu1NS++Rmw==
 # Map to a different host port to avoid conflict with local postgres in my computer
 POSTGRES_HOST_PORT=5433
+
+# Google OAuth2 Config
+GOOGLE_CLIENT_ID=781084617249-gjpk3dpmig6vpmv8rjek438a6mucca63.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
+FRONTEND_URL=https://localhost
 
 ```
 ### 2. Arranque do sistema
