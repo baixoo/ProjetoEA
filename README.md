@@ -56,7 +56,7 @@ docker-compose down -v
 
 Usar browser e acessar:
 ```bash
-http://localhost
+https://localhost
 ```
 
 Endpoint api teste:
