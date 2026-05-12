@@ -1,10 +1,10 @@
-package pt.projetoea;
+package pt.notub;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class ProjetoeaApplicationTests {
+class NotubApplicationTests {
 
 	@Test
 	void contextLoads() {

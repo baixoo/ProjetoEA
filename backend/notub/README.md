@@ -1,4 +1,4 @@
-# ProjetoEA Backend
+# NoTUB Backend
 
 ## Stack de Dependências
 
@@ -15,7 +15,7 @@ O projeto depende dos seguintes pacotes principais configurados no `pom.xml`:
 
 Ao ativar o módulo `spring-boot-starter-security`, é automaticamente aplicado um conjunto de regras restritas que exigem autenticação em toda a API (redirecionando qualquer pedido para uma página `/login` gerada automaticamente).
 
-Para permitir o desenvolvimento e testar os controladores durante fases iniciais, foi criada uma classe personalizada **`SecurityConfig`** em `pt.projetoea.config.SecurityConfig` para dar override das configs default.
+Para permitir o desenvolvimento e testar os controladores durante fases iniciais, foi criada uma classe personalizada **`SecurityConfig`** em `pt.notub.config.SecurityConfig` para dar override das configs default.
 
 ### Exceções atualmente ativas
 

@@ -1,6 +1,6 @@
-# projetoea (projetoea-frontend)
+# notub (notub-frontend)
 
-Vue.js frontend for ProjetoEA
+Vue.js frontend for NoTUB
 ## Install the dependencies
 ```bash
 yarn

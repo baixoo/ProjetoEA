@@ -1,8 +1,8 @@
 {
-  "name": "projetoea-frontend",
+  "name": "notub-frontend",
   "version": "0.0.1",
-  "description": "Vue.js frontend for ProjetoEA",
-  "productName": "projetoea",
+  "description": "Vue.js frontend for NoTUB",
+  "productName": "notub",
   "author": "PaulAlv99 <2120722@student.uma.pt>",
   "type": "module",
   "private": true,

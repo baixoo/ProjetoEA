@@ -1,4 +1,4 @@
-package pt.projetoea.config;
+package pt.notub.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

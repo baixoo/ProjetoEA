@@ -11,7 +11,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql
     networks:
-      - projetoea
+      - notub
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -19,7 +19,7 @@ services:
       retries: 5
 
   backend:
-    build: ./backend/projetoea
+    build: ./backend/notub
     deploy:
       replicas: 1
     depends_on:
@@ -30,14 +30,14 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
     networks:
-      - projetoea
+      - notub
 
   frontend:
     build: ./frontend
     deploy:
       replicas: 1
     networks:
-      - projetoea
+      - notub
 
   nginx:
     image: nginx:stable
@@ -54,11 +54,11 @@ services:
       - frontend
       - backend
     networks:
-      - projetoea
+      - notub
 
 volumes:
   pgdata:
 
 networks:
-  projetoea:
+  notub:
     driver: bridge

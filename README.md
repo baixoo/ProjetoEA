@@ -1,4 +1,4 @@
-# ProjetoEA
+# NoTUB
 
 Este projeto corre sobre uma stack que utiliza **Vue/Quasar** no frontend, **Spring Boot**
 no backend e **PostgreSQL** para a base de dados, tudo orquestrado através de
@@ -25,7 +25,7 @@ Criar o .env na root do projeto com:
 
 ```bash
 # Database configuration
-POSTGRES_DB=projetoea
+POSTGRES_DB=notub
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 
@@ -66,7 +66,7 @@ https://localhost/api/test
 
 Para emular no Android Studio app(estar dentro da root do frotend):
 
-Depois de ter feito dentro (ProjetoEA_Frontend) :
+Depois de ter feito dentro (NoTUB_Frontend) :
 ```bash
 npm i
 ```
@@ -78,7 +78,7 @@ npx cap add android
 npm run dev -- -m capacitor -T android
 ```
 
-Usar pt.projetoea depois do comando anterior
+Usar pt.notub depois do comando anterior
 
 Escolher primeiro ip
 

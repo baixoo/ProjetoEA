@@ -1,13 +1,13 @@
-package pt.projetoea;
+package pt.notub;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class ProjetoeaApplication {
+public class NotubApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(ProjetoeaApplication.class, args);
+		SpringApplication.run(NotubApplication.class, args);
 	}
 
 }

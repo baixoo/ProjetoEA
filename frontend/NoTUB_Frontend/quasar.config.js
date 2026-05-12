@@ -188,7 +188,7 @@ export default defineConfig((/* ctx */) => {
       builder: {
         // https://www.electron.build/configuration
 
-        appId: 'projetoea-frontend'
+        appId: 'notub-frontend'
       }
     },
 
