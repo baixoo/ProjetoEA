@@ -1,4 +1,4 @@
-# ProjetoEA
+# NoTUB
 
 Este projeto corre sobre uma stack que utiliza **Vue/Quasar** no frontend, **Spring Boot**
 no backend e **PostgreSQL** para a base de dados, tudo orquestrado através de
@@ -25,9 +25,9 @@ Criar o .env na root do projeto com:
 
 ```bash
 # Database configuration
-SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/projetoea
+SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/notub
 
-POSTGRES_DB=projetoea
+POSTGRES_DB=notub
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_HOST_PORT=5433
@@ -37,6 +37,7 @@ JWT_SECRET=u4qpwiBtWjdzvlKmYB8GpXP9/s82qWJcJvVnwstb8kh4n0OJUJY45y3ePSfj4J5BMmZ8k
 # Map to a different host port to avoid conflict with local postgres in my computer
 POSTGRES_HOST_PORT=5433
 
+## Gerem na vossa conta google cloud e configurem o URI redirect correto
 # Google OAuth2 Config
 GOOGLE_CLIENT_ID=781084617249-gjpk3dpmig6vpmv8rjek438a6mucca63.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=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
@@ -76,7 +77,7 @@ https://localhost/api/test
 
 Para emular no Android Studio app(estar dentro da root do frotend):
 
-Depois de ter feito dentro (ProjetoEA_Frontend) :
+Depois de ter feito dentro (NoTUB_Frontend) :
 ```bash
 npm i
 ```
@@ -84,11 +85,15 @@ npm i
 npx cap add android
 ```
 
+
+### Se quiser capacitor
+Nao def. se capacitor ou full quasar
+
 ```bash
 npm run dev -- -m capacitor -T android
 ```
 
-Usar pt.projetoea depois do comando anterior
+Usar pt.notub depois do comando anterior
 
 Escolher primeiro ip
 

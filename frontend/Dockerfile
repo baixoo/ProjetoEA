@@ -3,7 +3,7 @@ FROM node:24.14.1-alpine AS build
 
 WORKDIR /app
 
-COPY ProjetoEA_Frontend/ .
+COPY NoTUB_Frontend/ .
 RUN npm install
 
 RUN npm run build
