@@ -2,7 +2,7 @@
   "name": "notub-frontend",
   "version": "0.0.1",
   "description": "Vue.js frontend for NoTUB",
-  "productName": "notub",
+  "productName": "NoTUB",
   "author": "PaulAlv99 <2120722@student.uma.pt>",
   "type": "module",
   "private": true,
