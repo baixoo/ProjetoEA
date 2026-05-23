@@ -49,8 +49,9 @@ public class TransacaoController {
     @PostMapping
     public ResponseEntity<?> createTransacao(@RequestBody Map<String, Object> request) {
         Long tituloId = Long.valueOf(request.get("tituloId").toString());
+        Long utilizadorId = Long.valueOf(request.get("utilizadorId").toString());
         String referenciaExterna = (String) request.get("referenciaExterna");
-        Transacao transacao = transacaoService.createTransacao(tituloId, referenciaExterna);
+        Transacao transacao = transacaoService.createTransacao(tituloId, utilizadorId, referenciaExterna);
         return ResponseEntity.ok(transacao);
     }
 

@@ -32,13 +32,8 @@ public class ViagemUtilizador {
     @JoinColumn(name = "paragem_saida_id")
     private Paragem paragemSaida;
 
-    @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "coima_id", referencedColumnName = "id")
-    private Coima coima;
-
     public ViagemUtilizador() {}
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public LocalDateTime getInicio() { return inicio; }
@@ -55,6 +50,4 @@ public class ViagemUtilizador {
     public void setParagemEntrada(Paragem paragemEntrada) { this.paragemEntrada = paragemEntrada; }
     public Paragem getParagemSaida() { return paragemSaida; }
     public void setParagemSaida(Paragem paragemSaida) { this.paragemSaida = paragemSaida; }
-    public Coima getCoima() { return coima; }
-    public void setCoima(Coima coima) { this.coima = coima; }
 }

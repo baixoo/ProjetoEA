@@ -1,13 +1,15 @@
 package pt.notub.dto.request;
 
+import java.util.List;
+
 public class BuyTicketRequest {
     private int quantidade;
+    private List<Long> zonaIds;
 
-    public int getQuantidade() {
-        return quantidade;
-    }
+    public BuyTicketRequest() {}
 
-    public void setQuantidade(int quantidade) {
-        this.quantidade = quantidade;
-    }
+    public int getQuantidade() { return quantidade; }
+    public void setQuantidade(int quantidade) { this.quantidade = quantidade; }
+    public List<Long> getZonaIds() { return zonaIds; }
+    public void setZonaIds(List<Long> zonaIds) { this.zonaIds = zonaIds; }
 }

@@ -17,6 +17,10 @@ export default route(() => {
       return { name: 'signin' }
     }
 
+    if (authStore.isAuthenticated && !authStore.user) {
+      await authStore.fetchUser()
+    }
+
     if ((to.name === 'signin' || to.name === 'signup') && authStore.isAuthenticated) {
       return { name: 'home' }
     }

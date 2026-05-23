@@ -1,18 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --color-primary: #000000;
-  --color-secondary: #2196f3;
-  --color-text: #000000;
-  --color-text-secondary: #828282;
-  --color-border: #e0e0e0;
-  --color-divider: #e6e6e6;
-  --color-bg-google: #eeeeee;
-  --color-blue: #1876d2;
-  --color-blue-dark: #2a85b2;
-  --color-bg-traveling: #d2dff2;
-  --color-gradient-start: #66c4ff;
-  --color-gradient-end: #fff4cd;
+  --page-max: 480px;
+  --page-pad: 20px;
+  --header-h: 42px;
+  --tabbar-h: 78px;
+  --radius-card: 12px;
+  --radius-input: 8px;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.12);
+  --color-primary: #028e5c;
+  --color-bg: #f8f9fa;
+  --color-text: #0b1a16;
+  --color-text-secondary: #6c757d;
+  --color-border: #d7d6d6;
+  --color-border-light: #e9ecef;
 }
 
 * {
@@ -30,4 +32,32 @@ body {
 
 input, button, textarea, select {
   font-family: inherit;
+}
+
+@media (max-width: 480px) {
+  body {
+    background-color: #fff;
+  }
+  #q-app {
+    max-width: 100%;
+    margin: 0;
+    box-shadow: none;
+    min-height: 100vh;
+    position: relative;
+    background-color: #fff;
+  }
+}
+
+@media (min-width: 481px) {
+  body {
+    background-color: #eef2f5;
+  }
+  #q-app {
+    max-width: var(--page-max);
+    margin: 0 auto;
+    min-height: 100vh;
+    box-shadow: 0 0 24px rgba(0, 0, 0, 0.15);
+    position: relative;
+    background-color: #fff;
+  }
 }

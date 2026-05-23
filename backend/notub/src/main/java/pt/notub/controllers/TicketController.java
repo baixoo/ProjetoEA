@@ -1,12 +1,11 @@
 package pt.notub.controllers;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import pt.notub.dto.request.BuyPasseRequest;
 import pt.notub.dto.request.BuyTicketRequest;
-import pt.notub.security.UserDetailsImpl;
+import pt.notub.models.Utilizador;
+import pt.notub.security.AuthenticatedUser;
 import pt.notub.services.TicketService;
 
 @RestController
@@ -19,31 +18,27 @@ public class TicketController {
         this.ticketService = ticketService;
     }
 
-    @PostMapping("/buy")
-    public ResponseEntity<?> buyTickets(@RequestBody BuyTicketRequest request) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = ((UserDetailsImpl) authentication.getPrincipal()).getUsername();
-        return ResponseEntity.ok(ticketService.buyTickets(email, request.getQuantidade()));
+    @PostMapping({"/buy", "/comprar"})
+    public ResponseEntity<?> buyTickets(@AuthenticatedUser Utilizador utilizador, @RequestBody BuyTicketRequest request) {
+        if (utilizador == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(ticketService.buyTickets(utilizador.getEmail(), request.getQuantidade(), request.getZonaIds()));
     }
 
-    @PostMapping("/passe/buy")
-    public ResponseEntity<?> buyPasse(@RequestBody BuyPasseRequest request) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = ((UserDetailsImpl) authentication.getPrincipal()).getUsername();
-        return ResponseEntity.ok(ticketService.buyPasse(email, request.getModalidade()));
+    @PostMapping({"/passe/buy", "/passe/comprar"})
+    public ResponseEntity<?> buyPasse(@AuthenticatedUser Utilizador utilizador, @RequestBody BuyPasseRequest request) {
+        if (utilizador == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(ticketService.buyPasse(utilizador.getEmail(), request.getModalidade(), request.getZonaIds()));
     }
 
-    @GetMapping("/my-tickets")
-    public ResponseEntity<?> getMyTickets() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = ((UserDetailsImpl) authentication.getPrincipal()).getUsername();
-        return ResponseEntity.ok(ticketService.getUserTickets(email));
+    @GetMapping({"/my-tickets", "/meus-bilhetes"})
+    public ResponseEntity<?> getMyTickets(@AuthenticatedUser Utilizador utilizador) {
+        if (utilizador == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(ticketService.getUserTickets(utilizador.getEmail()));
     }
 
-    @GetMapping("/my-passe")
-    public ResponseEntity<?> getMyPasse() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = ((UserDetailsImpl) authentication.getPrincipal()).getUsername();
-        return ResponseEntity.ok(ticketService.getUserPasse(email));
+    @GetMapping({"/my-passe", "/meu-passe"})
+    public ResponseEntity<?> getMyPasse(@AuthenticatedUser Utilizador utilizador) {
+        if (utilizador == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(ticketService.getUserPasse(utilizador.getEmail()));
     }
 }

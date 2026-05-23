@@ -1,0 +1,7 @@
+package pt.notub.payment;
+
+public interface PaymentProcessor {
+    PaymentResult initiatePayment(PaymentRequest request);
+    PaymentStatus checkStatus(String transactionRef);
+    String getProviderName();
+}

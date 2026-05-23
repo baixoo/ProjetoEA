@@ -1,5 +1,14 @@
 # NoTUB
 
+## TODO
+- Fazer todo o sistema de paragens, rotas,linhas etc a funcionar
+- Pagamentos a funcionar(melhorar) so que o callback é um true e transactionid que não é ideal e usa o ip localhost que pode dar problemas a testar no telemovel.
+- Fazer parte de inciar viagem no autocarro real ao ler o qr code.
+- Dá para adicionar a app como PWA no telemovel. Atualizar o logo no manifest.json para ser o da NoTUB.
+- Ver se o forget password está a funcionar. (Welcome email (Mailtrap) funciona na sandbox) nas APIS substituir pelas vossas credenciais de preferencia.
+- TicketController bypasses payment — POST /api/tickets/comprar and /passe/comprar create titles directly, no transacaoId required
+Pode faltar implementar mais coisas é verr conforme
+
 Este projeto corre sobre uma stack que utiliza **Vue/Quasar** no frontend, **Spring Boot**
 no backend e **PostgreSQL** para a base de dados, tudo orquestrado através de
 **Docker Compose** e protegido por um reverse proxy **Nginx** com SSL auto-gerado que pode ser
@@ -25,6 +34,7 @@ Criar o .env na root do projeto com:
 
 ```bash
 # Database configuration
+# Database configuration
 SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/notub
 
 POSTGRES_DB=notub
@@ -42,6 +52,32 @@ POSTGRES_HOST_PORT=5433
 GOOGLE_CLIENT_ID=781084617249-gjpk3dpmig6vpmv8rjek438a6mucca63.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=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
 FRONTEND_URL=https://localhost
+
+# RabbitMQ
+RABBITMQ_USERNAME=notub
+RABBITMQ_PASSWORD=notub123
+RABBITMQ_PORT=5672
+RABBITMQ_MANAGEMENT_PORT=15672
+
+# Stripe
+STRIPE_SECRET_KEY=sk_test_51TITKwE1nGtEv7WfxiOuR1qPFgAVzScitXIL3BIv8FoD7DNAAQmNmNet9xMVu1QCPaY0UpV2lwWwbEactnUWNh8g00xkTBGA36
+STRIPE_PUBLISHABLE_KEY=pk_test_51TITKwE1nGtEv7Wf1PfPStINwgabTLHXp18Tgdi3Q3XyxeRDPNLiXmMITtADzSsby7fyljxNRB12BdmV4xaSXSuj00kkaLvNle
+
+```
+
+Criar o .env no microserviço servico-email:
+
+```bash
+# Mailtrap SMTP
+MAILTRAP_USERNAME=053f7b83c94104
+MAILTRAP_PASSWORD=d90cc70e66ed89
+
+# RabbitMQ
+RABBITMQ_HOST=rabbitmq
+RABBITMQ_PORT=5672
+RABBITMQ_USERNAME=notub
+RABBITMQ_PASSWORD=notub123
+
 
 ```
 ### 2. Arranque do sistema

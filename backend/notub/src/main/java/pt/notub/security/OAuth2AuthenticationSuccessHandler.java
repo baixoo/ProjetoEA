@@ -22,7 +22,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final JwtUtils jwtUtils;
     private final UtilizadorRepository utilizadorRepository;
 
-    @Value("${FRONTEND_URL:http://localhost:9000}")
+    @Value("${FRONTEND_URL}")
     private String frontendUrl;
 
     public OAuth2AuthenticationSuccessHandler(JwtUtils jwtUtils, UtilizadorRepository utilizadorRepository) {

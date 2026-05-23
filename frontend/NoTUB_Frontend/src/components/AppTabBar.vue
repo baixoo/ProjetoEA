@@ -38,11 +38,9 @@ const tabs = [
 .tab-bar {
   position: fixed;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 375px;
-  max-width: 100%;
-  height: 78px;
+  left: 0;
+  width: 100%;
+  height: var(--tabbar-h, 78px);
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -56,14 +54,14 @@ const tabs = [
   align-items: flex-start;
   justify-content: space-around;
   height: 44px;
-  padding: 12px 26px 8px;
+  padding: 12px 0 8px;
 }
 
 .tab-bar__item {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 50px;
+  width: 48px;
   height: 24px;
   opacity: 0.3;
   text-decoration: none;
@@ -77,14 +75,14 @@ const tabs = [
 .tab-icon {
   width: 24px;
   height: 24px;
+  object-fit: contain;
 }
 
 .home-indicator {
   position: absolute;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 375px;
+  left: 0;
+  width: 100%;
   height: 34px;
   display: flex;
   align-items: flex-end;

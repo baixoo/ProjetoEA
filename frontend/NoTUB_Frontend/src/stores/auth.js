@@ -69,6 +69,30 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = await response.json()
   }
 
+  async function forgotPassword(email) {
+    const response = await fetch('/api/auth/esqueceu-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    })
+    if (!response.ok) {
+      const text = await response.text()
+      throw new Error(text || 'Erro ao solicitar recuperacao')
+    }
+  }
+
+  async function resetPassword(token, novaPassword) {
+    const response = await fetch('/api/auth/redefinir-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, novaPassword })
+    })
+    if (!response.ok) {
+      const text = await response.text()
+      throw new Error(text || 'Erro ao redefinir palavra-passe')
+    }
+  }
+
   function logout() {
     token.value = null
     user.value = null
@@ -84,6 +108,8 @@ export const useAuthStore = defineStore('auth', () => {
     setToken,
     fetchUser,
     updateProfile,
+    forgotPassword,
+    resetPassword,
     logout
   }
 })

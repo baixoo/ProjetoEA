@@ -8,6 +8,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -23,6 +24,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Autowired
@@ -34,7 +36,7 @@ public class SecurityConfig {
     @Autowired
     private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
-    @Value("${FRONTEND_URL:http://localhost:9000}")
+    @Value("${FRONTEND_URL}")
     private String frontendUrl;
 
     @Bean
@@ -72,6 +74,8 @@ public class SecurityConfig {
                     .requestMatchers("/api/tarifas/**").permitAll()
                     .requestMatchers("/api/zonas/**").permitAll()
                     .requestMatchers("/login/oauth2/**", "/oauth2/**").permitAll()
+                    .requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")
+                    .requestMatchers("/api/utilizadores").hasRole("ADMINISTRADOR")
                     .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2

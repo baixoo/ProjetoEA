@@ -11,11 +11,9 @@
 .brand-header {
   position: fixed;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 375px;
-  max-width: 100%;
-  height: 42px;
+  left: 0;
+  width: 100%;
+  height: var(--header-h, 42px);
   background: #fff;
   border-bottom: 0.5px solid #e6e6e6;
   z-index: 100;

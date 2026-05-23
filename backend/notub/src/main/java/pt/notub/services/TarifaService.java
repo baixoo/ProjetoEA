@@ -3,7 +3,7 @@ package pt.notub.services;
 import org.springframework.stereotype.Service;
 import pt.notub.models.ModalidadePasse;
 import pt.notub.models.Tarifa;
-import pt.notub.models.TipoPerfil;
+import pt.notub.models.TipoUtilizador;
 import pt.notub.repositories.TarifaRepository;
 
 import java.util.List;
@@ -26,16 +26,23 @@ public class TarifaService {
         return tarifaRepository.findById(id);
     }
 
-    public Optional<Tarifa> getTarifaByPerfilAndModalidade(TipoPerfil perfil, ModalidadePasse modalidade) {
-        return tarifaRepository.findByPerfilAndModalidade(perfil, modalidade);
+    public Optional<Tarifa> getTarifaByTipoUtilizadorAndModalidade(TipoUtilizador tipoUtilizador, ModalidadePasse modalidade) {
+        return tarifaRepository.findByTipoUtilizadorAndModalidadeAndNrZonas(tipoUtilizador, modalidade, 0);
     }
 
-    public List<Tarifa> getTarifasByPerfil(TipoPerfil perfil) {
-        return tarifaRepository.findByPerfil(perfil);
+    public List<Tarifa> getTarifasByTipoUtilizador(TipoUtilizador tipoUtilizador) {
+        return tarifaRepository.findByTipoUtilizador(tipoUtilizador);
     }
 
     public List<Tarifa> getTarifasByModalidade(ModalidadePasse modalidade) {
         return tarifaRepository.findByModalidade(modalidade);
+    }
+
+    public Optional<Tarifa> calcularTarifa(TipoUtilizador tipoUtilizador, ModalidadePasse modalidade, int nrZonas) {
+        if (tipoUtilizador == null) {
+            return tarifaRepository.findByTipoUtilizadorIsNullAndModalidadeAndNrZonas(modalidade, nrZonas);
+        }
+        return tarifaRepository.findByTipoUtilizadorAndModalidadeAndNrZonas(tipoUtilizador, modalidade, nrZonas);
     }
 
     public Tarifa createTarifa(Tarifa tarifa) {
@@ -46,8 +53,9 @@ public class TarifaService {
         Tarifa tarifa = tarifaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tarifa not found"));
         tarifa.setValor(updated.getValor());
-        if (updated.getPerfil() != null) tarifa.setPerfil(updated.getPerfil());
+        if (updated.getTipoUtilizador() != null) tarifa.setTipoUtilizador(updated.getTipoUtilizador());
         if (updated.getModalidade() != null) tarifa.setModalidade(updated.getModalidade());
+        tarifa.setNrZonas(updated.getNrZonas());
         return tarifaRepository.save(tarifa);
     }
 

@@ -4,7 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pt.notub.models.ModalidadePasse;
 import pt.notub.models.Tarifa;
-import pt.notub.models.TipoPerfil;
+import pt.notub.models.TipoUtilizador;
 import pt.notub.services.TarifaService;
 
 import java.util.List;
@@ -31,11 +31,11 @@ public class TarifaController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/perfil/{perfil}")
-    public ResponseEntity<List<Tarifa>> getTarifasByPerfil(@PathVariable String perfil) {
+    @GetMapping("/tipo-utilizador/{tipoUtilizador}")
+    public ResponseEntity<List<Tarifa>> getTarifasByTipoUtilizador(@PathVariable String tipoUtilizador) {
         try {
-            TipoPerfil tipoPerfil = TipoPerfil.valueOf(perfil.toUpperCase());
-            return ResponseEntity.ok(tarifaService.getTarifasByPerfil(tipoPerfil));
+            TipoUtilizador tipo = TipoUtilizador.valueOf(tipoUtilizador.toUpperCase());
+            return ResponseEntity.ok(tarifaService.getTarifasByTipoUtilizador(tipo));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
@@ -51,17 +51,43 @@ public class TarifaController {
         }
     }
 
-    @GetMapping("/perfil/{perfil}/modalidade/{modalidade}")
-    public ResponseEntity<?> getTarifaByPerfilAndModalidade(@PathVariable String perfil, @PathVariable String modalidade) {
+    @GetMapping("/tipo-utilizador/{tipoUtilizador}/modalidade/{modalidade}")
+    public ResponseEntity<?> getTarifaByTipoUtilizadorAndModalidade(@PathVariable String tipoUtilizador, @PathVariable String modalidade) {
         try {
-            TipoPerfil tipoPerfil = TipoPerfil.valueOf(perfil.toUpperCase());
+            TipoUtilizador tipo = TipoUtilizador.valueOf(tipoUtilizador.toUpperCase());
             ModalidadePasse mod = ModalidadePasse.valueOf(modalidade.toUpperCase());
-            return tarifaService.getTarifaByPerfilAndModalidade(tipoPerfil, mod)
+            return tarifaService.getTarifaByTipoUtilizadorAndModalidade(tipo, mod)
                     .map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @GetMapping("/calculadora")
+    public ResponseEntity<?> calcularTarifa(
+            @RequestParam(required = false) String tipoUtilizador,
+            @RequestParam(required = false) String modalidade,
+            @RequestParam int nrZonas) {
+        TipoUtilizador tipo = null;
+        if (tipoUtilizador != null) {
+            try {
+                tipo = TipoUtilizador.valueOf(tipoUtilizador.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body("Tipo de utilizador invalido");
+            }
+        }
+        ModalidadePasse mod = null;
+        if (modalidade != null) {
+            try {
+                mod = ModalidadePasse.valueOf(modalidade.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body("Modalidade invalida");
+            }
+        }
+        return tarifaService.calcularTarifa(tipo, mod, nrZonas)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping

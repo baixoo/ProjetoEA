@@ -2,8 +2,8 @@
   <q-page class="auth-page">
     <div class="auth-content">
       <div class="auth-copy">
-        <h1 class="auth-title">Iniciar sessão</h1>
-        <p class="auth-subtitle">Insira os dados de autenticação</p>
+        <h1 class="auth-title">Iniciar sessao</h1>
+        <p class="auth-subtitle">Insira os dados de autenticacao</p>
       </div>
 
       <form class="auth-form" @submit.prevent="handleLogin">
@@ -13,6 +13,7 @@
             type="email"
             placeholder="Email"
             class="field__input"
+            autocomplete="email"
             required
           />
         </div>
@@ -22,8 +23,12 @@
             type="password"
             placeholder="Palavra-passe"
             class="field__input"
+            autocomplete="current-password"
             required
           />
+        </div>
+        <div class="forgot-row">
+          <a href="#" class="forgot-link" @click.prevent="$router.push('/forgot-password')">Esqueceu a palavra-passe?</a>
         </div>
         <p v-if="error" class="error-message">{{ error }}</p>
         <button type="submit" class="btn btn--primary" :disabled="loading">
@@ -43,12 +48,16 @@
       </button>
 
       <p class="auth-link-text">
-        Não tem uma conta? <router-link to="/signup" class="auth-link">Registe-se</router-link>.
+        Nao tem uma conta? <router-link to="/signup" class="auth-link">Registe-se</router-link>.
       </p>
       <p class="auth-terms">
-        Ao clicar em continuar, você concorda com os nossos <strong>Termos de Serviço</strong> e com a <strong>Política de Privacidade</strong>
+        Ao clicar em continuar, voce concorda com os nossos
+        <a href="#" class="terms-link" @click.prevent="showTerms">Termos de Servico</a> e com a
+        <a href="#" class="terms-link" @click.prevent="showPrivacy">Politica de Privacidade</a>
       </p>
     </div>
+
+    <TermsModal v-model="termsOpen" :section="termsSection" :title="termsTitle" />
   </q-page>
 </template>
 
@@ -56,6 +65,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
+import TermsModal from 'src/components/TermsModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -64,6 +74,21 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+const termsOpen = ref(false)
+const termsSection = ref('terms')
+const termsTitle = ref('Termos e Condicoes')
+
+function showTerms() {
+  termsSection.value = 'terms'
+  termsTitle.value = 'Termos e Condicoes'
+  termsOpen.value = true
+}
+
+function showPrivacy() {
+  termsSection.value = 'privacy'
+  termsTitle.value = 'Politica de Privacidade'
+  termsOpen.value = true
+}
 
 async function handleLogin() {
   error.value = ''
@@ -72,7 +97,7 @@ async function handleLogin() {
     await authStore.login(email.value, password.value)
     router.push('/home')
   } catch (e) {
-    error.value = e.message || 'Erro ao iniciar sessão'
+    error.value = e.message || 'Erro ao iniciar sessao'
   } finally {
     loading.value = false
   }
@@ -86,10 +111,10 @@ function googleLogin() {
 <style scoped>
 .auth-page {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   min-height: 100vh;
-  padding-top: 42px;
+  padding: calc(var(--header-h, 42px) + 32px) var(--page-pad, 20px) 32px;
   background: #fff;
 }
 
@@ -98,9 +123,7 @@ function googleLogin() {
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  padding: 0 24px;
   width: 100%;
-  max-width: 375px;
 }
 
 .auth-copy {
@@ -130,17 +153,16 @@ function googleLogin() {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  width: 327px;
-  max-width: 100%;
+  width: 100%;
 }
 
 .field__input {
   width: 100%;
-  height: 40px;
+  height: 44px;
   background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 8px 16px;
+  border: 1.5px solid var(--color-border, #d7d6d6);
+  border-radius: var(--radius-input, 8px);
+  padding: 0 16px;
   font-size: 14px;
   font-weight: 400;
   color: #000;
@@ -153,7 +175,22 @@ function googleLogin() {
 }
 
 .field__input:focus {
-  border-color: #1876d2;
+  border-color: var(--color-primary, #028e5c);
+}
+
+.forgot-row {
+  text-align: right;
+  margin-top: -8px;
+}
+
+.forgot-link {
+  font-size: 12px;
+  color: var(--color-primary, #028e5c);
+  text-decoration: none;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
 }
 
 .error-message {
@@ -164,8 +201,8 @@ function googleLogin() {
 
 .btn {
   width: 100%;
-  height: 40px;
-  border-radius: 8px;
+  height: 44px;
+  border-radius: var(--radius-input, 8px);
   border: none;
   font-size: 14px;
   font-weight: 500;
@@ -194,8 +231,7 @@ function googleLogin() {
 .btn--google {
   background: #eee;
   color: #000;
-  width: 327px;
-  max-width: 100%;
+  width: 100%;
 }
 
 .btn--google:hover {
@@ -213,8 +249,7 @@ function googleLogin() {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 327px;
-  max-width: 100%;
+  width: 100%;
 }
 
 .divider__line {
@@ -238,7 +273,7 @@ function googleLogin() {
 }
 
 .auth-link {
-  color: #2196f3;
+  color: var(--color-primary, #028e5c);
   text-decoration: none;
 }
 
@@ -254,8 +289,13 @@ function googleLogin() {
   line-height: 1.5;
 }
 
-.auth-terms strong {
-  color: #000;
-  font-weight: 400;
+.terms-link {
+  color: var(--color-primary, #028e5c);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.terms-link:hover {
+  text-decoration: underline;
 }
 </style>

@@ -7,7 +7,6 @@ import java.util.List;
 
 @Entity
 public class Utilizador {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -22,7 +21,14 @@ public class Utilizador {
     private LocalDate dataNascimento;
 
     @Enumerated(EnumType.STRING)
-    private TipoPerfil perfil;
+    private TipoUtilizador tipoUtilizador;
+
+    @Column(columnDefinition = "integer default 0")
+    private int nrPontos;
+
+    @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "varchar(20) default 'UTILIZADOR'")
+    private TipoPapel role = TipoPapel.UTILIZADOR;
 
     @JsonIgnore
     @OneToMany(mappedBy = "utilizador", cascade = CascadeType.ALL)
@@ -34,7 +40,6 @@ public class Utilizador {
 
     public Utilizador() {}
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getPrimeiroNome() { return primeiroNome; }
@@ -49,8 +54,12 @@ public class Utilizador {
     public void setPassword(String password) { this.password = password; }
     public LocalDate getDataNascimento() { return dataNascimento; }
     public void setDataNascimento(LocalDate dataNascimento) { this.dataNascimento = dataNascimento; }
-    public TipoPerfil getPerfil() { return perfil; }
-    public void setPerfil(TipoPerfil perfil) { this.perfil = perfil; }
+    public TipoUtilizador getTipoUtilizador() { return tipoUtilizador; }
+    public void setTipoUtilizador(TipoUtilizador tipoUtilizador) { this.tipoUtilizador = tipoUtilizador; }
+    public int getNrPontos() { return nrPontos; }
+    public void setNrPontos(int nrPontos) { this.nrPontos = nrPontos; }
+    public TipoPapel getRole() { return role; }
+    public void setRole(TipoPapel role) { this.role = role; }
     public List<Bilhete> getBilhetes() { return bilhetes; }
     public void setBilhetes(List<Bilhete> bilhetes) { this.bilhetes = bilhetes; }
     public Passe getPasse() { return passe; }

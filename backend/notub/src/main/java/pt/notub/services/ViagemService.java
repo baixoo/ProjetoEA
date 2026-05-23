@@ -16,20 +16,21 @@ public class ViagemService {
     private final UtilizadorRepository utilizadorRepository;
     private final ParagemRepository paragemRepository;
     private final TituloTransporteRepository tituloTransporteRepository;
+    private final ServicoPontos servicoPontos;
 
     public ViagemService(ViagemUtilizadorRepository viagemUtilizadorRepository,
                          ViagemVeiculoRepository viagemVeiculoRepository,
                          UtilizadorRepository utilizadorRepository,
                          ParagemRepository paragemRepository,
-                         TituloTransporteRepository tituloTransporteRepository) {
+                         TituloTransporteRepository tituloTransporteRepository,
+                         ServicoPontos servicoPontos) {
         this.viagemUtilizadorRepository = viagemUtilizadorRepository;
         this.viagemVeiculoRepository = viagemVeiculoRepository;
         this.utilizadorRepository = utilizadorRepository;
         this.paragemRepository = paragemRepository;
         this.tituloTransporteRepository = tituloTransporteRepository;
+        this.servicoPontos = servicoPontos;
     }
-
-    // ---- ViagemUtilizador ----
 
     public List<ViagemUtilizador> getAllViagensUtilizador() {
         return viagemUtilizadorRepository.findAll();
@@ -52,7 +53,7 @@ public class ViagemService {
         viagem.setParagemEntrada(paragemEntrada);
         viagem.setViagemVeiculo(viagemVeiculo);
         viagem.setInicio(LocalDateTime.now());
-        viagem.setEstado(EstadoViagem.EM_CURSO);
+        viagem.setEstado(EstadoViagem.ATIVA);
 
         return viagemUtilizadorRepository.save(viagem);
     }
@@ -67,10 +68,16 @@ public class ViagemService {
         viagem.setFim(LocalDateTime.now());
         viagem.setEstado(EstadoViagem.CONCLUIDA);
 
-        return viagemUtilizadorRepository.save(viagem);
-    }
+        ViagemUtilizador saved = viagemUtilizadorRepository.save(viagem);
 
-    // ---- ViagemVeiculo ----
+        if (viagem.getTitulo() instanceof Bilhete bilhete && bilhete.getUtilizador() != null) {
+            servicoPontos.atribuirPontosViagem(bilhete.getUtilizador().getId());
+        } else if (viagem.getTitulo() instanceof Passe passe && passe.getUtilizador() != null) {
+            servicoPontos.atribuirPontosViagem(passe.getUtilizador().getId());
+        }
+
+        return saved;
+    }
 
     public List<ViagemVeiculo> getAllViagensVeiculo() {
         return viagemVeiculoRepository.findAll();
@@ -90,5 +97,9 @@ public class ViagemService {
 
     public ViagemVeiculo createViagemVeiculo(ViagemVeiculo viagemVeiculo) {
         return viagemVeiculoRepository.save(viagemVeiculo);
+    }
+
+    public void deleteViagemVeiculo(Long id) {
+        viagemVeiculoRepository.deleteById(id);
     }
 }

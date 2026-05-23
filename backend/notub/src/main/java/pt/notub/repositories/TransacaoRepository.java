@@ -11,4 +11,5 @@ import java.util.List;
 public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
     List<Transacao> findByTituloId(Long tituloId);
     List<Transacao> findByEstadoPagamento(EstadoPagamento estado);
+    List<Transacao> findByUtilizadorId(Long utilizadorId);
 }

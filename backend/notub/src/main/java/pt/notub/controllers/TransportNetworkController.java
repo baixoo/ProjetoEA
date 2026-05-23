@@ -17,8 +17,6 @@ public class TransportNetworkController {
         this.networkService = networkService;
     }
 
-    // ---- Paragens ----
-
     @GetMapping("/paragens")
     public ResponseEntity<?> getParagens() {
         return ResponseEntity.ok(networkService.getAllParagens());
@@ -31,21 +29,17 @@ public class TransportNetworkController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // ---- Carreiras ----
-
-    @GetMapping("/carreiras")
-    public ResponseEntity<?> getCarreiras() {
-        return ResponseEntity.ok(networkService.getAllCarreiras());
+    @GetMapping("/linhas")
+    public ResponseEntity<?> getLinhas() {
+        return ResponseEntity.ok(networkService.getAllLinhas());
     }
 
-    @GetMapping("/carreiras/{id}")
-    public ResponseEntity<?> getCarreiraById(@PathVariable Long id) {
-        return networkService.getCarreiraById(id)
+    @GetMapping("/linhas/{id}")
+    public ResponseEntity<?> getLinhaById(@PathVariable Long id) {
+        return networkService.getLinhaById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
-
-    // ---- Trajetos ----
 
     @GetMapping("/trajetos")
     public ResponseEntity<?> getTrajetos() {
@@ -59,15 +53,13 @@ public class TransportNetworkController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/carreiras/{carreiraId}/trajetos")
-    public ResponseEntity<?> getTrajetosByCarreira(@PathVariable Long carreiraId) {
-        return ResponseEntity.ok(networkService.getTrajetosByCarreira(carreiraId));
+    @GetMapping("/linhas/{linhaId}/trajetos")
+    public ResponseEntity<?> getTrajetosByLinha(@PathVariable Long linhaId) {
+        return ResponseEntity.ok(networkService.getTrajetosByLinha(linhaId));
     }
 
-    // ---- Sequências de Paragem ----
-
-    @GetMapping("/trajetos/{trajetoId}/sequencias")
-    public ResponseEntity<?> getSequenciasByTrajeto(@PathVariable Long trajetoId) {
-        return ResponseEntity.ok(networkService.getSequenciasByTrajeto(trajetoId));
+    @GetMapping("/trajetos/{trajetoId}/pontos")
+    public ResponseEntity<?> getPontosByTrajeto(@PathVariable Long trajetoId) {
+        return ResponseEntity.ok(networkService.getPontosByTrajeto(trajetoId));
     }
 }

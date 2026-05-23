@@ -1,0 +1,43 @@
+package pt.notub.controllers;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import pt.notub.models.Utilizador;
+import pt.notub.security.AuthenticatedUser;
+import pt.notub.services.ServicoPontos;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/pontos")
+public class PontosController {
+
+    private final ServicoPontos servicoPontos;
+
+    public PontosController(ServicoPontos servicoPontos) {
+        this.servicoPontos = servicoPontos;
+    }
+
+    @GetMapping("/saldo")
+    public ResponseEntity<?> getSaldo(@AuthenticatedUser Utilizador utilizador) {
+        if (utilizador == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(Map.of("nrPontos", utilizador.getNrPontos()));
+    }
+
+    @GetMapping("/historico")
+    public ResponseEntity<?> getHistorico(@AuthenticatedUser Utilizador utilizador) {
+        if (utilizador == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(servicoPontos.getHistorico(utilizador.getId()));
+    }
+
+    @PostMapping("/utilizar")
+    public ResponseEntity<?> utilizarPontos(@AuthenticatedUser Utilizador utilizador, @RequestBody Map<String, Object> pedido) {
+        if (utilizador == null) return ResponseEntity.status(401).build();
+        int pontos = ((Number) pedido.get("pontos")).intValue();
+        if (pontos <= 0) return ResponseEntity.badRequest().body(Map.of("erro", "Pontos deve ser maior que zero"));
+        String descricao = (String) pedido.get("descricao");
+        servicoPontos.utilizarPontos(utilizador.getId(), pontos, descricao);
+        utilizador = servicoPontos.getUtilizadorAtualizado(utilizador.getId());
+        return ResponseEntity.ok(Map.of("nrPontos", utilizador.getNrPontos(), "mensagem", pontos + " pontos utilizados com sucesso"));
+    }
+}

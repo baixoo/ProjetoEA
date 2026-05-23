@@ -1,6 +1,7 @@
 package pt.notub.services;
 
 import org.springframework.stereotype.Service;
+import pt.notub.models.TipoUtilizador;
 import pt.notub.models.Utilizador;
 import pt.notub.repositories.UtilizadorRepository;
 
@@ -30,14 +31,21 @@ public class UtilizadorService {
 
     public Utilizador updateUtilizador(String email, Utilizador updated) {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
 
         if (updated.getPrimeiroNome() != null) utilizador.setPrimeiroNome(updated.getPrimeiroNome());
         if (updated.getUltimoNome() != null) utilizador.setUltimoNome(updated.getUltimoNome());
         if (updated.getNif() != null) utilizador.setNif(updated.getNif());
         if (updated.getDataNascimento() != null) utilizador.setDataNascimento(updated.getDataNascimento());
-        if (updated.getPerfil() != null) utilizador.setPerfil(updated.getPerfil());
+        if (updated.getTipoUtilizador() != null) utilizador.setTipoUtilizador(updated.getTipoUtilizador());
 
+        return utilizadorRepository.save(utilizador);
+    }
+
+    public Utilizador updateTipoUtilizador(Long id, TipoUtilizador tipoUtilizador) {
+        Utilizador utilizador = utilizadorRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+        utilizador.setTipoUtilizador(tipoUtilizador);
         return utilizadorRepository.save(utilizador);
     }
 

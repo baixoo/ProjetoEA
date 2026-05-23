@@ -1,13 +1,13 @@
 package pt.notub.services;
 
 import org.springframework.stereotype.Service;
-import pt.notub.models.Carreira;
+import pt.notub.models.Linha;
 import pt.notub.models.Paragem;
-import pt.notub.models.SequenciaParagem;
+import pt.notub.models.PontosDePassagem;
 import pt.notub.models.Trajeto;
-import pt.notub.repositories.CarreiraRepository;
+import pt.notub.repositories.LinhaRepository;
 import pt.notub.repositories.ParagemRepository;
-import pt.notub.repositories.SequenciaParagemRepository;
+import pt.notub.repositories.PontosDePassagemRepository;
 import pt.notub.repositories.TrajetoRepository;
 
 import java.util.List;
@@ -17,21 +17,19 @@ import java.util.Optional;
 public class TransportNetworkService {
 
     private final ParagemRepository paragemRepository;
-    private final CarreiraRepository carreiraRepository;
+    private final LinhaRepository linhaRepository;
     private final TrajetoRepository trajetoRepository;
-    private final SequenciaParagemRepository sequenciaParagemRepository;
+    private final PontosDePassagemRepository pontosDePassagemRepository;
 
     public TransportNetworkService(ParagemRepository paragemRepository,
-                                   CarreiraRepository carreiraRepository,
+                                   LinhaRepository linhaRepository,
                                    TrajetoRepository trajetoRepository,
-                                   SequenciaParagemRepository sequenciaParagemRepository) {
+                                   PontosDePassagemRepository pontosDePassagemRepository) {
         this.paragemRepository = paragemRepository;
-        this.carreiraRepository = carreiraRepository;
+        this.linhaRepository = linhaRepository;
         this.trajetoRepository = trajetoRepository;
-        this.sequenciaParagemRepository = sequenciaParagemRepository;
+        this.pontosDePassagemRepository = pontosDePassagemRepository;
     }
-
-    // ---- Paragens ----
 
     public List<Paragem> getAllParagens() {
         return paragemRepository.findAll();
@@ -41,17 +39,13 @@ public class TransportNetworkService {
         return paragemRepository.findById(id);
     }
 
-    // ---- Carreiras ----
-
-    public List<Carreira> getAllCarreiras() {
-        return carreiraRepository.findAll();
+    public List<Linha> getAllLinhas() {
+        return linhaRepository.findAll();
     }
 
-    public Optional<Carreira> getCarreiraById(Long id) {
-        return carreiraRepository.findById(id);
+    public Optional<Linha> getLinhaById(Long id) {
+        return linhaRepository.findById(id);
     }
-
-    // ---- Trajetos ----
 
     public List<Trajeto> getAllTrajetos() {
         return trajetoRepository.findAll();
@@ -61,13 +55,11 @@ public class TransportNetworkService {
         return trajetoRepository.findById(id);
     }
 
-    public List<Trajeto> getTrajetosByCarreira(Long carreiraId) {
-        return trajetoRepository.findByCarreiraId(carreiraId);
+    public List<Trajeto> getTrajetosByLinha(Long linhaId) {
+        return trajetoRepository.findByLinhaId(linhaId);
     }
 
-    // ---- SequenciaParagem ----
-
-    public List<SequenciaParagem> getSequenciasByTrajeto(Long trajetoId) {
-        return sequenciaParagemRepository.findByTrajetoIdOrderByOrdemAsc(trajetoId);
+    public List<PontosDePassagem> getPontosByTrajeto(Long trajetoId) {
+        return pontosDePassagemRepository.findByTrajetoIdOrderByOrdemAsc(trajetoId);
     }
 }

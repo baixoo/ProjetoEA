@@ -18,6 +18,20 @@ const routes = [
     ]
   },
   {
+    path: '/forgot-password',
+    component: () => import('layouts/AuthLayout.vue'),
+    children: [
+      { path: '', name: 'forgot-password', component: () => import('pages/ForgotPasswordPage.vue') }
+    ]
+  },
+  {
+    path: '/reset-password',
+    component: () => import('layouts/AuthLayout.vue'),
+    children: [
+      { path: '', name: 'reset-password', component: () => import('pages/ResetPasswordPage.vue') }
+    ]
+  },
+  {
     path: '/home',
     component: () => import('layouts/MainLayout.vue'),
     children: [
@@ -62,6 +76,15 @@ const routes = [
     component: () => import('layouts/MainLayout.vue'),
     children: [
       { path: '', name: 'traveling', component: () => import('pages/TravelingPage.vue'), meta: { activeTab: 'scan' } }
+    ],
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/terms',
+    name: 'terms',
+    component: () => import('layouts/MainLayout.vue'),
+    children: [
+      { path: '', component: () => import('pages/TermsPage.vue'), meta: { activeTab: 'account' } }
     ],
     meta: { requiresAuth: true }
   },

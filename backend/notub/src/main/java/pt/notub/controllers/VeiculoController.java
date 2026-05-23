@@ -19,6 +19,11 @@ public class VeiculoController {
         this.veiculoService = veiculoService;
     }
 
+    @PostMapping
+    public ResponseEntity<Veiculo> createVeiculo(@RequestBody Veiculo veiculo) {
+        return ResponseEntity.ok(veiculoService.saveVeiculo(veiculo));
+    }
+
     @GetMapping
     public ResponseEntity<List<Veiculo>> getAllVeiculos() {
         return ResponseEntity.ok(veiculoService.getAllVeiculos());
