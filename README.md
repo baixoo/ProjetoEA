@@ -2,7 +2,7 @@
 
 ## TODO
 - Fazer todo o sistema de paragens, rotas,linhas etc a funcionar
-- Pagamentos a funcionar(melhorar) so que o callback é um true e transactionid que não é ideal e usa o ip localhost que pode dar problemas a testar no telemovel.
+- Pagamentos a funcionar(melhorar) so que o callback, o que retorna do sucesso do stripe, é um true e transactionid que não é ideal e usa o ip localhost que pode dar problemas a testar no telemovel. Ideal era webhooks mas precisam de IPs fixos (talvez maquinas dos profs meias más)
 - Fazer parte de inciar viagem no autocarro real ao ler o qr code.
 - Dá para adicionar a app como PWA no telemovel. Atualizar o logo no manifest.json para ser o da NoTUB.
 - Ver se o forget password está a funcionar. (Welcome email (Mailtrap) funciona na sandbox) nas APIS substituir pelas vossas credenciais de preferencia.

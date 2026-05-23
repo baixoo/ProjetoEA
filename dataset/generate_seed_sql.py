@@ -15,7 +15,7 @@ NUM_ZONES = 3
 NUM_VEHICLES = 20
 NUM_VIAGENS = 30
 
-
+# FALTA OS CSV NAO FOI FEITO UPLOAD GITHUB PQ SAO MUITO GRANDES 
 def load_stops():
     stops = {}
     stop_names = []
