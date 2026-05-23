@@ -1,5 +1,9 @@
 # NoTUB
 
+## O que está feito até agora
+
+![O que está feito até agora](EstaFeitoAteAgora.svg)
+
 ## TODO
 - Fazer todo o sistema de paragens, rotas,linhas etc a funcionar
 - Pagamentos a funcionar(melhorar) so que o callback, o que retorna do sucesso do stripe, é um true e transactionid que não é ideal e usa o ip localhost que pode dar problemas a testar no telemovel. Ideal era webhooks mas precisam de IPs fixos (talvez maquinas dos profs meias más)
@@ -34,7 +38,6 @@ Criar o .env na root do projeto com:
 
 ```bash
 # Database configuration
-# Database configuration
 SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/notub
 
 POSTGRES_DB=notub
@@ -54,14 +57,22 @@ GOOGLE_CLIENT_SECRET=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
 FRONTEND_URL=https://localhost
 
 # RabbitMQ
-RABBITMQ_USERNAME=notub
-RABBITMQ_PASSWORD=notub123
+RABBITMQ_HOST=rabbitmq
 RABBITMQ_PORT=5672
 RABBITMQ_MANAGEMENT_PORT=15672
+RABBITMQ_USERNAME=notub
+RABBITMQ_PASSWORD=notub123
+
+RABBITMQ_EXCHANGE=notub.email.exchange
+RABBITMQ_FILA=notub.email.fila
+
+RABBITMQ_RK_UTILIZADOR_CRIADO=UTILIZADOR_CRIADO
+RABBITMQ_RK_RECUPERACAO_PASSWORD=RECUPERACAO_PASSWORD_PEDIDA
 
 # Stripe
 STRIPE_SECRET_KEY=sk_test_51TITKwE1nGtEv7WfxiOuR1qPFgAVzScitXIL3BIv8FoD7DNAAQmNmNet9xMVu1QCPaY0UpV2lwWwbEactnUWNh8g00xkTBGA36
 STRIPE_PUBLISHABLE_KEY=pk_test_51TITKwE1nGtEv7Wf1PfPStINwgabTLHXp18Tgdi3Q3XyxeRDPNLiXmMITtADzSsby7fyljxNRB12BdmV4xaSXSuj00kkaLvNle
+
 
 ```
 
@@ -78,7 +89,11 @@ RABBITMQ_PORT=5672
 RABBITMQ_USERNAME=notub
 RABBITMQ_PASSWORD=notub123
 
+RABBITMQ_EXCHANGE=notub.email.exchange
+RABBITMQ_FILA=notub.email.fila
 
+RABBITMQ_RK_UTILIZADOR_CRIADO=UTILIZADOR_CRIADO
+RABBITMQ_RK_RECUPERACAO_PASSWORD=RECUPERACAO_PASSWORD_PEDIDA
 ```
 ### 2. Arranque do sistema
 

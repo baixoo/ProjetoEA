@@ -28,30 +28,26 @@ public class PublicadorEventosEmail {
 
     public void publicarUtilizadorCriado(Long utilizadorId, String email, String primeiroNome, String ultimoNome) {
         Map<String, Object> evento = Map.of(
-            "tipoEvento", "UTILIZADOR_CRIADO",
-            "carimboTemporal", LocalDateTime.now().toString(),
-            "dados", Map.of(
-                "utilizadorId", utilizadorId,
-                "email", email,
-                "primeiroNome", primeiroNome,
-                "ultimoNome", ultimoNome != null ? ultimoNome : ""
-            )
+            "utilizadorId", utilizadorId,
+            "email", email,
+            "primeiroNome", primeiroNome,
+            "ultimoNome", ultimoNome != null ? ultimoNome : "",
+            "carimboTemporal", LocalDateTime.now().toString()
         );
+
         rabbitTemplate.convertAndSend(exchangeNome, routingKeyUtilizadorCriado, evento);
     }
 
     public void publicarRecuperacaoPassword(Long utilizadorId, String email, String primeiroNome, String token, String urlRecuperacao) {
         Map<String, Object> evento = Map.of(
-            "tipoEvento", "RECUPERACAO_PASSWORD_PEDIDA",
-            "carimboTemporal", LocalDateTime.now().toString(),
-            "dados", Map.of(
-                "utilizadorId", utilizadorId,
-                "email", email,
-                "primeiroNome", primeiroNome != null ? primeiroNome : "",
-                "tokenRecuperacao", token,
-                "urlRecuperacao", urlRecuperacao
-            )
+            "utilizadorId", utilizadorId,
+            "email", email,
+            "primeiroNome", primeiroNome != null ? primeiroNome : "",
+            "tokenRecuperacao", token,
+            "urlRecuperacao", urlRecuperacao,
+            "carimboTemporal", LocalDateTime.now().toString()
         );
+
         rabbitTemplate.convertAndSend(exchangeNome, routingKeyRecuperacaoPassword, evento);
     }
 }

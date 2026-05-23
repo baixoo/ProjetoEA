@@ -15,10 +15,10 @@ public class RegistoComandos {
 
     public RegistoComandos(List<ComandoEvento> comandos) {
         this.registo = comandos.stream()
-                .collect(Collectors.toMap(ComandoEvento::tipoEvento, Function.identity()));
+                .collect(Collectors.toMap(ComandoEvento::routingKey, Function.identity()));
     }
 
-    public ComandoEvento obterComando(String tipoEvento) {
-        return registo.get(tipoEvento);
+    public ComandoEvento obterComando(String routingKey) {
+        return registo.get(routingKey);
     }
 }

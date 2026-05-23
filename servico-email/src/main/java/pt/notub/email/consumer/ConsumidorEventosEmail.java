@@ -5,8 +5,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.messaging.handler.annotation.Header;
 import pt.notub.email.comando.ComandoEvento;
 import pt.notub.email.comando.RegistoComandos;
+
 
 import java.util.Map;
 
@@ -22,24 +24,22 @@ public class ConsumidorEventosEmail {
     }
 
     @RabbitListener(queues = "${notub.rabbitmq.fila}")
-    public void consumirEvento(Map<String, Object> evento) {
-        String tipoEvento = (String) evento.get("tipoEvento");
+    public void consumirEvento(Map<String, Object> evento,
+    @Header("amqp_receivedRoutingKey") String routingKey) {
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> dados = (Map<String, Object>) evento.get("dados");
+        logger.info("Evento recebido com routing key: {}", routingKey);
 
-        logger.info("Evento recebido: {}", tipoEvento);
+        ComandoEvento comando = registoComandos.obterComando(routingKey);
 
-        ComandoEvento comando = registoComandos.obterComando(tipoEvento);
         if (comando == null) {
-            logger.warn("Sem comando registado para o tipo: {}", tipoEvento);
+            logger.warn("Sem comando registado para routing key: {}", routingKey);
             return;
         }
 
         try {
-            comando.executar(dados);
+            comando.executar(evento);
         } catch (Exception e) {
-            logger.error("Erro ao executar comando para evento {}: {}", tipoEvento, e.getMessage(), e);
+            logger.error("Erro ao executar comando para routing key {}: {}", routingKey, e.getMessage(), e);
         }
     }
 }
