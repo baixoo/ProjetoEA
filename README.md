@@ -11,6 +11,8 @@
 - Dá para adicionar a app como PWA no telemovel. Atualizar o logo no manifest.json para ser o da NoTUB.
 - Ver se o forget password está a funcionar. (Welcome email (Mailtrap) funciona na sandbox) nas APIS substituir pelas vossas credenciais de preferencia.
 - TicketController bypasses payment — POST /api/tickets/comprar and /passe/comprar create titles directly, no transacaoId required
+- URLS de redirect como deve ser para Google,Stripe funcionarem, atualizar URLS tambem na parte do forget password e o de boas vindas(adicionar env e codigo)
+
 Pode faltar implementar mais coisas é verr conforme
 
 Este projeto corre sobre uma stack que utiliza **Vue/Quasar** no frontend, **Spring Boot**

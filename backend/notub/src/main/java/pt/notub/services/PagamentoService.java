@@ -26,7 +26,7 @@ public class PagamentoService {
     private final PaymentProcessorFactory processorFactory;
     private final ApplicationEventPublisher eventPublisher;
 
-    @org.springframework.beans.factory.annotation.Value("${FRONTEND_URL:https://localhost}")
+    @org.springframework.beans.factory.annotation.Value("${FRONTEND_URL}")
     private String frontendUrl;
 
     public PagamentoService(TransacaoRepository transacaoRepository,

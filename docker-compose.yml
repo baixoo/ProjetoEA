@@ -6,10 +6,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "${POSTGRES_HOST_PORT}:5432"
     volumes:
-      - pgdata:/var/lib/postgresql
+      - pgdata:/var/lib/postgresql/data
     networks:
       - notub
     healthcheck:
@@ -22,11 +20,8 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-notub}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-notub123}
-    ports:
-      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
-      - "${RABBITMQ_PORT:-5672}:5672"
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     networks:
       - notub
     healthcheck:
@@ -38,28 +33,33 @@ services:
   backend:
     build: ./backend/notub
     deploy:
-      replicas: 1
+      replicas: 2
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+
       JWT_SECRET: ${JWT_SECRET}
+
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      
       FRONTEND_URL: ${FRONTEND_URL}
+
       RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-notub}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-notub123}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
       RABBITMQ_FILA: ${RABBITMQ_FILA}
       RABBITMQ_RK_UTILIZADOR_CRIADO: ${RABBITMQ_RK_UTILIZADOR_CRIADO}
       RABBITMQ_RK_RECUPERACAO_PASSWORD: ${RABBITMQ_RK_RECUPERACAO_PASSWORD}
+      
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
     networks:
@@ -76,7 +76,7 @@ services:
       - ./servico-email/.env
     environment:
       RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
     networks:
       - notub
 
@@ -93,8 +93,8 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command: ["sh /docker-entrypoint.d/99-certs.sh && /docker-entrypoint.sh nginx -g 'daemon off;'"]
     ports:
+      - "${NGINX_PORT}:${NGINX_PORT}"
       - "80:80"
-      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/generate-certs.sh:/docker-entrypoint.d/99-certs.sh
@@ -106,7 +106,3 @@ services:
 
 volumes:
   pgdata:
-
-networks:
-  notub:
-    driver: bridge
