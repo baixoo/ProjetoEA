@@ -1,4 +1,4 @@
-package pt.notub.controllers;
+package pt.notub.controllers.Admin;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;

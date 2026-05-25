@@ -106,3 +106,7 @@ services:
 
 volumes:
   pgdata:
+
+networks:
+  notub:
+    driver: bridge
