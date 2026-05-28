@@ -12,6 +12,7 @@ import pt.notub.dto.request.LoginRequest;
 import pt.notub.dto.request.PedidoEsqueceuPassword;
 import pt.notub.dto.request.PedidoRedefinirPassword;
 import pt.notub.dto.request.RegisterRequest;
+import pt.notub.models.AuthMethod;
 import pt.notub.models.TipoPapel;
 import pt.notub.models.TokenRecuperacaoSenha;
 import pt.notub.models.Utilizador;
@@ -88,6 +89,7 @@ public class AuthController {
             utilizador.setDataNascimento(LocalDate.parse(registerRequest.getDataNascimento()));
         }
         utilizador.setRole(TipoPapel.UTILIZADOR);
+        utilizador.setAuthMethod(AuthMethod.CREDENTIALS);
         utilizadorRepository.save(utilizador);
         publicadorEventosEmail.publicarUtilizadorCriado(
                 utilizador.getId(), utilizador.getEmail(),

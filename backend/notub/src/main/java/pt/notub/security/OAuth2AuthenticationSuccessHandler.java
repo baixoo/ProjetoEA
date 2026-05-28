@@ -9,6 +9,7 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import pt.notub.models.AuthMethod;
 import pt.notub.models.Utilizador;
 import pt.notub.repositories.UtilizadorRepository;
 import pt.notub.services.PublicadorEventosEmail;
@@ -52,6 +53,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             utilizador.setEmail(email);
             utilizador.setPrimeiroNome(firstName);
             utilizador.setUltimoNome(lastName);
+            utilizador.setAuthMethod(AuthMethod.GOOGLE);
             utilizador = utilizadorRepository.save(utilizador);
             publicadorEventosEmail.publicarUtilizadorCriado(
                     utilizador.getId(), utilizador.getEmail(),

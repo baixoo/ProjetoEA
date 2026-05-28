@@ -4,6 +4,7 @@ import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.util.ByteArrayDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -18,6 +19,9 @@ public class ServicoEnvioEmail {
     private static final String REMETENTE = "notub@noreply.com";
 
     private final JavaMailSender mailSender;
+
+    @Value("${notub.frontend.url}")
+    private String frontendUrl;
 
     public ServicoEnvioEmail(JavaMailSender mailSender) {
         this.mailSender = mailSender;
@@ -70,7 +74,7 @@ public class ServicoEnvioEmail {
                   </table>
                 </div>
                 <div style="text-align:center;">
-                  <a href="https://localhost" style="display:inline-block;background:linear-gradient(135deg,#028e5c 0%,#01bc74 100%);color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:700;">
+                  <a href=\"""" + frontendUrl + """ style="display:inline-block;background:linear-gradient(135deg,#028e5c 0%,#01bc74 100%);color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:700;">
                     Comece a Explorar
                   </a>
                 </div>

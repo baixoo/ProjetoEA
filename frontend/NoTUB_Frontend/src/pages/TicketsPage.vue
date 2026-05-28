@@ -237,10 +237,6 @@ onMounted(async () => {
   }
 })
 
-watch(selectedZoneNum, () => {
-  loadPrices()
-})
-
 async function loadPrices() {
   const nr = selectedZoneNum.value
   const [single, pack5, monthly, annual] = await Promise.all([
@@ -277,6 +273,10 @@ async function loadCheckoutPrice() {
 const selectedZoneNum = computed(() => {
   const zone = zoneOptions.value.find(z => z.id === selectedZoneId.value)
   return zone ? zone.num : 1
+})
+
+watch(selectedZoneNum, () => {
+  loadPrices()
 })
 
 const zonaIdsForBackend = computed(() => {

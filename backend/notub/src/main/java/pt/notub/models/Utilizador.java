@@ -30,6 +30,10 @@ public class Utilizador {
     @Column(length = 20)
     private TipoPapel role = TipoPapel.UTILIZADOR;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private AuthMethod authMethod;
+
     @JsonIgnore
     @OneToMany(mappedBy = "utilizador", cascade = CascadeType.ALL)
     private List<Bilhete> bilhetes;
@@ -60,6 +64,8 @@ public class Utilizador {
     public void setNrPontos(int nrPontos) { this.nrPontos = nrPontos; }
     public TipoPapel getRole() { return role; }
     public void setRole(TipoPapel role) { this.role = role; }
+    public AuthMethod getAuthMethod() { return authMethod; }
+    public void setAuthMethod(AuthMethod authMethod) { this.authMethod = authMethod; }
     public List<Bilhete> getBilhetes() { return bilhetes; }
     public void setBilhetes(List<Bilhete> bilhetes) { this.bilhetes = bilhetes; }
     public Passe getPasse() { return passe; }

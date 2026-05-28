@@ -124,7 +124,7 @@
           <div class="field">
             <input v-model="form.dataNascimento" type="date" placeholder="Data de nascimento" class="field__input" />
           </div>
-          <div class="field">
+          <div v-if="authStore.user?.authMethod === 'CREDENTIALS'" class="field">
             <input v-model="form.password" type="password" placeholder="Palavra-passe" class="field__input" />
           </div>
           <p v-if="error" class="error-message">{{ error }}</p>
@@ -232,7 +232,7 @@ onMounted(async () => {
     form.nome = [u.primeiroNome, u.ultimoNome].filter(Boolean).join(' ')
     form.nif = u.nif || ''
     form.dataNascimento = u.dataNascimento || ''
-    form.password = '*****'
+    form.password = u.authMethod === 'CREDENTIALS' ? '*****' : ''
   }
   await Promise.all([
     fetchHistorico(),
