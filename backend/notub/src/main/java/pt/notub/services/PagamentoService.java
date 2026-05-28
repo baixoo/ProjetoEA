@@ -85,7 +85,7 @@ public class PagamentoService {
             }
         }
 
-        int nrZonas = request.getZonaIds().stream()
+        int nrZonas = (int) request.getZonaIds().stream()
                 .mapToLong(Long::longValue)
                 .max()
                 .orElse(1L);
