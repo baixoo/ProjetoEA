@@ -1,5 +1,6 @@
 package pt.notub.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.List;
 
@@ -13,6 +14,7 @@ public class Zona {
 
     private String nome;
 
+    @JsonIgnore
     @OneToMany
     @JoinColumn(name = "zona_id")
     private List<Paragem> paragens;

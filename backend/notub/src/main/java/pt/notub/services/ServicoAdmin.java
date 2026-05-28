@@ -26,11 +26,12 @@ public class ServicoAdmin {
 
     public Map<String, Object> getStats() {
         Map<String, Object> stats = new HashMap<>();
-        stats.put("totalUtilizadores", utilizadorRepository.count());
-        stats.put("totalBilhetesVendidos", bilheteRepository.count());
-        stats.put("totalPassesAtivos", passeRepository.count());
-        stats.put("veiculosAtivos", veiculoRepository.count());
-        stats.put("viagensEmCurso", viagemUtilizadorRepository.findByEstado(pt.notub.models.EstadoViagem.ATIVA).size());
+        stats.put("utilizadores", utilizadorRepository.count());
+        stats.put("bilhetes", bilheteRepository.count());
+        stats.put("passes", passeRepository.count());
+        stats.put("veiculos", veiculoRepository.count());
+        stats.put("transacoes", 0);
+        stats.put("viagens", viagemUtilizadorRepository.findByEstado(pt.notub.models.EstadoViagem.ATIVA).size());
         return stats;
     }
 }

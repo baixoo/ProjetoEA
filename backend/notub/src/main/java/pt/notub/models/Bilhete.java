@@ -1,5 +1,6 @@
 package pt.notub.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 @Entity
@@ -7,6 +8,7 @@ public class Bilhete extends TituloTransporte {
 
     private boolean usado;
 
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "utilizador_id")
     private Utilizador utilizador;

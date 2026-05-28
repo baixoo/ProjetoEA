@@ -1,5 +1,6 @@
 package pt.notub.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -9,6 +10,7 @@ public class Passe extends TituloTransporte {
     private LocalDateTime inicio;
     private LocalDateTime fim;
 
+    @JsonIgnore
     @OneToOne
     @JoinColumn(name = "utilizador_id")
     private Utilizador utilizador;

@@ -270,6 +270,17 @@ async function loadCheckoutPrice() {
   )
 }
 
+const zoneOptions = computed(() => {
+  if (viagensStore.zones?.length > 0) {
+    return viagensStore.zones
+  }
+  return [
+    { id: 1, num: 1 },
+    { id: 2, num: 2 },
+    { id: 3, num: 3 }
+  ]
+})
+
 const selectedZoneNum = computed(() => {
   const zone = zoneOptions.value.find(z => z.id === selectedZoneId.value)
   return zone ? zone.num : 1
@@ -321,17 +332,6 @@ const activePassExpiry = computed(() => {
   if (!ticketsStore.activePass?.fim) return ''
   const d = new Date(ticketsStore.activePass.fim)
   return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })
-})
-
-const zoneOptions = computed(() => {
-  if (viagensStore.zones?.length > 0) {
-    return viagensStore.zones
-  }
-  return [
-    { id: 1, num: 1 },
-    { id: 2, num: 2 },
-    { id: 3, num: 3 }
-  ]
 })
 
 const totalPrice = computed(() => {

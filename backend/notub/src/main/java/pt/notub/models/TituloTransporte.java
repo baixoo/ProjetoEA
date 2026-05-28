@@ -1,5 +1,6 @@
 package pt.notub.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.List;
 
@@ -11,6 +12,7 @@ public abstract class TituloTransporte {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "titulo")
     private List<ViagemUtilizador> viagens;
 

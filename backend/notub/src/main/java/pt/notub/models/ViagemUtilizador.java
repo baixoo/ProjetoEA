@@ -1,5 +1,6 @@
 package pt.notub.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -16,6 +17,7 @@ public class ViagemUtilizador {
     @Enumerated(EnumType.STRING)
     private EstadoViagem estado;
 
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "titulo_id")
     private TituloTransporte titulo;
