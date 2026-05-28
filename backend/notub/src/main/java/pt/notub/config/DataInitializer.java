@@ -8,10 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import pt.notub.models.AuthMethod;
-import pt.notub.models.TipoPapel;
-import pt.notub.models.TipoUtilizador;
-import pt.notub.models.Utilizador;
+import pt.notub.models.*;
 import pt.notub.repositories.UtilizadorRepository;
 
 @Configuration
