@@ -1,11 +1,11 @@
 <template>
-  <q-page class="oauth-page">
+  <div class="oauth-page">
     <div class="oauth-content">
       <q-spinner size="48px" color="primary" />
       <p class="oauth-text">A autenticar...</p>
       <p v-if="error" class="oauth-error">{{ error }}</p>
     </div>
-  </q-page>
+  </div>
 </template>
 
 <script setup>

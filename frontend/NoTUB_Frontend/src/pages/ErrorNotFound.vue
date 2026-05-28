@@ -1,11 +1,11 @@
 <template>
-  <q-page class="error-page">
+  <div class="error-page">
     <div class="error-content">
       <h1 class="error-code">404</h1>
       <p class="error-text">Página não encontrada</p>
       <router-link to="/home" class="error-link">Voltar ao início</router-link>
     </div>
-  </q-page>
+  </div>
 </template>
 
 <script setup>
