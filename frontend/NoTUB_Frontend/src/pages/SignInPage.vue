@@ -62,12 +62,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import TermsModal from 'src/components/TermsModal.vue'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const email = ref('')
@@ -77,6 +78,12 @@ const loading = ref(false)
 const termsOpen = ref(false)
 const termsSection = ref('terms')
 const termsTitle = ref('Termos e Condicoes')
+
+onMounted(() => {
+  if (route.query.oauth_error) {
+    error.value = 'Autenticacao com Google falhou. Tente novamente.'
+  }
+})
 
 function showTerms() {
   termsSection.value = 'terms'

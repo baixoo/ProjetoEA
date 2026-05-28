@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -37,6 +38,9 @@ public class SecurityConfig {
     private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
     @Autowired
+    private OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+
+    @Autowired
     private CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository;
 
     @Value("${FRONTEND_URL}")
@@ -65,8 +69,26 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+    @Order(1)
+    public SecurityFilterChain oauth2ClientFilterChain(HttpSecurity http) throws Exception {
+        http.securityMatcher("/oauth2/**", "/login/oauth2/**")
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+            .oauth2Login(oauth2 -> oauth2
+                .authorizationEndpoint(endpoint -> endpoint
+                    .authorizationRequestRepository(cookieOAuth2AuthorizationRequestRepository))
+                .successHandler(oAuth2AuthenticationSuccessHandler)
+                .failureHandler(oAuth2AuthenticationFailureHandler)
+            );
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
+    public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
+        http.securityMatcher("/**")
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -76,15 +98,9 @@ public class SecurityConfig {
                     .requestMatchers("/api/network/**").permitAll()
                     .requestMatchers("/api/tarifas/**").permitAll()
                     .requestMatchers("/api/zonas/**").permitAll()
-                    .requestMatchers("/login/oauth2/**", "/oauth2/**").permitAll()
                     .requestMatchers("/api/admin/**").hasRole("ADMINISTRADOR")
                     .requestMatchers("/api/utilizadores").hasRole("ADMINISTRADOR")
                     .anyRequest().authenticated()
-            )
-            .oauth2Login(oauth2 -> oauth2
-                .authorizationEndpoint(endpoint -> endpoint
-                    .authorizationRequestRepository(cookieOAuth2AuthorizationRequestRepository))
-                .successHandler(oAuth2AuthenticationSuccessHandler)
             );
 
         http.authenticationProvider(authenticationProvider());
