@@ -39,7 +39,8 @@ public class TarifaService {
     }
 
     public Optional<Tarifa> calcularTarifa(TipoUtilizador tipoUtilizador, ModalidadePasse modalidade, int nrZonas) {
-        return tarifaRepository.findByCriteria(tipoUtilizador, modalidade, nrZonas);
+        TipoUtilizador tipo = tipoUtilizador != null ? tipoUtilizador : TipoUtilizador.ADULTO;
+        return tarifaRepository.findByCriteria(tipo, modalidade, nrZonas);
     }
 
     public Tarifa createTarifa(Tarifa tarifa) {

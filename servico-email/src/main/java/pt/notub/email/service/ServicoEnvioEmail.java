@@ -37,43 +37,59 @@ public class ServicoEnvioEmail {
             helper.setSubject("Bem-vindo ao NoTUB!");
 
             String html = """
-                    <div style="max-width:480px;margin:0 auto;font-family:'Segoe UI',Arial,sans-serif;background:#f8f9fa;border-radius:12px;overflow:hidden;">
-                      <div style="background:linear-gradient(135deg,#0e2d24 0%%,#028e5c 100%%);padding:32px 24px;text-align:center;">
-                        <img src="cid:logoNotub" alt="NoTUB" style="height:48px;margin-bottom:12px;"/>
-                        <h1 style="color:#ffffff;font-size:22px;font-weight:800;margin:0;">Bem-vindo ao NoTUB!</h1>
-                      </div>
-                      <div style="padding:28px 24px;">
-                        <p style="font-size:16px;color:#212529;margin:0 0 16px 0;">Ol&aacute; <strong>%s</strong>,</p>
-                    <p style="font-size:14px;color:#495057;line-height:1.6;margin:0 0 20px 0;">
-                      A sua conta foi criada com sucesso! Est&aacute; pronto para come&ccedil;ar a viajar connosco.
-                    </p>
-                    <div style="background:#ffffff;border:1px solid #e9ecef;border-radius:10px;padding:20px;margin:0 0 20px 0;">
-                      <p style="font-size:14px;color:#028e5c;font-weight:700;margin:0 0 12px 0;">O que pode fazer com o NoTUB:</p>
-                      <table style="width:100%%;border-collapse:collapse;">
-                        <tr>
-                          <td style="padding:6px 0;font-size:13px;color:#495057;">
-                            <span style="color:#028e5c;">&#10003;</span> Comprar bilhetes e passes
-                          </td>
-                        </tr>
-                        <tr>
-                          <td style="padding:6px 0;font-size:13px;color:#495057;">
-                            <span style="color:#028e5c;">&#10003;</span> Planear as suas viagens
-                          </td>
-                        </tr>
-                        <tr>
-                          <td style="padding:6px 0;font-size:13px;color:#495057;">
-                            <span style="color:#028e5c;">&#10003;</span> Acumular e resgatar pontos
-                          </td>
-                        </tr>
-                        <tr>
-                          <td style="padding:6px 0;font-size:13px;color:#495057;">
-                            <span style="color:#028e5c;">&#10003;</span> Consultar hor&aacute;rios em tempo real
-                          </td>
-                        </tr>
-                      </table>
-                    </div>
-                    <div style="text-align:center;">
-                      <a href="%snull""".formatted(nome, frontendUrl);
+            <div style="max-width:480px;margin:0 auto;font-family:'Segoe UI',Arial,sans-serif;background:#f8f9fa;border-radius:12px;overflow:hidden;">
+              <div style="background:linear-gradient(135deg,#0e2d24 0%,#028e5c 100%);padding:32px 24px;text-align:center;">
+                <img src="cid:logoNotub" alt="NoTUB" style="height:48px;margin-bottom:12px;"/>
+                <h1 style="color:#ffffff;font-size:22px;font-weight:800;margin:0;">Bem-vindo ao NoTUB!</h1>
+              </div>
+              <div style="padding:28px 24px;">
+                <p style="font-size:16px;color:#212529;margin:0 0 16px 0;">Ol&aacute; <strong>""" + nome + """
+                </strong>,</p>
+                <p style="font-size:14px;color:#495057;line-height:1.6;margin:0 0 20px 0;">
+                  A sua conta foi criada com sucesso! Est&aacute; pronto para come&ccedil;ar a viajar connosco.
+                </p>
+                <div style="background:#ffffff;border:1px solid #e9ecef;border-radius:10px;padding:20px;margin:0 0 20px 0;">
+                  <p style="font-size:14px;color:#028e5c;font-weight:700;margin:0 0 12px 0;">O que pode fazer com o NoTUB:</p>
+                  <table style="width:100%;border-collapse:collapse;">
+                    <tr>
+                      <td style="padding:6px 0;font-size:13px;color:#495057;">
+                        <span style="color:#028e5c;">&#10003;</span> Comprar bilhetes e passes
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;font-size:13px;color:#495057;">
+                        <span style="color:#028e5c;">&#10003;</span> Planear as suas viagens
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;font-size:13px;color:#495057;">
+                        <span style="color:#028e5c;">&#10003;</span> Acumular e resgatar pontos
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:6px 0;font-size:13px;color:#495057;">
+                        <span style="color:#028e5c;">&#10003;</span> Consultar hor&aacute;rios em tempo real
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+                <div style="text-align:center;margin:0 0 20px 0;">
+                  <a href=\"""" + frontendUrl + """
+                  " style="display:inline-block;background:linear-gradient(135deg,#028e5c 0%,#01bc74 100%);color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:700;">
+                    Come&ccedil;ar a Usar o NoTUB
+                  </a>
+                </div>
+              </div>
+              <div style="background:#0e2d24;padding:20px 24px;text-align:center;">
+                <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:0;">
+                  Equipa NoTUB &bull; Transportes (NO) Urbanos de Braga
+                </p>
+                <p style="font-size:10px;color:rgba(255,255,255,0.4);margin:6px 0 0 0;">
+                  Este email foi enviado automaticamente. N&atilde;o responda a esta mensagem.
+                </p>
+              </div>
+            </div>
+            """;
 
             helper.setText(html, true);
 

@@ -36,6 +36,9 @@ public class SecurityConfig {
     @Autowired
     private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
+    @Autowired
+    private CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository;
+
     @Value("${FRONTEND_URL}")
     private String frontendUrl;
 
@@ -79,6 +82,8 @@ public class SecurityConfig {
                     .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
+                .authorizationEndpoint(endpoint -> endpoint
+                    .authorizationRequestRepository(cookieOAuth2AuthorizationRequestRepository))
                 .successHandler(oAuth2AuthenticationSuccessHandler)
             );
 
