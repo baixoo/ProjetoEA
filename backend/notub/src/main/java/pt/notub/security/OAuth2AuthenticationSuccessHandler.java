@@ -11,6 +11,7 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 import org.springframework.stereotype.Component;
 import pt.notub.models.Utilizador;
 import pt.notub.repositories.UtilizadorRepository;
+import pt.notub.services.PublicadorEventosEmail;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -21,13 +22,16 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     private final JwtUtils jwtUtils;
     private final UtilizadorRepository utilizadorRepository;
+    private final PublicadorEventosEmail publicadorEventosEmail;
 
     @Value("${FRONTEND_URL}")
     private String frontendUrl;
 
-    public OAuth2AuthenticationSuccessHandler(JwtUtils jwtUtils, UtilizadorRepository utilizadorRepository) {
+    public OAuth2AuthenticationSuccessHandler(JwtUtils jwtUtils, UtilizadorRepository utilizadorRepository,
+                                              PublicadorEventosEmail publicadorEventosEmail) {
         this.jwtUtils = jwtUtils;
         this.utilizadorRepository = utilizadorRepository;
+        this.publicadorEventosEmail = publicadorEventosEmail;
     }
 
     @Override
@@ -40,19 +44,24 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String firstName = oAuth2User.getAttribute("given_name");
         String lastName = oAuth2User.getAttribute("family_name");
 
-        // Create or find user
-        Utilizador utilizador = utilizadorRepository.findByEmail(email).orElseGet(() -> {
-            Utilizador newUser = new Utilizador();
-            newUser.setEmail(email);
-            newUser.setPrimeiroNome(firstName);
-            newUser.setUltimoNome(lastName);
-            return utilizadorRepository.save(newUser);
-        });
+        boolean isNewUser = utilizadorRepository.findByEmail(email).isEmpty();
 
-        // Generate JWT
+        Utilizador utilizador;
+        if (isNewUser) {
+            utilizador = new Utilizador();
+            utilizador.setEmail(email);
+            utilizador.setPrimeiroNome(firstName);
+            utilizador.setUltimoNome(lastName);
+            utilizador = utilizadorRepository.save(utilizador);
+            publicadorEventosEmail.publicarUtilizadorCriado(
+                    utilizador.getId(), utilizador.getEmail(),
+                    utilizador.getPrimeiroNome(), utilizador.getUltimoNome());
+        } else {
+            utilizador = utilizadorRepository.findByEmail(email).get();
+        }
+
         String token = jwtUtils.generateTokenFromUsername(email);
 
-        // Redirect to frontend with token
         String redirectUrl = frontendUrl + "/oauth2/redirect?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
         getRedirectStrategy().sendRedirect(request, response, redirectUrl);
     }

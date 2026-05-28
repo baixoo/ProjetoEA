@@ -72,13 +72,27 @@ export const useTicketsStore = defineStore('tickets', () => {
     }
   }
 
-  async function checkPaymentStatus(transacaoId) {
+  async function checkPaymentStatus(token) {
     if (!authStore.token) throw new Error('Não autenticado')
-    const response = await fetch(`/api/pagamento/${transacaoId}/estado`, {
+    const response = await fetch(`/api/pagamento/estado?t=${encodeURIComponent(token)}`, {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
     if (!response.ok) throw new Error('Falha ao verificar estado')
     return await response.json()
+  }
+
+  async function fetchPrice(tipoProduto, nrZonas, modalidade) {
+    if (!authStore.token) return null
+    const params = new URLSearchParams({ nrZonas: String(nrZonas) })
+    if (modalidade) params.set('modalidade', modalidade)
+    const tipoUtilizador = authStore.user?.tipoUtilizador
+    if (tipoUtilizador) params.set('tipoUtilizador', tipoUtilizador)
+    const response = await fetch(`/api/tarifas/calculadora?${params}`, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    if (!response.ok) return null
+    const data = await response.json()
+    return data.valor ?? null
   }
 
   async function buyTickets(quantidade, zonaIds) {
@@ -146,6 +160,7 @@ export const useTicketsStore = defineStore('tickets', () => {
     fetchMyPass,
     checkout,
     checkPaymentStatus,
+    fetchPrice,
     buyTickets,
     buyPass
   }

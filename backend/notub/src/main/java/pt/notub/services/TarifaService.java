@@ -27,7 +27,7 @@ public class TarifaService {
     }
 
     public Optional<Tarifa> getTarifaByTipoUtilizadorAndModalidade(TipoUtilizador tipoUtilizador, ModalidadePasse modalidade) {
-        return tarifaRepository.findByTipoUtilizadorAndModalidadeAndNrZonas(tipoUtilizador, modalidade, 0);
+        return tarifaRepository.findByCriteria(tipoUtilizador, modalidade, 0);
     }
 
     public List<Tarifa> getTarifasByTipoUtilizador(TipoUtilizador tipoUtilizador) {
@@ -39,10 +39,7 @@ public class TarifaService {
     }
 
     public Optional<Tarifa> calcularTarifa(TipoUtilizador tipoUtilizador, ModalidadePasse modalidade, int nrZonas) {
-        if (tipoUtilizador == null) {
-            return tarifaRepository.findByTipoUtilizadorIsNullAndModalidadeAndNrZonas(modalidade, nrZonas);
-        }
-        return tarifaRepository.findByTipoUtilizadorAndModalidadeAndNrZonas(tipoUtilizador, modalidade, nrZonas);
+        return tarifaRepository.findByCriteria(tipoUtilizador, modalidade, nrZonas);
     }
 
     public Tarifa createTarifa(Tarifa tarifa) {

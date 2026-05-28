@@ -50,6 +50,10 @@
                 {{ activePassName || 'Não ativo' }}
               </span>
             </div>
+            <div v-if="activePassZoneLabel" class="status-item pass-zone-item">
+              <span class="status-label">Zonas:</span>
+              <span class="status-badge badge--active">{{ activePassZoneLabel }}</span>
+            </div>
             <div class="status-item points-item">
               <span class="status-label">Pontos Acumulados:</span>
               <span class="points-badge">
@@ -128,6 +132,12 @@ const activePassName = computed(() => {
   if (modalidade === 'H48') return 'Passe 48H'
   if (modalidade === 'H72') return 'Passe 72H'
   return 'Passe Ativo'
+})
+
+const activePassZoneLabel = computed(() => {
+  if (!ticketsStore.activePass?.zonas?.length) return null
+  const nums = ticketsStore.activePass.zonas.map(z => z.num).sort((a, b) => a - b)
+  return `Z${nums[0]} - Z${nums[nums.length - 1]}`
 })
 
 onMounted(async () => {
@@ -575,6 +585,11 @@ if (typeof window !== 'undefined') {
   margin-top: 4px;
   padding-top: 8px;
   border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.pass-zone-item {
+  padding-top: 0;
+  margin-top: -4px;
 }
 
 .points-badge {

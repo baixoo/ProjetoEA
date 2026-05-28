@@ -126,7 +126,7 @@ public class AuthController {
     @PostMapping("/redefinir-password")
     public ResponseEntity<?> redefinirPassword(@RequestBody PedidoRedefinirPassword pedido) {
         TokenRecuperacaoSenha token = tokenRecuperacaoSenhaRepository
-                .findByTokenAndUtilizadoFalse(pedido.getToken())
+                .findValidToken(pedido.getToken())
                 .orElseThrow(() -> new RuntimeException("Token invalido ou expirado"));
         if (token.getDataExpiracao().isBefore(LocalDateTime.now())) {
             return ResponseEntity.badRequest().body("Token de recuperacao expirado");

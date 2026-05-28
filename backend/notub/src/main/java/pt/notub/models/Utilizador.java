@@ -23,11 +23,11 @@ public class Utilizador {
     @Enumerated(EnumType.STRING)
     private TipoUtilizador tipoUtilizador;
 
-    @Column(columnDefinition = "integer default 0")
-    private int nrPontos;
+    @Column
+    private int nrPontos = 0;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "varchar(20) default 'UTILIZADOR'")
+    @Column(length = 20)
     private TipoPapel role = TipoPapel.UTILIZADOR;
 
     @JsonIgnore

@@ -25,7 +25,12 @@ onMounted(async () => {
     try {
       authStore.setToken(token)
       await authStore.fetchUser()
-      router.replace('/home')
+      const user = authStore.user
+      if (user && (!user.nif || !user.dataNascimento)) {
+        router.replace('/account')
+      } else {
+        router.replace('/home')
+      }
     } catch {
       error.value = 'Erro ao autenticar. Tente novamente.'
       authStore.logout()

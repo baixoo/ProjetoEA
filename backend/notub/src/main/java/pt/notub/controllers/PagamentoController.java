@@ -37,11 +37,13 @@ public class PagamentoController {
         }
     }
 
-    @GetMapping("/{id}/estado")
-    public ResponseEntity<?> verificarEstado(@AuthenticatedUser Utilizador utilizador, @PathVariable Long id) {
+    @GetMapping("/estado")
+    public ResponseEntity<?> verificarEstado(
+            @AuthenticatedUser Utilizador utilizador,
+            @RequestParam("t") String token) {
         if (utilizador == null) return ResponseEntity.status(401).build();
         try {
-            PagamentoStatusResponse response = pagamentoService.verificarEstado(id);
+            PagamentoStatusResponse response = pagamentoService.verificarEstado(token, utilizador.getId());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));

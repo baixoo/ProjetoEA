@@ -26,6 +26,9 @@ public class Transacao {
     private String modalidade;
     private String zonaIds;
 
+    @Column(unique = true)
+    private String token;
+
     @Column(columnDefinition = "TEXT")
     private String stripeSessionId;
 
@@ -65,4 +68,6 @@ public class Transacao {
     public void setTitulo(TituloTransporte titulo) { this.titulo = titulo; }
     public Utilizador getUtilizador() { return utilizador; }
     public void setUtilizador(Utilizador utilizador) { this.utilizador = utilizador; }
+    public String getToken() { return token; }
+    public void setToken(String token) { this.token = token; }
 }

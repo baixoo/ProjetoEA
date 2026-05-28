@@ -10,6 +10,7 @@ import pt.notub.dto.response.CheckoutResponse;
 import pt.notub.dto.response.PagamentoStatusResponse;
 import pt.notub.models.*;
 import pt.notub.payment.*;
+import pt.notub.repositories.TarifaRepository;
 import pt.notub.repositories.TransacaoRepository;
 import pt.notub.repositories.UtilizadorRepository;
 
@@ -20,9 +21,11 @@ import java.util.UUID;
 public class PagamentoService {
 
     private static final Logger logger = LoggerFactory.getLogger(PagamentoService.class);
+    private static final long CHECKOUT_TIMEOUT_MINUTES = 5;
 
     private final TransacaoRepository transacaoRepository;
     private final UtilizadorRepository utilizadorRepository;
+    private final TarifaRepository tarifaRepository;
     private final PaymentProcessorFactory processorFactory;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -31,10 +34,12 @@ public class PagamentoService {
 
     public PagamentoService(TransacaoRepository transacaoRepository,
                             UtilizadorRepository utilizadorRepository,
+                            TarifaRepository tarifaRepository,
                             PaymentProcessorFactory processorFactory,
                             ApplicationEventPublisher eventPublisher) {
         this.transacaoRepository = transacaoRepository;
         this.utilizadorRepository = utilizadorRepository;
+        this.tarifaRepository = tarifaRepository;
         this.processorFactory = processorFactory;
         this.eventPublisher = eventPublisher;
     }
@@ -46,13 +51,80 @@ public class PagamentoService {
 
         TipoProduto tipoProduto = TipoProduto.valueOf(request.getTipoProduto());
 
+        var existingOpt = transacaoRepository.findActiveByUser(
+                utilizador.getId(), EstadoPagamento.EM_CURSO);
+        if (existingOpt.isPresent()) {
+            Transacao existing = existingOpt.get();
+            boolean withinTimeout = existing.getDataHora()
+                    .plusMinutes(CHECKOUT_TIMEOUT_MINUTES)
+                    .isAfter(LocalDateTime.now());
+
+            if (withinTimeout) {
+                PaymentProcessor processor = processorFactory.getDefault();
+                PaymentStatus status = processor.checkStatus(existing.getStripeSessionId());
+
+                if (status.status() == PaymentProviderStatus.SUCCESS) {
+                    confirmarPagamento(existing.getId());
+                    return new CheckoutResponse(existing.getId(), existing.getToken(), null, "CONCLUIDO");
+                }
+                if (status.status() == PaymentProviderStatus.EXPIRED
+                        || status.status() == PaymentProviderStatus.DECLINED) {
+                    existing.setEstadoPagamento(EstadoPagamento.CANCELADO);
+                    transacaoRepository.save(existing);
+                } else {
+                    String url = processor.getSessionUrl(existing.getStripeSessionId());
+                    if (url != null) {
+                        return new CheckoutResponse(existing.getId(), existing.getToken(), url, "EM_CURSO");
+                    }
+                    existing.setEstadoPagamento(EstadoPagamento.CANCELADO);
+                    transacaoRepository.save(existing);
+                }
+            } else {
+                existing.setEstadoPagamento(EstadoPagamento.CANCELADO);
+                transacaoRepository.save(existing);
+            }
+        }
+
+        int nrZonas = request.getZonaIds().stream()
+                .mapToLong(Long::longValue)
+                .max()
+                .orElse(1L);
+
+        TipoUtilizador tipoUtilizador = utilizador.getTipoUtilizador();
+        if (tipoUtilizador == null) {
+            tipoUtilizador = TipoUtilizador.ADULTO;
+        }
+
+        float unitPrice;
+        if (tipoProduto == TipoProduto.BILHETE) {
+            unitPrice = tarifaRepository
+                    .findByCriteria(tipoUtilizador, null, nrZonas)
+                    .orElseThrow(() -> new RuntimeException("Tarifa nao encontrada para bilhete"))
+                    .getValor();
+        } else {
+            ModalidadePasse modalidade = ModalidadePasse.valueOf(request.getModalidade());
+            unitPrice = tarifaRepository
+                    .findByCriteria(tipoUtilizador, modalidade, nrZonas)
+                    .orElseThrow(() -> new RuntimeException("Tarifa nao encontrada para passe"))
+                    .getValor();
+        }
+
+        double totalValor;
+        if (tipoProduto == TipoProduto.BILHETE) {
+            int quantidade = request.getQuantidade() != null ? request.getQuantidade() : 1;
+            totalValor = unitPrice * quantidade;
+        } else {
+            totalValor = unitPrice;
+        }
+
         Transacao transacao = new Transacao();
         transacao.setUtilizador(utilizador);
         transacao.setDataHora(LocalDateTime.now());
         transacao.setEstadoPagamento(EstadoPagamento.EM_CURSO);
         transacao.setMetodoPagamento(MetodoPagamento.CARTAO);
         transacao.setTipoProduto(tipoProduto);
-        transacao.setValor(request.getValor());
+        transacao.setValor(totalValor);
+        transacao.setToken(UUID.randomUUID().toString());
         transacao.setZonaIds(request.getZonaIds().stream().map(String::valueOf).reduce((a, b) -> a + "," + b).orElse(""));
 
         if (tipoProduto == TipoProduto.BILHETE) {
@@ -71,9 +143,9 @@ public class PagamentoService {
                 : "Passe NoTUB " + transacao.getModalidade();
 
         PaymentRequest paymentRequest = new PaymentRequest(
-                request.getValor(), "eur", descricao, transacao.getId(),
-                frontendUrl + "/tickets?stripe_success=true&transacao_id=" + transacao.getId(),
-                frontendUrl + "/tickets?stripe_cancel=true&transacao_id=" + transacao.getId()
+                totalValor, "eur", descricao, transacao.getId(),
+                frontendUrl + "/tickets?stripe_success=true&t=" + transacao.getToken(),
+                frontendUrl + "/tickets?stripe_cancel=true&t=" + transacao.getToken()
         );
 
         PaymentResult result = processor.initiatePayment(paymentRequest);
@@ -81,7 +153,7 @@ public class PagamentoService {
         transacao.setStripeSessionId(result.providerTransactionId());
         transacaoRepository.save(transacao);
 
-        return new CheckoutResponse(transacao.getId(), result.redirectUrl(), "EM_CURSO");
+        return new CheckoutResponse(transacao.getId(), transacao.getToken(), result.redirectUrl(), "EM_CURSO");
     }
 
     @Transactional
@@ -119,12 +191,16 @@ public class PagamentoService {
         ));
     }
 
-    public PagamentoStatusResponse verificarEstado(Long transacaoId) {
-        Transacao transacao = transacaoRepository.findById(transacaoId)
+    public PagamentoStatusResponse verificarEstado(String token, Long userId) {
+        Transacao transacao = transacaoRepository.findByToken(token)
                 .orElseThrow(() -> new RuntimeException("Transacao nao encontrada"));
 
+        if (!transacao.getUtilizador().getId().equals(userId)) {
+            throw new RuntimeException("Acesso nao autorizado");
+        }
+
         PagamentoStatusResponse response = new PagamentoStatusResponse();
-        response.setTransacaoId(transacaoId);
+        response.setTransacaoId(transacao.getId());
         response.setEstado(transacao.getEstadoPagamento().name());
         response.setTituloCriado(transacao.getTitulo() != null);
 
@@ -144,11 +220,11 @@ public class PagamentoService {
             response.setPagamentoExternoStatus(status.rawStatus());
 
             if (status.status() == PaymentProviderStatus.SUCCESS) {
-                confirmarPagamento(transacaoId);
+                confirmarPagamento(transacao.getId());
                 response.setEstado(EstadoPagamento.CONCLUIDO.name());
                 response.setTituloCriado(true);
             } else if (status.status() == PaymentProviderStatus.EXPIRED || status.status() == PaymentProviderStatus.DECLINED) {
-                rejeitarPagamento(transacaoId);
+                rejeitarPagamento(transacao.getId());
                 response.setEstado(EstadoPagamento.REJEITADO.name());
             }
         }

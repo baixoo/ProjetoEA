@@ -76,6 +76,17 @@ public class StripePaymentProcessor implements PaymentProcessor {
         return "stripe";
     }
 
+    @Override
+    public String getSessionUrl(String sessionId) {
+        try {
+            Session session = Session.retrieve(sessionId);
+            return session.getUrl();
+        } catch (Exception e) {
+            logger.error("Erro ao obter URL da sessao Stripe {}: {}", sessionId, e.getMessage());
+            return null;
+        }
+    }
+
     private PaymentProviderStatus mapStatus(String stripeStatus) {
         if (stripeStatus == null) return PaymentProviderStatus.UNKNOWN;
         return switch (stripeStatus.toLowerCase()) {

@@ -18,6 +18,11 @@
           <span class="balance-value" :class="{ 'text-positive': hasActivePass }">
             {{ hasActivePass ? 'Ativo' : 'Inativo' }}
           </span>
+          <template v-if="hasActivePass">
+            <span class="balance-detail">{{ activePassModalidade }}</span>
+            <span class="balance-detail">{{ activePassZoneLabel }}</span>
+            <span class="balance-detail balance-expiry">Expira: {{ activePassExpiry }}</span>
+          </template>
         </div>
       </div>
 
@@ -34,7 +39,7 @@
               <p class="offer-desc">Valido para 1 viagem na rede NoTUB</p>
             </div>
             <div class="offer-price-action">
-              <span class="offer-price">1.50€</span>
+              <span class="offer-price">{{ ticketSinglePrice != null ? ticketSinglePrice.toFixed(2) + '€' : '...' }}</span>
               <button class="btn-add" @click="openCheckout('ticket_single')">
                 <span>Adicionar</span>
               </button>
@@ -50,7 +55,7 @@
               <p class="offer-desc">Desconto especial para viajantes frequentes</p>
             </div>
             <div class="offer-price-action">
-              <span class="offer-price">6.00€</span>
+              <span class="offer-price">{{ ticketPack5Price != null ? ticketPack5Price.toFixed(2) + '€' : '...' }}</span>
               <button class="btn-add" @click="openCheckout('ticket_pack5')">
                 <span>Adicionar</span>
               </button>
@@ -60,7 +65,7 @@
 
         <h2 class="section-title q-mt-lg">Passes Mensais & Anuais</h2>
         <div class="grid-layout">
-          <div class="offer-card">
+          <div class="offer-card" :class="{ 'offer-card--disabled': hasActivePass }">
             <div class="offer-icon bg-orange">
               <q-icon name="credit_card" size="28px" color="warning" />
             </div>
@@ -69,14 +74,15 @@
               <p class="offer-desc">Viagens ilimitadas durante 30 dias</p>
             </div>
             <div class="offer-price-action">
-              <span class="offer-price">40.00€</span>
-              <button class="btn-add" @click="openCheckout('pass_monthly')">
+              <span class="offer-price">{{ passMonthlyPrice != null ? passMonthlyPrice.toFixed(2) + '€' : '...' }}</span>
+              <span v-if="hasActivePass" class="btn-disabled-label">Passe ativo</span>
+              <button v-else class="btn-add" @click="openCheckout('pass_monthly')">
                 <span>Adicionar</span>
               </button>
             </div>
           </div>
 
-          <div class="offer-card">
+          <div class="offer-card" :class="{ 'offer-card--disabled': hasActivePass }">
             <div class="offer-icon bg-orange">
               <q-icon name="workspace_premium" size="28px" color="warning" />
             </div>
@@ -85,8 +91,9 @@
               <p class="offer-desc">Viagens ilimitadas durante 1 ano (Melhor Preco)</p>
             </div>
             <div class="offer-price-action">
-              <span class="offer-price">400.00€</span>
-              <button class="btn-add" @click="openCheckout('pass_annual')">
+              <span class="offer-price">{{ passAnnualPrice != null ? passAnnualPrice.toFixed(2) + '€' : '...' }}</span>
+              <span v-if="hasActivePass" class="btn-disabled-label">Passe ativo</span>
+              <button v-else class="btn-add" @click="openCheckout('pass_annual')">
                 <span>Adicionar</span>
               </button>
             </div>
@@ -107,7 +114,7 @@
         <div class="checkout-summary-card q-mb-md">
           <div class="summary-details">
             <span class="product-name">{{ currentProduct.name }}</span>
-            <span class="product-price-base">{{ currentProduct.price.toFixed(2) }}€ / unid</span>
+            <span class="product-price-base">{{ checkoutUnitPrice != null ? checkoutUnitPrice.toFixed(2) + '€ / unid' : '...' }}</span>
           </div>
           <div v-if="currentProduct.type === 'ticket'" class="quantity-selector">
             <q-btn round flat dense icon="remove" color="primary" @click="decreaseQty" :disabled="quantity <= 1" />
@@ -147,7 +154,7 @@
         </div>
 
         <!-- Pay Action Button -->
-        <button class="btn-pay" @click="processPayment" :disabled="submitting || !selectedZoneId">
+        <button class="btn-pay" @click="processPayment" :disabled="submitting || !selectedZoneId || checkoutUnitPrice == null">
           <q-spinner v-if="submitting" size="20px" class="q-mr-sm" />
           <span>{{ submitting ? 'A redirecionar para o pagamento...' : 'Confirmar e Pagar' }}</span>
         </button>
@@ -173,7 +180,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTicketsStore } from 'src/stores/tickets'
 import { useViagensStore } from 'src/stores/viagens'
@@ -189,6 +196,12 @@ const errorMessage = ref('')
 const quantity = ref(1)
 const selectedZoneId = ref(null)
 
+const ticketSinglePrice = ref(null)
+const ticketPack5Price = ref(null)
+const passMonthlyPrice = ref(null)
+const passAnnualPrice = ref(null)
+const checkoutUnitPrice = ref(null)
+
 const currentProduct = ref({
   id: '',
   name: '',
@@ -197,10 +210,10 @@ const currentProduct = ref({
 })
 
 const products = {
-  ticket_single: { id: 'ticket_single', name: 'Bilhete Simples', price: 1.50, type: 'ticket', ticketsQty: 1 },
-  ticket_pack5: { id: 'ticket_pack5', name: 'Pack 5 Viagens', price: 6.00, type: 'ticket', ticketsQty: 5 },
-  pass_monthly: { id: 'pass_monthly', name: 'Passe Mensal', price: 40.00, type: 'pass', modalidade: 'MENSAL' },
-  pass_annual: { id: 'pass_annual', name: 'Passe Anual', price: 400.00, type: 'pass', modalidade: 'ANUAL' }
+  ticket_single: { id: 'ticket_single', name: 'Bilhete Simples', type: 'ticket', ticketsQty: 1 },
+  ticket_pack5: { id: 'ticket_pack5', name: 'Pack 5 Viagens', type: 'ticket', ticketsQty: 5 },
+  pass_monthly: { id: 'pass_monthly', name: 'Passe Mensal', type: 'pass', modalidade: 'MENSAL' },
+  pass_annual: { id: 'pass_annual', name: 'Passe Anual', type: 'pass', modalidade: 'ANUAL' }
 }
 
 onMounted(async () => {
@@ -216,13 +229,50 @@ onMounted(async () => {
     selectedZoneId.value = 1
   }
 
-  if (route.query.stripe_success === 'true' && route.query.transacao_id) {
-    await pollStripeResult(Number(route.query.transacao_id))
+  if (route.query.stripe_success === 'true' && route.query.t) {
+    await pollStripeResult(route.query.t)
   }
   if (route.query.stripe_cancel === 'true') {
     errorMessage.value = 'Pagamento cancelado.'
   }
 })
+
+watch(selectedZoneNum, () => {
+  loadPrices()
+})
+
+async function loadPrices() {
+  const nr = selectedZoneNum.value
+  const [single, pack5, monthly, annual] = await Promise.all([
+    ticketsStore.fetchPrice('BILHETE', nr, null),
+    ticketsStore.fetchPrice('BILHETE', nr, null),
+    ticketsStore.fetchPrice('PASSE', nr, 'MENSAL'),
+    ticketsStore.fetchPrice('PASSE', nr, 'ANUAL')
+  ])
+  ticketSinglePrice.value = single
+  ticketPack5Price.value = pack5 != null ? pack5 * 5 : null
+  passMonthlyPrice.value = monthly
+  passAnnualPrice.value = annual
+
+  if (checkoutOpen.value) {
+    loadCheckoutPrice()
+  }
+}
+
+async function loadCheckoutPrice() {
+  const nr = selectedZoneNum.value
+  const prod = currentProduct.value
+  if (!prod.id) return
+  let modalidade = null
+  if (prod.type === 'pass') {
+    modalidade = products[prod.id]?.modalidade || null
+  }
+  checkoutUnitPrice.value = await ticketsStore.fetchPrice(
+    prod.type === 'ticket' ? 'BILHETE' : 'PASSE',
+    nr,
+    modalidade
+  )
+}
 
 const selectedZoneNum = computed(() => {
   const zone = zoneOptions.value.find(z => z.id === selectedZoneId.value)
@@ -243,7 +293,35 @@ const unusedTicketsCount = computed(() => {
   return (ticketsStore.tickets || []).filter(t => !t.usado).length
 })
 
-const hasActivePass = computed(() => !!ticketsStore.activePass)
+const hasActivePass = computed(() => {
+  if (!ticketsStore.activePass) return false
+  const fim = ticketsStore.activePass.fim
+  return fim ? new Date(fim) > new Date() : true
+})
+
+const activePassModalidade = computed(() => {
+  if (!ticketsStore.activePass) return ''
+  const m = ticketsStore.activePass.modalidade
+  if (m === 'MENSAL') return 'Passe Mensal'
+  if (m === 'ANUAL') return 'Passe Anual'
+  if (m === 'SEMANAL') return 'Passe Semanal'
+  if (m === 'H24') return 'Passe 24H'
+  if (m === 'H48') return 'Passe 48H'
+  if (m === 'H72') return 'Passe 72H'
+  return 'Passe Ativo'
+})
+
+const activePassZoneLabel = computed(() => {
+  if (!ticketsStore.activePass?.zonas?.length) return ''
+  const nums = ticketsStore.activePass.zonas.map(z => z.num).sort((a, b) => a - b)
+  return `Z${nums[0]} - Z${nums[nums.length - 1]}`
+})
+
+const activePassExpiry = computed(() => {
+  if (!ticketsStore.activePass?.fim) return ''
+  const d = new Date(ticketsStore.activePass.fim)
+  return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })
+})
 
 const zoneOptions = computed(() => {
   if (viagensStore.zones?.length > 0) {
@@ -257,10 +335,12 @@ const zoneOptions = computed(() => {
 })
 
 const totalPrice = computed(() => {
+  if (checkoutUnitPrice.value == null) return 0
   if (currentProduct.value.type === 'pass') {
-    return currentProduct.value.price
+    return checkoutUnitPrice.value
   }
-  return currentProduct.value.price * quantity.value
+  const unitQty = products[currentProduct.value.id]?.ticketsQty || 1
+  return checkoutUnitPrice.value * unitQty * quantity.value
 })
 
 function openCheckout(productId) {
@@ -278,7 +358,12 @@ function openCheckout(productId) {
   }
 
   checkoutOpen.value = true
+  loadCheckoutPrice()
 }
+
+watch(checkoutOpen, (open) => {
+  if (open) loadCheckoutPrice()
+})
 
 function increaseQty() {
   quantity.value++
@@ -298,7 +383,6 @@ async function processPayment() {
     const checkoutRequest = {
       metodoPagamento: 'CARTAO',
       tipoProduto: isTicket ? 'BILHETE' : 'PASSE',
-      valor: totalPrice.value,
       zonaIds: zonaIdsForBackend.value
     }
 
@@ -312,7 +396,11 @@ async function processPayment() {
 
     checkoutOpen.value = false
 
-    if (result.redirectUrl) {
+    if (result.estado === 'CONCLUIDO') {
+      await ticketsStore.fetchMyTickets()
+      await ticketsStore.fetchMyPass()
+      successOpen.value = true
+    } else if (result.redirectUrl) {
       window.location.href = result.redirectUrl
     }
   } catch (err) {
@@ -322,9 +410,9 @@ async function processPayment() {
   }
 }
 
-async function pollStripeResult(transacaoId) {
+async function pollStripeResult(token) {
   try {
-    const status = await ticketsStore.checkPaymentStatus(transacaoId)
+    const status = await ticketsStore.checkPaymentStatus(token)
     if (status.estado === 'CONCLUIDO') {
       await ticketsStore.fetchMyTickets()
       await ticketsStore.fetchMyPass()
@@ -412,6 +500,18 @@ function closeSuccess() {
   font-weight: 700;
 }
 
+.balance-detail {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 2px;
+}
+
+.balance-expiry {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+}
+
 .section-title {
   font-family: 'Inter', sans-serif;
   font-size: 16px;
@@ -441,6 +541,11 @@ function closeSuccess() {
 .offer-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0,0,0,0.05);
+}
+
+.offer-card--disabled {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .offer-icon {
@@ -516,6 +621,16 @@ function closeSuccess() {
 
 .btn-add:active {
   transform: scale(0.96);
+}
+
+.btn-disabled-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #868e96;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #e9ecef;
 }
 
 .checkout-sheet {
