@@ -89,6 +89,20 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/admin',
+    component: () => import('layouts/AdminLayout.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+    children: [
+      { path: '', name: 'admin-dashboard', component: () => import('pages/admin/AdminDashboardPage.vue') },
+      { path: 'users', name: 'admin-users', component: () => import('pages/admin/AdminUsersPage.vue') },
+      { path: 'vehicles', name: 'admin-vehicles', component: () => import('pages/admin/AdminVehiclesPage.vue') },
+      { path: 'tariffs', name: 'admin-tariffs', component: () => import('pages/admin/AdminTariffsPage.vue') },
+      { path: 'zones', name: 'admin-zones', component: () => import('pages/admin/AdminZonesPage.vue') },
+      { path: 'trips', name: 'admin-trips', component: () => import('pages/admin/AdminTripsPage.vue') },
+      { path: 'network', name: 'admin-network', component: () => import('pages/admin/AdminNetworkPage.vue') }
+    ]
+  },
+  {
     path: '/oauth2/redirect',
     name: 'oauth2-redirect',
     component: () => import('pages/OAuth2Redirect.vue')

@@ -21,6 +21,10 @@ export default route(() => {
       await authStore.fetchUser()
     }
 
+    if (to.meta.requiresAdmin && authStore.user?.role !== 'ADMINISTRADOR') {
+      return { name: 'home' }
+    }
+
     if ((to.name === 'signin' || to.name === 'signup') && authStore.isAuthenticated) {
       return { name: 'home' }
     }

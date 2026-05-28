@@ -6,11 +6,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.Base64;
 
 @Component
@@ -19,6 +16,7 @@ public class CookieOAuth2AuthorizationRequestRepository
 
     private static final String COOKIE_NAME = "oauth2_auth_request";
     private static final int COOKIE_MAX_AGE = 300;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
@@ -26,9 +24,7 @@ public class CookieOAuth2AuthorizationRequestRepository
         if (cookie == null) return null;
         try {
             byte[] bytes = Base64.getUrlDecoder().decode(cookie.getValue());
-            try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
-                return (OAuth2AuthorizationRequest) ois.readObject();
-            }
+            return objectMapper.readValue(bytes, OAuth2AuthorizationRequest.class);
         } catch (Exception e) {
             return null;
         }
@@ -44,11 +40,8 @@ public class CookieOAuth2AuthorizationRequestRepository
             return;
         }
         try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-                oos.writeObject(authorizationRequest);
-            }
-            String encoded = Base64.getUrlEncoder().encodeToString(baos.toByteArray());
+            byte[] bytes = objectMapper.writeValueAsBytes(authorizationRequest);
+            String encoded = Base64.getUrlEncoder().encodeToString(bytes);
             String headerValue = String.format(
                     "%s=%s; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=%d",
                     COOKIE_NAME, encoded, COOKIE_MAX_AGE);

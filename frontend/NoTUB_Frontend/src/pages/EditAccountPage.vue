@@ -137,6 +137,10 @@
 
       <!-- Bottom Actions -->
       <div class="bottom-actions">
+        <router-link v-if="authStore.user?.role === 'ADMINISTRADOR'" to="/admin" class="link-admin">
+          <q-icon name="admin_panel_settings" size="18px" />
+          <span>Painel de Administracao</span>
+        </router-link>
         <router-link to="/terms" class="link-terms">Termos e Condicoes</router-link>
         <button class="btn btn--logout" @click="handleLogout">
           <q-icon name="logout" size="18px" class="q-mr-xs" />
@@ -783,6 +787,27 @@ function formatDate(dateStr) {
   align-items: center;
   gap: 16px;
   padding-top: 8px;
+}
+
+.link-admin {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #028e5c;
+  text-decoration: none;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #028e5c;
+  border-radius: 10px;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.link-admin:hover {
+  background: #e6f7f0;
 }
 
 .link-terms {
