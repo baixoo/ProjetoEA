@@ -190,7 +190,7 @@ export default defineConfig((/* ctx */) => {
             icons: [{ src: 'icons/android-chrome-192x192.png', sizes: '192x192' }]
           },
           {
-            name: 'Escanear QR',
+            name: 'Ler QR',
             short_name: 'QR',
             url: '/scan',
             icons: [{ src: 'icons/android-chrome-192x192.png', sizes: '192x192' }]

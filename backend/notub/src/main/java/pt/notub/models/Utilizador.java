@@ -14,6 +14,7 @@ public class Utilizador {
     private String primeiroNome;
     private String ultimoNome;
     private String nif;
+    @Column(unique = true)
     private String email;
 
     @JsonIgnore

@@ -40,9 +40,6 @@ public class SecurityConfig {
     @Autowired
     private OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
 
-    @Autowired
-    private CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository;
-
     @Value("${FRONTEND_URL}")
     private String frontendUrl;
 
@@ -76,8 +73,6 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .oauth2Login(oauth2 -> oauth2
-                .authorizationEndpoint(endpoint -> endpoint
-                    .authorizationRequestRepository(cookieOAuth2AuthorizationRequestRepository))
                 .successHandler(oAuth2AuthenticationSuccessHandler)
                 .failureHandler(oAuth2AuthenticationFailureHandler)
             );

@@ -6,9 +6,11 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import tools.jackson.databind.ObjectMapper;
+import pt.notub.models.AuthMethod;
 import pt.notub.models.TipoPapel;
+import pt.notub.models.TipoUtilizador;
 import pt.notub.models.Utilizador;
 import pt.notub.repositories.UtilizadorRepository;
 
@@ -16,11 +18,6 @@ import pt.notub.repositories.UtilizadorRepository;
 public class DataInitializer {
 
     private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
-
-    @Bean
-    public ObjectMapper objectMapper() {
-        return new ObjectMapper();
-    }
 
     @Bean
     @Order(1)
@@ -35,8 +32,14 @@ public class DataInitializer {
                 admin.setPassword(passwordEncoder.encode("admin123"));
                 admin.setNif("000000000");
                 admin.setRole(TipoPapel.ADMINISTRADOR);
-                utilizadorRepository.save(admin);
-                logger.info("Admin criado: {}", adminEmail);
+                admin.setAuthMethod(AuthMethod.CREDENTIALS);
+                admin.setTipoUtilizador(TipoUtilizador.ADULTO);
+                try {
+                    utilizadorRepository.save(admin);
+                    logger.info("Admin criado: {}", adminEmail);
+                } catch (DataIntegrityViolationException e) {
+                    logger.info("Admin já existe (criado por outra réplica): {}", adminEmail);
+                }
             }
         };
     }
