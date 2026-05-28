@@ -1,6 +1,8 @@
-notub.bounceme.net {
+{
 	email alex090xa@gmail.com
+}
 
+notub.bounceme.net {
 	handle /api/* {
 		reverse_proxy backend:8080
 	}
