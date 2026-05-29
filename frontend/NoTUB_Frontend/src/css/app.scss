@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --page-max: 480px;
+  --page-pad: 20px;
+  --header-h: 42px;
+  --tabbar-h: 78px;
+  --radius-card: 12px;
+  --radius-input: 8px;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.12);
+  --color-primary: #028e5c;
+  --color-bg: #f8f9fa;
+  --color-text: #0b1a16;
+  --color-text-secondary: #6c757d;
+  --color-border: #d7d6d6;
+  --color-border-light: #e9ecef;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+input, button, textarea, select {
+  font-family: inherit;
+}
+
+@media (max-width: 480px) {
+  body {
+    background-color: #fff;
+  }
+  #q-app {
+    max-width: 100%;
+    margin: 0;
+    box-shadow: none;
+    min-height: 100vh;
+    position: relative;
+    background-color: #fff;
+  }
+}
+
+@media (min-width: 481px) {
+  body {
+    background-color: #eef2f5;
+  }
+  #q-app {
+    max-width: var(--page-max);
+    margin: 0 auto;
+    min-height: 100vh;
+    box-shadow: 0 0 24px rgba(0, 0, 0, 0.15);
+    position: relative;
+    background-color: #fff;
+  }
+}
