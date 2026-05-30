@@ -14,6 +14,7 @@
         <div class="boarding-header__info">
           <span class="boarding-header__plate">{{ busNumber || '---' }}</span>
           <span v-if="linhaNome" class="boarding-header__line">{{ linhaNome }}</span>
+          <span v-if="stopName" class="boarding-header__stop">Embarque: {{ stopName }}</span>
         </div>
       </div>
 
@@ -118,6 +119,12 @@ const ticketQty = ref(1)
 const linhaNome = computed(() => {
   const vt = (viagensStore.vehicleTrips || []).find(v => v.id == props.viagemVeiculoId)
   return vt?.trajeto?.linha?.nome || ''
+})
+
+const stopName = computed(() => {
+  if (!props.paragemEntradaId) return ''
+  const stop = (viagensStore.stops || []).find(s => s.id == props.paragemEntradaId)
+  return stop?.nome || ''
 })
 
 watch(() => props.modelValue, (val) => {
@@ -286,6 +293,12 @@ export default { name: 'BoardingDialog' }
   font-family: 'Inter', sans-serif;
   font-size: 12px;
   color: #028e5c;
+}
+
+.boarding-header__stop {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #6c757d;
 }
 
 .boarding-question {

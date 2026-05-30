@@ -42,6 +42,56 @@
           <q-btn flat dense icon="swap_horiz" label="Trocar Bus" @click="trocarBus" />
         </div>
 
+        <!-- Trip Control Panel -->
+        <div v-if="!driverStore.activeViagemVeiculo" class="trip-control-card">
+          <h3 class="trip-control-title">Iniciar Viagem</h3>
+          <p class="trip-control-desc">Selecione a rota e prima iniciar para comecar a receber validacoes.</p>
+
+          <q-select
+            v-model="selectedTrajetoId"
+            :options="trajetoOptions"
+            label="Rota (Linha - Direcao)"
+            outlined
+            dense
+            emit-value
+            map-options
+            class="q-mb-md"
+          />
+
+          <button
+            class="btn-start-trip"
+            :disabled="!selectedTrajetoId || driverStore.loading"
+            @click="startTrip"
+          >
+            <q-spinner v-if="driverStore.loading" size="18px" class="q-mr-sm" />
+            <q-icon v-else name="play_arrow" size="20px" class="q-mr-sm" />
+            <span>Iniciar Viagem</span>
+          </button>
+        </div>
+
+        <!-- Active Trip Status -->
+        <div v-else class="active-trip-card">
+          <div class="active-trip-header">
+            <div class="active-trip-indicator">
+              <span class="pulse-dot-sm"></span>
+              <span class="active-trip-label">Viagem Ativa</span>
+            </div>
+            <span class="active-trip-route">
+              {{ activeTripLinha }} - {{ activeTripDirecao }}
+            </span>
+          </div>
+
+          <button
+            class="btn-end-trip"
+            :disabled="driverStore.loading"
+            @click="endTrip"
+          >
+            <q-spinner v-if="driverStore.loading" size="18px" class="q-mr-sm" />
+            <q-icon v-else name="stop" size="20px" class="q-mr-sm" />
+            <span>Terminar Viagem</span>
+          </button>
+        </div>
+
         <div class="stats-bar">
           <div class="stat-item">
             <span class="stat-value">{{ driverStore.notifications.length }}</span>
@@ -94,10 +144,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useDriverStore } from 'src/stores/driver'
 
 const driverStore = useDriverStore()
+const selectedTrajetoId = ref(null)
 
 onMounted(async () => {
   await driverStore.fetchVehicles()
@@ -118,10 +169,37 @@ const recusadasCount = computed(() => driverStore.notifications.filter(n => !n.v
 function selecionarVeiculo(veiculoId) {
   driverStore.connectWebSocket(veiculoId)
   driverStore.fetchActiveTrips(veiculoId)
+  driverStore.fetchTrajetos()
 }
 
 function trocarBus() {
   driverStore.disconnect()
+  selectedTrajetoId.value = null
+}
+
+const trajetoOptions = computed(() => {
+  return (driverStore.trajetos || []).map(t => ({
+    label: `${t.linha} - ${t.direcao}`,
+    value: t.id
+  }))
+})
+
+const activeTripLinha = computed(() => {
+  return driverStore.activeViagemVeiculo?.trajeto?.linha?.nome || ''
+})
+
+const activeTripDirecao = computed(() => {
+  return driverStore.activeViagemVeiculo?.trajeto?.direcao || ''
+})
+
+async function startTrip() {
+  if (!selectedTrajetoId.value || !driverStore.selectedVehicleId) return
+  await driverStore.startViagem(driverStore.selectedVehicleId, selectedTrajetoId.value)
+}
+
+async function endTrip() {
+  await driverStore.endViagem()
+  selectedTrajetoId.value = null
 }
 
 function formatTime(timestamp) {
@@ -229,6 +307,122 @@ function formatTime(timestamp) {
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 12px 16px;
+}
+
+.trip-control-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.trip-control-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0b1a16;
+  margin: 0 0 4px;
+}
+
+.trip-control-desc {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0 0 12px;
+}
+
+.btn-start-trip {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #028e5c 0%, #01bc74 100%);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(2, 142, 92, 0.2);
+  transition: transform 0.2s;
+}
+
+.btn-start-trip:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.btn-start-trip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.active-trip-card {
+  background: #fff;
+  border: 2px solid #10b981;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.active-trip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.active-trip-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pulse-dot-sm {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: dot-pulse-green 1.6s infinite;
+}
+
+.active-trip-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.active-trip-route {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.btn-end-trip {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  transition: transform 0.2s;
+}
+
+.btn-end-trip:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: #dc2626;
+}
+
+.btn-end-trip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .live-bus-info {

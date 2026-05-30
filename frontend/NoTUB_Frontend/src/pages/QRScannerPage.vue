@@ -101,12 +101,14 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import { useViagensStore } from 'src/stores/viagens'
 import { useTicketsStore } from 'src/stores/tickets'
 import { useAuthStore } from 'src/stores/auth'
 import BoardingDialog from 'src/components/BoardingDialog.vue'
 import { Html5Qrcode } from 'html5-qrcode'
 
+const $q = useQuasar()
 const router = useRouter()
 const viagensStore = useViagensStore()
 const ticketsStore = useTicketsStore()
@@ -229,6 +231,7 @@ async function stopScanner() {
 
 function handleScannedCode(text) {
   console.log("QR Code lido com sucesso:", text)
+  $q.notify({ type: 'positive', message: `QR lido: ${text}`, position: 'top', timeout: 2000 })
   
   // 1. Try to parse as JSON first
   try {
@@ -319,9 +322,73 @@ const selectedBusNumber = computed(() => {
 })
 
 function triggerBoarding() {
-  if (selectedVehicleTrip.value && selectedStop.value) {
-    boardingOpen.value = true
+  if (!selectedVehicleTrip.value) return
+
+  if (!selectedStop.value) {
+    detectNearestStop()
+    return
   }
+
+  boardingOpen.value = true
+}
+
+function detectNearestStop() {
+  if (!navigator.geolocation) {
+    fallbackStop()
+    return
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const userLat = pos.coords.latitude
+      const userLng = pos.coords.longitude
+      const allStops = viagensStore.stops || []
+
+      let nearest = null
+      let minDist = Infinity
+
+      for (const stop of allStops) {
+        const loc = stop.localizacao
+        if (!loc) continue
+        const d = haversineKm(userLat, userLng, loc.latitude, loc.longitude)
+        if (d < minDist) {
+          minDist = d
+          nearest = stop
+        }
+      }
+
+      if (nearest) {
+        selectedStop.value = nearest.id
+        $q.notify({ type: 'info', message: `Paragem detetada: ${nearest.nome}`, position: 'top', timeout: 3000 })
+      } else {
+        fallbackStop()
+      }
+
+      boardingOpen.value = true
+    },
+    () => {
+      fallbackStop()
+    },
+    { timeout: 5000, enableHighAccuracy: true }
+  )
+}
+
+function fallbackStop() {
+  const first = (viagensStore.stops || [])[0]
+  if (first) {
+    selectedStop.value = first.id
+    $q.notify({ type: 'warning', message: 'Localização indisponível, paragem preenchida automaticamente', position: 'top', timeout: 3000 })
+  }
+  boardingOpen.value = true
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371
+  const toRad = (deg) => deg * Math.PI / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
 // Expose simulation helper globally for tests/automation

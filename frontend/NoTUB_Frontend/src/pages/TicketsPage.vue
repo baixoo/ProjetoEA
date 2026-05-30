@@ -39,7 +39,6 @@
               <p class="offer-desc">Valido para 1 viagem na rede NoTUB</p>
             </div>
             <div class="offer-price-action">
-              <span class="offer-price">{{ ticketSinglePrice != null ? ticketSinglePrice.toFixed(2) + '€' : '...' }}</span>
               <button class="btn-add" @click="openCheckout('ticket_single')">
                 <span>Adicionar</span>
               </button>
@@ -55,7 +54,6 @@
               <p class="offer-desc">Desconto especial para viajantes frequentes</p>
             </div>
             <div class="offer-price-action">
-              <span class="offer-price">{{ ticketPack5Price != null ? ticketPack5Price.toFixed(2) + '€' : '...' }}</span>
               <button class="btn-add" @click="openCheckout('ticket_pack5')">
                 <span>Adicionar</span>
               </button>
@@ -74,7 +72,6 @@
               <p class="offer-desc">Viagens ilimitadas durante 30 dias</p>
             </div>
             <div class="offer-price-action">
-              <span class="offer-price">{{ passMonthlyPrice != null ? passMonthlyPrice.toFixed(2) + '€' : '...' }}</span>
               <span v-if="hasActivePass" class="btn-disabled-label">Passe ativo</span>
               <button v-else class="btn-add" @click="openCheckout('pass_monthly')">
                 <span>Adicionar</span>
@@ -91,7 +88,6 @@
               <p class="offer-desc">Viagens ilimitadas durante 1 ano (Melhor Preco)</p>
             </div>
             <div class="offer-price-action">
-              <span class="offer-price">{{ passAnnualPrice != null ? passAnnualPrice.toFixed(2) + '€' : '...' }}</span>
               <span v-if="hasActivePass" class="btn-disabled-label">Passe ativo</span>
               <button v-else class="btn-add" @click="openCheckout('pass_annual')">
                 <span>Adicionar</span>
@@ -196,10 +192,6 @@ const errorMessage = ref('')
 const quantity = ref(1)
 const selectedZoneId = ref(null)
 
-const ticketSinglePrice = ref(null)
-const ticketPack5Price = ref(null)
-const passMonthlyPrice = ref(null)
-const passAnnualPrice = ref(null)
 const checkoutUnitPrice = ref(null)
 
 const currentProduct = ref({
@@ -237,24 +229,6 @@ onMounted(async () => {
   }
 })
 
-async function loadPrices() {
-  const nr = selectedZoneNum.value
-  const [single, pack5, monthly, annual] = await Promise.all([
-    ticketsStore.fetchPrice('BILHETE', nr, null),
-    ticketsStore.fetchPrice('BILHETE', nr, null),
-    ticketsStore.fetchPrice('PASSE', nr, 'MENSAL'),
-    ticketsStore.fetchPrice('PASSE', nr, 'ANUAL')
-  ])
-  ticketSinglePrice.value = single
-  ticketPack5Price.value = pack5 != null ? pack5 * 5 : null
-  passMonthlyPrice.value = monthly
-  passAnnualPrice.value = annual
-
-  if (checkoutOpen.value) {
-    loadCheckoutPrice()
-  }
-}
-
 async function loadCheckoutPrice() {
   const nr = selectedZoneNum.value
   const prod = currentProduct.value
@@ -284,10 +258,6 @@ const zoneOptions = computed(() => {
 const selectedZoneNum = computed(() => {
   const zone = zoneOptions.value.find(z => z.id === selectedZoneId.value)
   return zone ? zone.num : 1
-})
-
-watch(selectedZoneNum, () => {
-  loadPrices()
 })
 
 const zonaIdsForBackend = computed(() => {
@@ -592,13 +562,6 @@ function closeSuccess() {
   align-items: flex-end;
   gap: 6px;
   flex-shrink: 0;
-}
-
-.offer-price {
-  font-family: 'Inter', sans-serif;
-  font-size: 16px;
-  font-weight: 800;
-  color: #028e5c;
 }
 
 .btn-add {

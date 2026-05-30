@@ -1,13 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { useQuasar } from 'quasar'
 import { useAuthStore } from './auth'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client/dist/sockjs'
 
 export const useDriverStore = defineStore('driver', () => {
+  const $q = useQuasar()
   const authStore = useAuthStore()
   const vehicles = ref([])
   const activeTrips = ref([])
+  const trajetos = ref([])
+  const activeViagemVeiculo = ref(null)
   const notifications = ref([])
   const selectedVehicleId = ref(null)
   const connected = ref(false)
@@ -95,11 +99,71 @@ export const useDriverStore = defineStore('driver', () => {
     disconnectWebSocket()
     notifications.value = []
     activeTrips.value = []
+    activeViagemVeiculo.value = null
+  }
+
+  async function fetchTrajetos() {
+    if (!authStore.token) return
+    try {
+      const response = await fetch('/api/driver/trajetos', {
+        headers: { Authorization: `Bearer ${authStore.token}` }
+      })
+      if (!response.ok) throw new Error('Falha ao obter trajetos')
+      trajetos.value = await response.json()
+    } catch (e) {
+      error.value = e.message
+      console.error(e)
+    }
+  }
+
+  async function startViagem(veiculoId, trajetoId) {
+    if (!authStore.token) return
+    loading.value = true
+    try {
+      const response = await fetch('/api/driver/viagens/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authStore.token}`
+        },
+        body: JSON.stringify({ veiculoId, trajetoId })
+      })
+      if (!response.ok) throw new Error('Falha ao iniciar viagem')
+      activeViagemVeiculo.value = await response.json()
+      $q.notify({ type: 'positive', message: 'Viagem iniciada!', position: 'top', timeout: 2000 })
+    } catch (e) {
+      error.value = e.message
+      $q.notify({ type: 'negative', message: e.message, position: 'top', timeout: 3000 })
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function endViagem() {
+    if (!authStore.token || !activeViagemVeiculo.value) return
+    loading.value = true
+    try {
+      const response = await fetch(`/api/driver/viagens/${activeViagemVeiculo.value.id}/end`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${authStore.token}` }
+      })
+      if (!response.ok) throw new Error('Falha ao terminar viagem')
+      activeViagemVeiculo.value = null
+      notifications.value = []
+      $q.notify({ type: 'info', message: 'Viagem terminada', position: 'top', timeout: 2000 })
+    } catch (e) {
+      error.value = e.message
+      $q.notify({ type: 'negative', message: e.message, position: 'top', timeout: 3000 })
+    } finally {
+      loading.value = false
+    }
   }
 
   return {
     vehicles,
     activeTrips,
+    trajetos,
+    activeViagemVeiculo,
     notifications,
     selectedVehicleId,
     connected,
@@ -107,6 +171,9 @@ export const useDriverStore = defineStore('driver', () => {
     error,
     fetchVehicles,
     fetchActiveTrips,
+    fetchTrajetos,
+    startViagem,
+    endViagem,
     connectWebSocket,
     disconnectWebSocket,
     clearNotifications,

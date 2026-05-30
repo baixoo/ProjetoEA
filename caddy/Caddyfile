@@ -8,6 +8,9 @@
 		reverse_proxy /oauth2/authorization/* backend:8080
 		reverse_proxy /login/oauth2/* backend:8080
 		reverse_proxy /ws/* backend:8080
+		reverse_proxy /v3/api-docs* backend:8080
+		reverse_proxy /swagger-ui/* backend:8080
+		reverse_proxy /swagger-ui.html backend:8080
 
 		root * /srv/frontend
 		try_files {path} /index.html

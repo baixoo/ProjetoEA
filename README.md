@@ -21,6 +21,18 @@ Projeto pratico de **Projeto em Engenharia de Aplicacoes** (MEI - Edicao 25/26, 
 
 ---
 
+## API Documentation (Swagger)
+
+Disponivel em `https://localhost/swagger-ui.html` (ou `https://notub.bounceme.net/swagger-ui.html`).
+
+- **springdoc-openapi 2.8.6** com security scheme JWT Bearer
+- Para testar endpoints autenticados: clicar "Authorize" e colar o JWT obtido em `POST /api/auth/login`
+- Endpoints publicos (sem auth): `/api/auth/**`, `/api/network/**`, `GET /api/tarifas/**`, `GET /api/zonas/**`
+- Endpoints admin: `/api/admin/**` (role `ADMINISTRADOR`)
+- Endpoints motorista: `/api/driver/**` (role `MOTORISTA`)
+
+---
+
 ## Funcionalidades Implementadas
 
 ### Gestao de Utilizadores e Autenticacao
@@ -41,13 +53,19 @@ Projeto pratico de **Projeto em Engenharia de Aplicacoes** (MEI - Edicao 25/26, 
 - Compra de passes (H24, H48, H72, Semanal, Mensal, Anual)
 - Pagamento via Stripe Checkout Sessions
 - Precos dinamicos por tipo de utilizador, modalidade e numero de zonas
+- Precos visiveis apenas no checkout apos selecao de zona (nao mostrados na listagem da loja)
 - Titulos associados a zonas (ManyToMany)
 - Bilhete marcado como usado apos validacao
 
 ### Utilizacao de Titulos e Validacao (Check-in/Check-out)
 - Leitura de QR Code (camera real via html5-qrcode)
-- Suporte multi-formato QR: JSON, URL params, comma-separated, raw text
-- Inicio de viagem: selecionar titulo + paragem de entrada + viagem de veiculo
+- Suporte multi-formato QR: JSON, URL params, comma-separated, matricula (raw text)
+- QR Code fisico no autocarro contem a matricula (ex: `SG-100-01`)
+- Apos leitura do QR: deteccao automatica da paragem mais proxima via GPS do utilizador (haversine)
+- Fallback graceful se GPS indisponivel (primeira paragem da lista)
+- Notificacao visual (toast) ao ler QR e ao detetar paragem
+- BoardingDialog com informacao do autocarro, linha e paragem de embarque detetada
+- Inicio de viagem: selecionar titulo + paragem de entrada (auto-detetada) + viagem de veiculo
 - Fim de viagem: selecionar paragem de saida
 - Validacao de titulo (Strategy pattern: `EstrategiaValidacao` -> `ValidacaoQRCode`)
 - Atribuicao automatica de pontos por viagem (10 pts) e por compra (5 pts)
@@ -111,19 +129,22 @@ Projeto pratico de **Projeto em Engenharia de Aplicacoes** (MEI - Edicao 25/26, 
 ## Funcionalidades que Precisam de Melhoramento
 
 - **Pagamentos:** O callback do Stripe retorna apenas `true` e `transactionId`. Ideal seria webhooks mas precisam de IPs fixos. O `TicketController` tem endpoints `/comprar` que bypassam o pagamento (criam titulos directamente).
-- **QR Code real:** Atualmente o QR scanner le o codigo mas o "inicio de viagem real" usa um simulador na HomePage (dropdowns). Nao ha integracao com o autocarro fisico.
 - **Horarios em tempo real:** A informacao de horarios depende dos dados estaticos do seed SQL. Nao ha actualizacao em tempo real da posicao dos autocarros.
 - **Lotacao do autocarro:** O `TravelingPage` mostra lotacao hardcoded. O backend tem endpoint para actualizar lotacao (`PUT /api/veiculos/{id}/lotacao`) mas nao e integrado.
 - **Google OAuth redirect URIs:** Precisam de ser configurados tanto no Google Cloud Console como no `.env` (`FRONTEND_URL`). Para desenvolvimento local, mudar para `https://localhost`.
+- **QR Code de validacao no TravelingPage:** O dialogo "Validar Viagem" mostra um SVG estatico placeholder em vez de um QR code real gerado com o ID do titulo. O `QRScannerPage` (leitura) funciona; falta a geracao visual do QR no ecra do passageiro.
+- **Testes de carga (JMeter):** O plano de testes `notub_load_test.jmx` (JMeter 5.6.3) falha com `ForbiddenClassException: org.apache.jmeter.save.ScriptWrapper` em modo non-GUI. Causa: bug de seguranca XStream no JMeter 5.6.x. Workaround: adicionar `xstream.allow.types=org.apache.jmeter.` ao ficheiro `user.properties` do JMeter, ou abrir o `.jmx` no GUI e re-salvar.
 
 ---
 
 ## TODO
 
 ### Alta Prioridade
+- [ ] **QR Code de validacao no TravelingPage** - Gerar QR code real (com titulo ID) para mostrar ao revisor. Usar lib `qrcode` no frontend. O scanner (`QRScannerPage`) ja suporta leitura.
 - [ ] **Verificacao geografica anti-fraude** - Deteccao de viagens impossiveis (distancia+tempo entre duas validacoes)
 
 ### Media Prioridade
+- [ ] **Fix JMeter load test** - Resolver `ForbiddenClassException` no JMeter 5.6.x (ver seccao "Funcionalidades que Precisam de Melhoramento")
 - [ ] **Historico de Viagens** - Verificar se a pagina TripsPage mostra correctamente todas as viagens do utilizador apos o fix
 - [ ] **Mapa/Visualizacao de Paragens** - As paragens tem lat/lng mas nao ha mapa na interface
 - [ ] **Refresh Token** - Implementar rotacao de refresh tokens
@@ -144,7 +165,8 @@ Projeto pratico de **Projeto em Engenharia de Aplicacoes** (MEI - Edicao 25/26, 
 - **`AuthEntryPointJwt`** - Retorna 401 para requests nao autenticadas
 - **`OAuth2AuthenticationSuccessHandler`** - Processa login Google, cria utilizador se necessario, gera JWT, invalida sessao
 - **`OAuth2AuthenticationFailureHandler`** - Redirect para signin com erro
-- **`AuthenticatedUserArgumentResolver`** - Resolve `@AuthenticatedUser Utilizador` nos controllers
+- **`AuthenticatedUserArgumentResolver`** - Resolve `@AuthenticatedUser Utilizador` nos controllers; lanca `AutenticacaoRequeridaException` se nao autenticado, `RecursoNaoEncontradoException` se utilizador nao existe
+- **`GlobalExceptionHandler`** - Trata excecoes com respostas JSON estruturadas: `AutenticacaoRequeridaException` (401), `AcessoNegadoException` (403), `RecursoNaoEncontradoException` (404), `RuntimeException` (400)
 - **`WebSocketConfig`** - STOMP over SockJS endpoint `/ws` com SimpleBroker `/topic`
 
 ### Padroes Arquitecturais
@@ -153,7 +175,7 @@ Projeto pratico de **Projeto em Engenharia de Aplicacoes** (MEI - Edicao 25/26, 
 - **Command Pattern** - Microservico email: `ComandoEvento` (interface) -> `ComandoUtilizadorCriado`, `ComandoRecuperacaoPassword` -> `RegistoComandos` (registo auto-descoberto)
 - **Observer Pattern** - Eventos de pagamento: `PagamentoConfirmadoEvent` / `PagamentoRejeitadoEvent` -> `PagamentoEventListener`
 - **Custom Argument Resolution** - `@AuthenticatedUser` annotation para injecao limpa nos controllers
-- **Multi-chain Security** - Duas filter chains ordenadas: OAuth2 chain (com sessao) e API chain (stateless JWT)
+- **Multi-chain Security** - Duas filter chains ordenadas: OAuth2 chain (com sessao) e API chain (stateless JWT). Rotas publicas limitadas a GET para tarifas/zonas. Swagger/UI whitelisted.
 - **JOINED Inheritance** - `TituloTransporte` -> `Bilhete`/`Passe`, `Veiculo` -> `Autocarro` (extensivel para novos tipos)
 - **Factory Pattern** - `PaymentProcessorFactory` auto-descobre providers via Spring DI
 - **Observer Pattern** - `NotificacaoValidacaoService` publica eventos WebSocket via `SimpMessagingTemplate` para topicos `/topic/bus.{veiculoId}`
@@ -342,6 +364,7 @@ docker-compose up --build
 
 ### 4. Acessar
 - App: `https://localhost` (ou `https://notub.bounceme.net`)
+- Swagger API Docs: `https://localhost/swagger-ui.html`
 - Admin default: `admin@notub.pt` / `admin123`
 - Motorista default: `motorista@notub.pt` / `motorista123`
 - RabbitMQ Management: `http://localhost:15672` (notub/notub123)
@@ -403,8 +426,8 @@ ProjetoEA/
         models/                 # Entidades JPA (27) + Enums (11)
         repositories/           # Spring Data JPA (16)
         security/               # JWT + OAuth2 config (10)
-        config/                 # RabbitMQ, WebSocket, DataInitializer, WebMvc (4)
-        exception/              # GlobalExceptionHandler (2)
+         config/                 # RabbitMQ, WebSocket, DataInitializer, OpenApiConfig, WebMvc (5)
+         exception/              # GlobalExceptionHandler, custom exceptions (4)
       src/main/resources/
         application.properties  # Config Spring Boot (tudo via env vars)
         data.sql                # Seed data auto-gerado (38K+ linhas, 5MB)
