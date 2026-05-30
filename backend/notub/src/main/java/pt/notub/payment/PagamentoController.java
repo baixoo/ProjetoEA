@@ -27,7 +27,6 @@ public class PagamentoController {
 
     @PostMapping("/checkout")
     public ResponseEntity<?> checkout(@AuthenticatedUser Utilizador utilizador, @RequestBody CheckoutRequest request) {
-        if (utilizador == null) return ResponseEntity.status(401).build();
         try {
             CheckoutResponse response = pagamentoService.iniciarCheckout(utilizador.getEmail(), request);
             return ResponseEntity.ok(response);
@@ -41,7 +40,6 @@ public class PagamentoController {
     public ResponseEntity<?> verificarEstado(
             @AuthenticatedUser Utilizador utilizador,
             @RequestParam("t") String token) {
-        if (utilizador == null) return ResponseEntity.status(401).build();
         try {
             PagamentoStatusResponse response = pagamentoService.verificarEstado(token, utilizador.getId());
             return ResponseEntity.ok(response);

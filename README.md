@@ -2,22 +2,17 @@
 
 **NoTUB - Transportes Urbanos de Braga** - Sistema de bilhetica para transportes publicos urbanos.
 
-Projecto pratico de **Projecto em Engenharia de Aplicacoes** (MEI - Edicao 25/26, Universidade do Minho).
+Projeto pratico de **Projeto em Engenharia de Aplicacoes** (MEI - Edicao 25/26, Universidade do Minho).
 
 ---
 
-## Arquitectura
-
+## Arquitetura
 
 ![Arquitetura](EstaFeitoAteAgora.svg)
 
-
----
-```
-
 - **Frontend:** Vue 3 + Quasar Framework (PWA)
 - **Backend:** Spring Boot 4 (Java 25) + JWT + OAuth2 Google + Stripe
-- **Base de Dados:** PostgreSQL 18 (com seed data de 5000+ paragens)
+- **Base de Dados:** PostgreSQL 18 (com seed data de 4400+ paragens reais de Singapura)
 - **Reverse Proxy:** Caddy 2 (HTTPS automatico, load balancer)
 - **Eventos:** RabbitMQ (email assincrono + notificacoes motorista via WebSocket/STOMP)
 - **Microservico Email:** Spring Boot (Mailtrap SMTP)
@@ -35,14 +30,15 @@ Projecto pratico de **Projecto em Engenharia de Aplicacoes** (MEI - Edicao 25/26
 - Recuperacao de password via email (token UUID, 30 min TTL)
 - Email de boas-vindas ao registar (via RabbitMQ + Mailtrap)
 - Edicao de perfil (nome, NIF, data nascimento, password)
-- Completar perfil apos Google OAuth2 (pede NIF e data nascimento)
+- Completar perfil apos Google OAuth2 (data nascimento obrigatoria, NIF opcional com "Nao tenho NIF")
+- NIF unico na base de dados (`@Column(unique = true)`), multiplos NULLs permitidos
 - Logout (limpa JWT + invalida sessao OAuth2 no backend)
 - Roles: `ADMINISTRADOR`, `UTILIZADOR`, `MOTORISTA`
 - Tipo de utilizador: `CRIANCA`, `ESTUDANTE`, `ADULTO`, `SENIOR`
 
 ### Gestao de Titulos de Transporte (Bilhetica)
 - Compra de bilhetes individuais (1 ou mais)
-- Compra de passes (semanal, mensal, anual)
+- Compra de passes (H24, H48, H72, Semanal, Mensal, Anual)
 - Pagamento via Stripe Checkout Sessions
 - Precos dinamicos por tipo de utilizador, modalidade e numero de zonas
 - Titulos associados a zonas (ManyToMany)
@@ -106,8 +102,9 @@ Projecto pratico de **Projecto em Engenharia de Aplicacoes** (MEI - Edicao 25/26
 
 | Bug | Causa | Fix |
 |-----|-------|-----|
-| `SyntaxError: JSON.parse` na TripsPage | Referencia circular JPA: `ViagemUtilizador` <-> `ViagemVeiculo` causava recursao infinita na serializacao JSON | `@JsonManagedReference` / `@JsonBackReference` |
+| `SyntaxError: JSON.parse` na TripsPage | Referencia circular JPA: `ViagemUtilizador` <-> `ViagemVeiculo` causava recursao infinita na serializacao JSON | Refactor completo para DTOs com mappers estaticos |
 | `GET /api/viagens/utilizador` retornava viagens de TODOS os utilizadores | `ViagemService.getAllViagensUtilizador()` fazia `findAll()` sem filtro | `@AuthenticatedUser` + query JPQL polimorfica |
+| `sendBeacon('/logout')` criava JSESSIONID fantasma | Pedia logout na chain errada (STATELESS em vez da chain OAuth2) | Removido logout do frontend; sessao invalidada no `OAuth2AuthenticationSuccessHandler` |
 
 ---
 
@@ -124,7 +121,7 @@ Projecto pratico de **Projecto em Engenharia de Aplicacoes** (MEI - Edicao 25/26
 ## TODO
 
 ### Alta Prioridade
-- [ ] **Integrar Dataset** - Correr `dataset/seed_data.sql` manualmente ou via script init no PostgreSQL
+- [ ] **Verificacao geografica anti-fraude** - Deteccao de viagens impossiveis (distancia+tempo entre duas validacoes)
 
 ### Media Prioridade
 - [ ] **Historico de Viagens** - Verificar se a pagina TripsPage mostra correctamente todas as viagens do utilizador apos o fix
@@ -145,7 +142,7 @@ Projecto pratico de **Projecto em Engenharia de Aplicacoes** (MEI - Edicao 25/26
 ### Middlewares (Backend)
 - **`AuthTokenFilter`** - Extrai e valida JWT do header `Authorization: Bearer <token>` em cada request
 - **`AuthEntryPointJwt`** - Retorna 401 para requests nao autenticadas
-- **`OAuth2AuthenticationSuccessHandler`** - Processa login Google, cria utilizador se necessario, gera JWT
+- **`OAuth2AuthenticationSuccessHandler`** - Processa login Google, cria utilizador se necessario, gera JWT, invalida sessao
 - **`OAuth2AuthenticationFailureHandler`** - Redirect para signin com erro
 - **`AuthenticatedUserArgumentResolver`** - Resolve `@AuthenticatedUser Utilizador` nos controllers
 - **`WebSocketConfig`** - STOMP over SockJS endpoint `/ws` com SimpleBroker `/topic`
@@ -222,7 +219,7 @@ SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/notub
 POSTGRES_DB=notub
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
-POSTGRES_HOST_PORT=5433          # Porto mapeado no host (evita conflito com PostgreSQL local)
+POSTGRES_HOST_PORT=5433
 
 # RabbitMQ
 RABBITMQ_HOST=rabbitmq
@@ -241,10 +238,10 @@ JWT_SECRET=<chave-base64-256-bit>
 # Google OAuth2 (criar credenciais em console.cloud.google.com)
 GOOGLE_CLIENT_ID=<client-id>
 GOOGLE_CLIENT_SECRET=<client-secret>
-FRONTEND_URL=https://localhost    # Mudar para dominio real em producao
+FRONTEND_URL=https://localhost
 
 # Caddy
-CADDY_DOMAIN=localhost            # Mudar para dominio real em producao
+CADDY_DOMAIN=localhost
 
 # Stripe (obter em dashboard.stripe.com)
 STRIPE_SECRET_KEY=<sk_test_...>
@@ -255,6 +252,7 @@ STRIPE_PUBLISHABLE_KEY=<pk_test_...>
 
 ```bash
 # Mailtrap SMTP (criar conta em mailtrap.io)
+MAILTRAP_PORT=2525
 MAILTRAP_USERNAME=<username>
 MAILTRAP_PASSWORD=<password>
 
@@ -268,7 +266,7 @@ RABBITMQ_FILA=notub.email.fila
 RABBITMQ_RK_UTILIZADOR_CRIADO=UTILIZADOR_CRIADO
 RABBITMQ_RK_RECUPERACAO_PASSWORD=RECUPERACAO_PASSWORD_PEDIDA
 
-FRONTEND_URL=https://localhost    # Mudar para dominio real em producao
+FRONTEND_URL=https://localhost
 ```
 
 ---
@@ -281,71 +279,74 @@ Rotas com proxy para o backend:
 - `/api/*` - API REST
 - `/oauth2/authorization/*` - Inicio do fluxo Google OAuth2
 - `/login/oauth2/*` - Callback do Google OAuth2
-- `/logout*` - Logout (invalida sessao OAuth2 no Spring Security)
+- `/ws/*` - WebSocket (STOMP over SockJS)
 
 ---
 
 ## Dataset / Seed Data
 
-O ficheiro `dataset/seed_data.sql` contem dados realistas gerados a partir do dataset [UrbanBus](https://github.com/ableyyyx/UrbanBus):
+O seed data e gerado automaticamente a partir do dataset [UrbanBus](https://github.com/ableyyyx/UrbanBus) (dados reais de autocarros de Singapura, marco 2018) e carregado **automaticamente** pelo Spring Boot (`data.sql`) apos o Hibernate criar o schema.
 
-- **3 Zonas** (Centro, Intermedio, Periferia) - calculadas por distancia ao centro
-- **~5000 Paragens** - com zonas atribuidas
-- **~50 Linhas** (nomeadas + SER) - com trajetos IDA/VOLTA
-- **~100 Trajetos** - com pontos de passagem ordenados
-- **20 Veiculos** - autocarros com matriculas e lotacoes
-- **30 Viagens de Veiculo** - demonstracao
-- **48 Tarifas** - precos para bilhetes e passes (por tipo de utilizador, modalidade e zonas)
+### Conteudo
+
+| Entidade | Quantidade |
+|----------|------------|
+| Zonas | 4 (Norte, Centro, Sul, Oeste) |
+| Paragens | ~4400 (com coordenadas GPS reais de Singapura) |
+| Linhas | ~440 (nomeadas Linha 1-N a partir de `BusRoutes.pickle`) |
+| Trajetos | ~880 (IDA + VOLTA por linha) |
+| Pontos de Passagem | ~31000 (com horarios e tempo acumulado) |
+| Autocarros | ~880 (matriculas SG-XXX-NN) |
+| Tarifas | 112 (bilhetes + passes por tipo/modalidade/zona) |
 
 ### Precos dos Bilhetes
-| Tipo | 1 Zona | 2 Zonas | 3 Zonas |
-|------|--------|---------|---------|
-| Adulto | 1.50 EUR | 2.20 EUR | 3.00 EUR |
-| Crianca | 0.75 EUR | 1.10 EUR | 1.50 EUR |
-| Estudante | 1.00 EUR | 1.50 EUR | 2.00 EUR |
-| Senior | 0.75 EUR | 1.10 EUR | 1.50 EUR |
+| Tipo | 1 Zona | 2 Zonas | 3 Zonas | 4 Zonas |
+|------|--------|---------|---------|---------|
+| Adulto | 1.50 EUR | 2.20 EUR | 3.00 EUR | 3.80 EUR |
+| Crianca | 0.75 EUR | 1.10 EUR | 1.50 EUR | 1.90 EUR |
+| Estudante | 1.00 EUR | 1.50 EUR | 2.00 EUR | 2.50 EUR |
+| Senior | 0.75 EUR | 1.10 EUR | 1.50 EUR | 1.90 EUR |
 
-### Precos dos Passes (Mensal)
-| Tipo | 1 Zona | 2 Zonas | 3 Zonas |
-|------|--------|---------|---------|
-| Adulto | 40.00 EUR | 55.00 EUR | 70.00 EUR |
-| Estudante | 25.00 EUR | 35.00 EUR | 45.00 EUR |
+### Precos dos Passes
+| Modalidade | Adulto (1Z / 4Z) | Estudante (1Z / 4Z) | Crianca (1Z / 4Z) | Senior (1Z / 4Z) |
+|------------|-------------------|----------------------|--------------------|-------------------|
+| H24 | 4.50 / 10.00 | 3.00 / 6.50 | 2.50 / 5.00 | 2.50 / 5.00 |
+| H48 | 8.00 / 18.00 | 5.50 / 12.00 | 4.00 / 9.00 | 4.00 / 9.00 |
+| H72 | 11.00 / 24.00 | 7.50 / 16.00 | 5.50 / 12.00 | 5.50 / 12.00 |
+| Semanal | 22.00 / 48.00 | 15.00 / 32.00 | 11.00 / 24.00 | 11.00 / 24.00 |
+| Mensal | 40.00 / 85.00 | 25.00 / 55.00 | 20.00 / 43.00 | 20.00 / 43.00 |
+| Anual | 400.00 / 850.00 | 250.00 / 550.00 | 200.00 / 430.00 | 200.00 / 430.00 |
 
-### Como carregar o seed data
+### Regenerar o seed data
 ```bash
-# Opcao 1: Via psql dentro do container
-docker exec -i postgresdb psql -U postgres -d notub < dataset/seed_data.sql
-
-# Opcao 2: Via pgAdmin ou DBeaver
-# Importar o ficheiro dataset/seed_data.sql
+cd backend/notub
+python generate_seed.py
 ```
 
-O script `dataset/generate_seed_sql.py` pode ser usado para regenerar o SQL (requer os CSV do UrbanBus no mesmo diretorio).
+O script le `BusRoutes.pickle` e `BusStopList.csv` do diretorio de datasets e gera `src/main/resources/data.sql`. Os dados sao carregados automaticamente na proxima inicializacao do backend via `spring.jpa.defer-datasource-initialization=true`.
 
 ---
 
 ## Como Executar
 
 ### 1. Verificar portas
-Garantir que as portas `80`, `443` e `5433` estao livres.
+Garantir que as portas `80`, `443` estao livres.
 
 ### 2. Configurar
 Criar o `.env` na root e `servico-email/.env` (ver seccao "Variaveis de Ambiente").
 
 ### 3. Arrancar
 ```bash
-docker-compose up --build -d
+docker-compose up --build
 ```
 
-### 4. Carregar dados
-```bash
-docker exec -i postgresdb psql -U postgres -d notub < dataset/seed_data.sql
-```
-
-### 5. Acessar
+### 4. Acessar
 - App: `https://localhost` (ou `https://notub.bounceme.net`)
 - Admin default: `admin@notub.pt` / `admin123`
+- Motorista default: `motorista@notub.pt` / `motorista123`
 - RabbitMQ Management: `http://localhost:15672` (notub/notub123)
+
+O seed data (paragens, linhas, trajetos, tarifas, autocarros) e carregado automaticamente. Nao e necessario carregar dados manualmente.
 
 ### Comandos uteis
 ```bash
@@ -357,14 +358,6 @@ docker-compose logs -f backend
 
 # Reconstruir so um servico
 docker-compose up --build -d backend
-```
-
-### Desenvolvimento com Capacitor (Android)
-```bash
-cd frontend/NoTUB_Frontend
-npm i
-npx cap add android
-npm run dev -- -m capacitor -T android
 ```
 
 ---
@@ -381,7 +374,7 @@ ProjetoEA/
   frontend/
     NoTUB_Frontend/             # Vue 3 + Quasar PWA
       src/
-        pages/                  # Paginas (Home, Trips, Tickets, QR, Account, Admin, Driver, Routes)
+        pages/                  # Paginas (Home, Trips, Tickets, QR, Account, Admin, Driver, Routes, OAuth2)
         stores/                 # Pinia stores (auth, tickets, viagens, admin, driver)
         components/             # BoardingDialog, BrandHeader, AppTabBar, TermsModal
         layouts/                # MainLayout, AuthLayout, AdminLayout, DriverLayout
@@ -391,25 +384,36 @@ ProjetoEA/
   backend/
     notub/
       src/main/java/pt/notub/
-        controllers/            # REST controllers (13)
-        services/               # Logica de negocio (18)
-        models/                 # Entidades JPA (21) + Enums (11)
+        auth/                   # AuthController, OAuth2 handlers, JWT, DTOs (5)
+        user/                   # UtilizadorController, UtilizadorService, DTOs (3)
+        ticket/                 # TicketController, TicketService, DTOs (6)
+        trip/                   # ViagemController, ViagemService (4)
+        driver/                 # DriverController (3)
+        network/                # NetworkController, RoutePlanningService, DTOs (10)
+        vehicle/                # VeiculoController, VeiculoService (3)
+        tariff/                 # TarifaController, TarifaService, DTOs (3)
+        zone/                   # ZonaController, ZonaService (3)
+        points/                 # ServicoPontos, HistoricoPontosController (3)
+        validation/             # ValidacaoController, GestorValidacao, Estrategias (7)
+        transaction/            # TransacaoController, TransacaoService (3)
+        payment/                # PagamentoController, PagamentoService, Stripe (15)
+        admin/                  # AdminControllers (8)
+        notification/           # PublicadorEventosEmail, NotificacaoValidacaoService (1)
+        common/mapper/          # Mappers estaticos (DTOs sem Jackson nas entidades) (13)
+        models/                 # Entidades JPA (27) + Enums (11)
         repositories/           # Spring Data JPA (16)
         security/               # JWT + OAuth2 config (10)
-        payment/                # Stripe integration (10)
-        config/                 # RabbitMQ, WebSocket, DataInitializer, WebMvc
-        dto/                    # Request/Response DTOs (11)
-        exception/              # GlobalExceptionHandler
+        config/                 # RabbitMQ, WebSocket, DataInitializer, WebMvc (4)
+        exception/              # GlobalExceptionHandler (2)
       src/main/resources/
         application.properties  # Config Spring Boot (tudo via env vars)
+        data.sql                # Seed data auto-gerado (38K+ linhas, 5MB)
+      generate_seed.py          # Gerador de seed data a partir do UrbanBus
       Dockerfile                # Multi-stage Maven build
   servico-email/
     .env                        # Credenciais Mailtrap + RabbitMQ
     src/                        # Spring Boot consumer (Command pattern)
     Dockerfile                  # Single-stage (a melhorar)
-  dataset/
-    seed_data.sql               # Dados realistas (~9000 linhas)
-    generate_seed_sql.py        # Gerador de seed data a partir do UrbanBus
   tests/
     jmeter/
       notub_load_test.jmx       # Plano de testes de carga (5 patamares)

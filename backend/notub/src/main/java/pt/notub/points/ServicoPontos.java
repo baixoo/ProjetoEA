@@ -1,6 +1,7 @@
 package pt.notub.points;
 
 import org.springframework.stereotype.Service;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.*;
 import pt.notub.repositories.*;
 import java.time.LocalDateTime;
@@ -21,21 +22,21 @@ public class ServicoPontos {
     }
 
     public void atribuirPontosViagem(Long utilizadorId) {
-        Utilizador utilizador = utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+        Utilizador utilizador = utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
         utilizador.setNrPontos(utilizador.getNrPontos() + PONTOS_POR_VIAGEM);
         utilizadorRepository.save(utilizador);
         registarHistorico(utilizador, PONTOS_POR_VIAGEM, "VIAGEM", "Pontos ganhos por viagem concluida");
     }
 
     public void atribuirPontosCompra(Long utilizadorId) {
-        Utilizador utilizador = utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+        Utilizador utilizador = utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
         utilizador.setNrPontos(utilizador.getNrPontos() + PONTOS_POR_COMPRA);
         utilizadorRepository.save(utilizador);
         registarHistorico(utilizador, PONTOS_POR_COMPRA, "COMPRA", "Pontos ganhos por compra");
     }
 
     public void utilizarPontos(Long utilizadorId, int pontos, String descricao) {
-        Utilizador utilizador = utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+        Utilizador utilizador = utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
         if (utilizador.getNrPontos() < pontos) {
             throw new RuntimeException("Pontos insuficientes");
         }
@@ -49,7 +50,7 @@ public class ServicoPontos {
     }
 
     public Utilizador getUtilizadorAtualizado(Long utilizadorId) {
-        return utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+        return utilizadorRepository.findById(utilizadorId).orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
     }
 
     private void registarHistorico(Utilizador utilizador, int pontos, String tipo, String descricao) {

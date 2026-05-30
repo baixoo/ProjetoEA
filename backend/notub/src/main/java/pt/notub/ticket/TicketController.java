@@ -27,25 +27,21 @@ public class TicketController {
 
     @PostMapping({"/buy", "/comprar"})
     public ResponseEntity<List<BilheteDTO>> buyTickets(@AuthenticatedUser Utilizador utilizador, @RequestBody BuyTicketRequest request) {
-        if (utilizador == null) return ResponseEntity.status(401).build();
         return ResponseEntity.ok(BilheteMapper.toDTOList(ticketService.buyTickets(utilizador.getEmail(), request.getQuantidade(), request.getZonaIds())));
     }
 
     @PostMapping({"/passe/buy", "/passe/comprar"})
     public ResponseEntity<PasseDTO> buyPasse(@AuthenticatedUser Utilizador utilizador, @RequestBody BuyPasseRequest request) {
-        if (utilizador == null) return ResponseEntity.status(401).build();
         return ResponseEntity.ok(PasseMapper.toDTO(ticketService.buyPasse(utilizador.getEmail(), request.getModalidade(), request.getZonaIds())));
     }
 
     @GetMapping({"/my-tickets", "/meus-bilhetes"})
     public ResponseEntity<List<BilheteDTO>> getMyTickets(@AuthenticatedUser Utilizador utilizador) {
-        if (utilizador == null) return ResponseEntity.status(401).build();
         return ResponseEntity.ok(BilheteMapper.toDTOList(ticketService.getUserTickets(utilizador.getEmail())));
     }
 
     @GetMapping({"/my-passe", "/meu-passe"})
     public ResponseEntity<PasseDTO> getMyPasse(@AuthenticatedUser Utilizador utilizador) {
-        if (utilizador == null) return ResponseEntity.status(401).build();
         Passe passe = ticketService.getUserPasse(utilizador.getEmail());
         if (passe == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(PasseMapper.toDTO(passe));

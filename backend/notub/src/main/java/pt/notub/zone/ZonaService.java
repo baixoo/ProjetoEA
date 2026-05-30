@@ -1,6 +1,7 @@
 package pt.notub.zone;
 
 import org.springframework.stereotype.Service;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.Zona;
 import pt.notub.repositories.ZonaRepository;
 
@@ -34,7 +35,7 @@ public class ZonaService {
 
     public Zona updateZona(Long id, Zona updated) {
         Zona zona = zonaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Zona not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
         if (updated.getNome() != null) zona.setNome(updated.getNome());
         if (updated.getParagens() != null) zona.setParagens(updated.getParagens());
         return zonaRepository.save(zona);

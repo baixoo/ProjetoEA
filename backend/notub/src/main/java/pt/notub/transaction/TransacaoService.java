@@ -1,6 +1,7 @@
 package pt.notub.transaction;
 
 import org.springframework.stereotype.Service;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.EstadoPagamento;
 import pt.notub.models.TituloTransporte;
 import pt.notub.models.Transacao;
@@ -50,9 +51,9 @@ public class TransacaoService {
 
     public Transacao createTransacao(Long tituloId, Long utilizadorId, String referenciaExterna) {
         TituloTransporte titulo = tituloTransporteRepository.findById(tituloId)
-                .orElseThrow(() -> new RuntimeException("Titulo not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Titulo nao encontrado"));
         Utilizador utilizador = utilizadorRepository.findById(utilizadorId)
-                .orElseThrow(() -> new RuntimeException("Utilizador not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
 
         Transacao transacao = new Transacao();
         transacao.setTitulo(titulo);
@@ -66,7 +67,7 @@ public class TransacaoService {
 
     public Transacao updateEstado(Long id, EstadoPagamento estado) {
         Transacao transacao = transacaoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transacao not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Transacao nao encontrada"));
         transacao.setEstadoPagamento(estado);
         return transacaoRepository.save(transacao);
     }

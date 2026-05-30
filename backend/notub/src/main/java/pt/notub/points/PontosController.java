@@ -23,19 +23,16 @@ public class PontosController {
 
     @GetMapping("/saldo")
     public ResponseEntity<?> getSaldo(@AuthenticatedUser Utilizador utilizador) {
-        if (utilizador == null) return ResponseEntity.status(401).build();
         return ResponseEntity.ok(Map.of("nrPontos", utilizador.getNrPontos()));
     }
 
     @GetMapping("/historico")
     public ResponseEntity<List<HistoricoPontosDTO>> getHistorico(@AuthenticatedUser Utilizador utilizador) {
-        if (utilizador == null) return ResponseEntity.status(401).build();
         return ResponseEntity.ok(HistoricoPontosMapper.toDTOList(servicoPontos.getHistorico(utilizador.getId())));
     }
 
     @PostMapping("/utilizar")
     public ResponseEntity<?> utilizarPontos(@AuthenticatedUser Utilizador utilizador, @RequestBody Map<String, Object> pedido) {
-        if (utilizador == null) return ResponseEntity.status(401).build();
         int pontos = ((Number) pedido.get("pontos")).intValue();
         if (pontos <= 0) return ResponseEntity.badRequest().body(Map.of("erro", "Pontos deve ser maior que zero"));
         String descricao = (String) pedido.get("descricao");

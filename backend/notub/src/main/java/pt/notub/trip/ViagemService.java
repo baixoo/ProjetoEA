@@ -3,6 +3,7 @@ package pt.notub.trip;
 import org.springframework.stereotype.Service;
 import pt.notub.driver.NotificacaoValidacaoService;
 import pt.notub.driver.dto.NotificacaoValidacaoDTO;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.*;
 import pt.notub.points.ServicoPontos;
 import pt.notub.repositories.*;
@@ -56,11 +57,11 @@ public class ViagemService {
 
     public ViagemUtilizador iniciarViagem(Long tituloId, Long paragemEntradaId, Long viagemVeiculoId) {
         TituloTransporte titulo = tituloTransporteRepository.findById(tituloId)
-                .orElseThrow(() -> new RuntimeException("Titulo not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Titulo nao encontrado"));
         Paragem paragemEntrada = paragemRepository.findById(paragemEntradaId)
-                .orElseThrow(() -> new RuntimeException("Paragem not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
         ViagemVeiculo viagemVeiculo = viagemVeiculoRepository.findById(viagemVeiculoId)
-                .orElseThrow(() -> new RuntimeException("ViagemVeiculo not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("ViagemVeiculo nao encontrado"));
 
         boolean valido = gestorValidacao.validarTitulo(tituloId);
 
@@ -103,9 +104,9 @@ public class ViagemService {
 
     public ViagemUtilizador terminarViagem(Long viagemId, Long paragemSaidaId) {
         ViagemUtilizador viagem = viagemUtilizadorRepository.findById(viagemId)
-                .orElseThrow(() -> new RuntimeException("Viagem not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Viagem nao encontrada"));
         Paragem paragemSaida = paragemRepository.findById(paragemSaidaId)
-                .orElseThrow(() -> new RuntimeException("Paragem not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
 
         viagem.setParagemSaida(paragemSaida);
         viagem.setFim(LocalDateTime.now());

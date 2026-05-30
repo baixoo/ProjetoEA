@@ -3,6 +3,7 @@ package pt.notub.admin;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.TipoPapel;
 import pt.notub.models.Utilizador;
 import pt.notub.repositories.UtilizadorRepository;
@@ -34,7 +35,7 @@ public class AdminUtilizadorController {
     @PutMapping("/{id}/role")
     public ResponseEntity<?> updateRole(@PathVariable Long id, @RequestBody Map<String, String> pedido) {
         Utilizador utilizador = utilizadorRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
         TipoPapel novoRole = TipoPapel.valueOf(pedido.get("role").toUpperCase());
         utilizador.setRole(novoRole);
         utilizadorRepository.save(utilizador);

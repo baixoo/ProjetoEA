@@ -1,6 +1,7 @@
 package pt.notub.ticket;
 
 import org.springframework.stereotype.Service;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.*;
 import pt.notub.points.ServicoPontos;
 import pt.notub.repositories.*;
@@ -53,7 +54,7 @@ public class TicketService {
 
     public List<Bilhete> buyTickets(String email, int quantidade, List<Long> zonaIds) {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
         List<Zona> zonas = zonaRepository.findAllById(zonaIds);
         List<Bilhete> bilhetes = new ArrayList<>();
         for (int i = 0; i < quantidade; i++) {
@@ -65,7 +66,7 @@ public class TicketService {
 
     public Passe buyPasse(String email, ModalidadePasse modalidade, List<Long> zonaIds) {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
         List<Zona> zonas = zonaRepository.findAllById(zonaIds);
         Passe passe = criarPasse(utilizador, modalidade, zonas);
         servicoPontos.atribuirPontosCompra(utilizador.getId());
@@ -74,13 +75,13 @@ public class TicketService {
 
     public List<Bilhete> getUserTickets(String email) {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
         return bilheteRepository.findByUtilizadorId(utilizador.getId());
     }
 
     public Passe getUserPasse(String email) {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
         return passeRepository.findByUtilizadorId(utilizador.getId()).orElse(null);
     }
 

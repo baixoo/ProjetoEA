@@ -3,6 +3,7 @@ package pt.notub.admin;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.Autocarro;
 import pt.notub.models.Point;
 import pt.notub.models.Veiculo;
@@ -28,7 +29,7 @@ public class AdminVeiculoController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Autocarro updated) {
-        Veiculo veiculo = veiculoService.getVeiculoById(id).orElseThrow(() -> new RuntimeException("Veiculo nao encontrado"));
+        Veiculo veiculo = veiculoService.getVeiculoById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Veiculo nao encontrado"));
         if (updated.getMatricula() != null) veiculo.setMatricula(updated.getMatricula());
         if (updated.getnLugares() != 0) veiculo.setnLugares(updated.getnLugares());
         return ResponseEntity.ok(veiculoService.saveVeiculo(veiculo));

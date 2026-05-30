@@ -19,6 +19,26 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    @ExceptionHandler(AutenticacaoRequeridaException.class)
+    public ResponseEntity<Map<String, Object>> tratarAutenticacaoRequerida(AutenticacaoRequeridaException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+            "carimboTemporal", LocalDateTime.now().toString(),
+            "status", 401,
+            "erro", "Autenticacao Requerida",
+            "mensagem", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(AcessoNegadoException.class)
+    public ResponseEntity<Map<String, Object>> tratarAcessoNegado(AcessoNegadoException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+            "carimboTemporal", LocalDateTime.now().toString(),
+            "status", 403,
+            "erro", "Acesso Negado",
+            "mensagem", ex.getMessage()
+        ));
+    }
+
     @ExceptionHandler(RecursoNaoEncontradoException.class)
     public ResponseEntity<Map<String, Object>> tratarNaoEncontrado(RecursoNaoEncontradoException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(

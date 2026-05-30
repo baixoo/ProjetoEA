@@ -3,6 +3,7 @@ package pt.notub.admin;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.*;
 import pt.notub.repositories.*;
 
@@ -31,7 +32,7 @@ public class AdminRedeController {
 
     @PutMapping("/linhas/{id}")
     public ResponseEntity<?> updateLinha(@PathVariable Long id, @RequestBody Linha updated) {
-        Linha linha = linhaRepository.findById(id).orElseThrow(() -> new RuntimeException("Linha nao encontrada"));
+        Linha linha = linhaRepository.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Linha nao encontrada"));
         if (updated.getNome() != null) linha.setNome(updated.getNome());
         if (updated.getIdentificadorServico() != null) linha.setIdentificadorServico(updated.getIdentificadorServico());
         return ResponseEntity.ok(linhaRepository.save(linha));
@@ -50,7 +51,7 @@ public class AdminRedeController {
 
     @PutMapping("/trajetos/{id}")
     public ResponseEntity<?> updateTrajeto(@PathVariable Long id, @RequestBody Trajeto updated) {
-        Trajeto trajeto = trajetoRepository.findById(id).orElseThrow(() -> new RuntimeException("Trajeto nao encontrado"));
+        Trajeto trajeto = trajetoRepository.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Trajeto nao encontrado"));
         if (updated.getDirecao() != null) trajeto.setDirecao(updated.getDirecao());
         if (updated.getLinha() != null) trajeto.setLinha(updated.getLinha());
         return ResponseEntity.ok(trajetoRepository.save(trajeto));
@@ -69,7 +70,7 @@ public class AdminRedeController {
 
     @PutMapping("/paragens/{id}")
     public ResponseEntity<?> updateParagem(@PathVariable Long id, @RequestBody Paragem updated) {
-        Paragem paragem = paragemRepository.findById(id).orElseThrow(() -> new RuntimeException("Paragem nao encontrada"));
+        Paragem paragem = paragemRepository.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
         if (updated.getNome() != null) paragem.setNome(updated.getNome());
         if (updated.getLocalizacao() != null) paragem.setLocalizacao(updated.getLocalizacao());
         return ResponseEntity.ok(paragemRepository.save(paragem));
@@ -83,7 +84,7 @@ public class AdminRedeController {
 
     @PostMapping("/trajetos/{trajetoId}/pontos")
     public ResponseEntity<PontosDePassagem> addPonto(@PathVariable Long trajetoId, @RequestBody PontosDePassagem ponto) {
-        Trajeto trajeto = trajetoRepository.findById(trajetoId).orElseThrow(() -> new RuntimeException("Trajeto nao encontrado"));
+        Trajeto trajeto = trajetoRepository.findById(trajetoId).orElseThrow(() -> new RecursoNaoEncontradoException("Trajeto nao encontrado"));
         ponto.setTrajeto(trajeto);
         return ResponseEntity.ok(pontosDePassagemRepository.save(ponto));
     }

@@ -1,6 +1,7 @@
 package pt.notub.vehicle;
 
 import org.springframework.stereotype.Service;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.Veiculo;
 import pt.notub.models.Point;
 import pt.notub.repositories.VeiculoRepository;
@@ -31,14 +32,14 @@ public class VeiculoService {
 
     public Veiculo updateLocalizacao(Long id, Point localizacao) {
         Veiculo veiculo = veiculoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Veiculo not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Veiculo nao encontrado"));
         veiculo.setLocalizacaoAtual(localizacao);
         return veiculoRepository.save(veiculo);
     }
 
     public Veiculo updateLotacao(Long id, int lotacao) {
         Veiculo veiculo = veiculoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Veiculo not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Veiculo nao encontrado"));
         veiculo.setLotacaoAtual(lotacao);
         return veiculoRepository.save(veiculo);
     }

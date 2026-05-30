@@ -1,6 +1,7 @@
 package pt.notub.tariff;
 
 import org.springframework.stereotype.Service;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.ModalidadePasse;
 import pt.notub.models.Tarifa;
 import pt.notub.models.TipoUtilizador;
@@ -49,7 +50,7 @@ public class TarifaService {
 
     public Tarifa updateTarifa(Long id, Tarifa updated) {
         Tarifa tarifa = tarifaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tarifa not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Tarifa nao encontrada"));
         tarifa.setValor(updated.getValor());
         if (updated.getTipoUtilizador() != null) tarifa.setTipoUtilizador(updated.getTipoUtilizador());
         if (updated.getModalidade() != null) tarifa.setModalidade(updated.getModalidade());

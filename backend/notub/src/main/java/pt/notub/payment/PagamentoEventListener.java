@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.ModalidadePasse;
 import pt.notub.models.TipoProduto;
 import pt.notub.models.Utilizador;
@@ -32,7 +33,7 @@ public class PagamentoEventListener {
     public void onPagamentoConfirmado(PagamentoConfirmadoEvent event) {
         try {
             Utilizador utilizador = utilizadorRepository.findById(event.utilizadorId())
-                    .orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+                    .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
             List<Long> zonaIds = Arrays.stream(event.zonaIds().split(","))
                     .map(String::trim)
                     .map(Long::parseLong)

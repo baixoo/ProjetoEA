@@ -35,13 +35,11 @@ public class UtilizadorController {
 
     @GetMapping("/perfil")
     public ResponseEntity<UserDTO> getMyProfile(@AuthenticatedUser Utilizador utilizador) {
-        if (utilizador == null) return ResponseEntity.status(401).build();
         return ResponseEntity.ok(UserMapper.toDTO(utilizador));
     }
 
     @PutMapping("/perfil")
     public ResponseEntity<?> updateMyProfile(@AuthenticatedUser Utilizador utilizador, @RequestBody Utilizador updated) {
-        if (utilizador == null) return ResponseEntity.status(401).build();
         try {
             return ResponseEntity.ok(UserMapper.toDTO(utilizadorService.updateUtilizador(utilizador.getEmail(), updated)));
         } catch (IllegalArgumentException e) {

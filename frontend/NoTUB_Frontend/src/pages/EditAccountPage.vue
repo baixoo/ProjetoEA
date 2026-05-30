@@ -141,6 +141,10 @@
           <q-icon name="admin_panel_settings" size="18px" />
           <span>Painel de Administracao</span>
         </router-link>
+        <router-link v-else-if="authStore.user?.role === 'MOTORISTA'" to="/driver" class="link-driver">
+          <q-icon name="directions_bus" size="18px" />
+          <span>Painel de Motorista</span>
+        </router-link>
         <router-link to="/terms" class="link-terms">Termos e Condicoes</router-link>
         <button class="btn btn--logout" @click="handleLogout">
           <q-icon name="logout" size="18px" class="q-mr-xs" />
@@ -808,6 +812,27 @@ function formatDate(dateStr) {
 
 .link-admin:hover {
   background: #e6f7f0;
+}
+
+.link-driver {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #1876d2;
+  text-decoration: none;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #1876d2;
+  border-radius: 10px;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.link-driver:hover {
+  background: #e3f2fd;
 }
 
 .link-terms {

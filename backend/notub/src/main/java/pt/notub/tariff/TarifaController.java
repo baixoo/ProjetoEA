@@ -4,9 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pt.notub.common.mapper.TarifaMapper;
 import pt.notub.models.ModalidadePasse;
-import pt.notub.models.Tarifa;
 import pt.notub.models.TipoUtilizador;
-import pt.notub.tariff.TarifaService;
 import pt.notub.tariff.dto.TarifaDTO;
 
 import java.util.List;
@@ -93,21 +91,5 @@ public class TarifaController {
                 .map(TarifaMapper::toDTO)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
-    }
-
-    @PostMapping
-    public ResponseEntity<TarifaDTO> createTarifa(@RequestBody Tarifa tarifa) {
-        return ResponseEntity.ok(TarifaMapper.toDTO(tarifaService.createTarifa(tarifa)));
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<TarifaDTO> updateTarifa(@PathVariable Long id, @RequestBody Tarifa tarifa) {
-        return ResponseEntity.ok(TarifaMapper.toDTO(tarifaService.updateTarifa(id, tarifa)));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteTarifa(@PathVariable Long id) {
-        tarifaService.deleteTarifa(id);
-        return ResponseEntity.ok("Tarifa deleted");
     }
 }

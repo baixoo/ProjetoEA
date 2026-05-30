@@ -3,6 +3,7 @@ package pt.notub.admin;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.Paragem;
 import pt.notub.models.Zona;
 import pt.notub.repositories.ParagemRepository;
@@ -28,7 +29,7 @@ public class AdminZonaController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Zona updated) {
-        Zona zona = zonaRepository.findById(id).orElseThrow(() -> new RuntimeException("Zona nao encontrada"));
+        Zona zona = zonaRepository.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
         if (updated.getNome() != null) zona.setNome(updated.getNome());
         if (updated.getNum() != 0) zona.setNum(updated.getNum());
         return ResponseEntity.ok(zonaRepository.save(zona));
@@ -42,8 +43,8 @@ public class AdminZonaController {
 
     @PostMapping("/{id}/paragens/{paragemId}")
     public ResponseEntity<?> addParagem(@PathVariable Long id, @PathVariable Long paragemId) {
-        Zona zona = zonaRepository.findById(id).orElseThrow(() -> new RuntimeException("Zona nao encontrada"));
-        Paragem paragem = paragemRepository.findById(paragemId).orElseThrow(() -> new RuntimeException("Paragem nao encontrada"));
+        Zona zona = zonaRepository.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
+        Paragem paragem = paragemRepository.findById(paragemId).orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
         zona.getParagens().add(paragem);
         zonaRepository.save(zona);
         return ResponseEntity.ok(zona);
@@ -51,7 +52,7 @@ public class AdminZonaController {
 
     @DeleteMapping("/{id}/paragens/{paragemId}")
     public ResponseEntity<?> removeParagem(@PathVariable Long id, @PathVariable Long paragemId) {
-        Zona zona = zonaRepository.findById(id).orElseThrow(() -> new RuntimeException("Zona nao encontrada"));
+        Zona zona = zonaRepository.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
         zona.getParagens().removeIf(p -> p.getId().equals(paragemId));
         zonaRepository.save(zona);
         return ResponseEntity.ok(zona);

@@ -1,6 +1,7 @@
 package pt.notub.validation;
 
 import org.springframework.stereotype.Service;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.Paragem;
 import pt.notub.models.Point;
 import pt.notub.repositories.ParagemRepository;
@@ -18,7 +19,7 @@ public class GeoVerificationService {
 
     public boolean isProximo(Long paragemId, double userLat, double userLng) {
         Paragem paragem = paragemRepository.findById(paragemId)
-                .orElseThrow(() -> new RuntimeException("Paragem not found"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
 
         Point loc = paragem.getLocalizacao();
         if (loc == null) return true;

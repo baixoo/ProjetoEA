@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pt.notub.exception.AcessoNegadoException;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.payment.dto.CheckoutRequest;
 import pt.notub.payment.dto.CheckoutResponse;
 import pt.notub.payment.dto.PagamentoStatusResponse;
@@ -47,7 +49,7 @@ public class PagamentoService {
     @Transactional
     public CheckoutResponse iniciarCheckout(String email, CheckoutRequest request) {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
 
         TipoProduto tipoProduto = TipoProduto.valueOf(request.getTipoProduto());
 
@@ -99,13 +101,13 @@ public class PagamentoService {
         if (tipoProduto == TipoProduto.BILHETE) {
             unitPrice = tarifaRepository
                     .findByCriteria(tipoUtilizador, null, nrZonas)
-                    .orElseThrow(() -> new RuntimeException("Tarifa nao encontrada para bilhete"))
+                    .orElseThrow(() -> new RecursoNaoEncontradoException("Tarifa nao encontrada para bilhete"))
                     .getValor();
         } else {
             ModalidadePasse modalidade = ModalidadePasse.valueOf(request.getModalidade());
             unitPrice = tarifaRepository
                     .findByCriteria(tipoUtilizador, modalidade, nrZonas)
-                    .orElseThrow(() -> new RuntimeException("Tarifa nao encontrada para passe"))
+                    .orElseThrow(() -> new RecursoNaoEncontradoException("Tarifa nao encontrada para passe"))
                     .getValor();
         }
 
@@ -121,7 +123,7 @@ public class PagamentoService {
         transacao.setUtilizador(utilizador);
         transacao.setDataHora(LocalDateTime.now());
         transacao.setEstadoPagamento(EstadoPagamento.EM_CURSO);
-        transacao.setMetodoPagamento(MetodoPagamento.CARTAO);
+        transacao.setMetodoPagamento(MetodoPagamento.STRIPE);
         transacao.setTipoProduto(tipoProduto);
         transacao.setValor(totalValor);
         transacao.setToken(UUID.randomUUID().toString());
@@ -159,7 +161,7 @@ public class PagamentoService {
     @Transactional
     public void confirmarPagamento(Long transacaoId) {
         Transacao transacao = transacaoRepository.findById(transacaoId)
-                .orElseThrow(() -> new RuntimeException("Transacao nao encontrada"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Transacao nao encontrada"));
 
         if (transacao.getEstadoPagamento() == EstadoPagamento.CONCLUIDO) {
             return;
@@ -181,7 +183,7 @@ public class PagamentoService {
     @Transactional
     public void rejeitarPagamento(Long transacaoId) {
         Transacao transacao = transacaoRepository.findById(transacaoId)
-                .orElseThrow(() -> new RuntimeException("Transacao nao encontrada"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Transacao nao encontrada"));
 
         transacao.setEstadoPagamento(EstadoPagamento.REJEITADO);
         transacaoRepository.save(transacao);
@@ -193,10 +195,10 @@ public class PagamentoService {
 
     public PagamentoStatusResponse verificarEstado(String token, Long userId) {
         Transacao transacao = transacaoRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Transacao nao encontrada"));
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Transacao nao encontrada"));
 
         if (!transacao.getUtilizador().getId().equals(userId)) {
-            throw new RuntimeException("Acesso nao autorizado");
+            throw new AcessoNegadoException();
         }
 
         PagamentoStatusResponse response = new PagamentoStatusResponse();

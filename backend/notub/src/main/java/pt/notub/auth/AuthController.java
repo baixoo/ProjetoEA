@@ -21,6 +21,7 @@ import pt.notub.repositories.TokenRecuperacaoSenhaRepository;
 import pt.notub.repositories.UtilizadorRepository;
 import pt.notub.security.JwtUtils;
 import pt.notub.security.UserDetailsImpl;
+import pt.notub.security.AuthenticatedUser;
 import pt.notub.notification.PublicadorEventosEmail;
 import pt.notub.user.dto.UserDTO;
 
@@ -100,13 +101,7 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<UserDTO> getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof UserDetailsImpl userDetails)) {
-            return ResponseEntity.status(401).build();
-        }
-        Utilizador utilizador = utilizadorRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new RuntimeException("Utilizador nao encontrado"));
+    public ResponseEntity<UserDTO> getCurrentUser(@AuthenticatedUser Utilizador utilizador) {
         return ResponseEntity.ok(UserMapper.toDTO(utilizador));
     }
 

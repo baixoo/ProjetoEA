@@ -8,6 +8,8 @@ import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
+import pt.notub.exception.AutenticacaoRequeridaException;
+import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.Utilizador;
 import pt.notub.repositories.UtilizadorRepository;
 
@@ -31,8 +33,9 @@ public class AuthenticatedUserArgumentResolver implements HandlerMethodArgumentR
                                   NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof UserDetailsImpl userDetails)) {
-            return null;
+            throw new AutenticacaoRequeridaException();
         }
-        return utilizadorRepository.findByEmail(userDetails.getUsername()).orElse(null);
+        return utilizadorRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
     }
 }
