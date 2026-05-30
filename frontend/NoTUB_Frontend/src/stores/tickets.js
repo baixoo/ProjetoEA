@@ -95,7 +95,7 @@ export const useTicketsStore = defineStore('tickets', () => {
     return data.valor ?? null
   }
 
-  async function buyTickets(quantidade, zonaIds) {
+  async function buyTickets(quantidade, zonaId) {
     if (!authStore.token) throw new Error('Não autenticado')
     loading.value = true
     error.value = null
@@ -106,7 +106,7 @@ export const useTicketsStore = defineStore('tickets', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authStore.token}`
         },
-        body: JSON.stringify({ quantidade, zonaIds })
+        body: JSON.stringify({ quantidade, zonaId })
       })
       if (!response.ok) {
         const text = await response.text()
@@ -123,7 +123,7 @@ export const useTicketsStore = defineStore('tickets', () => {
     }
   }
 
-  async function buyPass(modalidade, zonaIds) {
+  async function buyPass(modalidade, zonaId) {
     if (!authStore.token) throw new Error('Não autenticado')
     loading.value = true
     error.value = null
@@ -134,7 +134,7 @@ export const useTicketsStore = defineStore('tickets', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authStore.token}`
         },
-        body: JSON.stringify({ modalidade, zonaIds })
+        body: JSON.stringify({ modalidade, zonaId })
       })
       if (!response.ok) {
         const text = await response.text()

@@ -40,7 +40,7 @@
           </div>
           <div class="option-details">
             <span class="option-title">Usar Passe Ativo</span>
-            <span class="option-subtitle">Zonas: {{ formatZones(activePass.zonas) }}</span>
+            <span class="option-subtitle">Zona: {{ activePass?.zona?.num || '-' }}</span>
           </div>
           <q-icon v-if="selectedType === 'passe'" name="check_circle" class="selected-icon" />
         </button>
@@ -154,12 +154,6 @@ const activePass = computed(() => ticketsStore.activePass)
 const hasActivePass = computed(() => !!activePass.value)
 const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
 const unusedTicketsCount = computed(() => unusedTickets.value.length)
-
-function formatZones(zonas) {
-  if (!zonas || zonas.length === 0) return 'Z1'
-  const nums = zonas.map(z => z.num).sort((a, b) => a - b)
-  return `Z${nums[0]} - Z${nums[nums.length - 1]}`
-}
 
 async function confirmSelection() {
   submitting.value = true

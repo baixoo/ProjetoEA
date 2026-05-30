@@ -37,7 +37,6 @@ public class ZonaService {
         Zona zona = zonaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
         if (updated.getNome() != null) zona.setNome(updated.getNome());
-        if (updated.getParagens() != null) zona.setParagens(updated.getParagens());
         return zonaRepository.save(zona);
     }
 

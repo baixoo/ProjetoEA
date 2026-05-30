@@ -137,6 +137,7 @@
 
       <!-- Bottom Actions -->
       <div class="bottom-actions">
+        <router-link to="/terms" class="link-terms">Termos e Condicoes</router-link>
         <router-link v-if="authStore.user?.role === 'ADMINISTRADOR'" to="/admin" class="link-admin">
           <q-icon name="admin_panel_settings" size="18px" />
           <span>Painel de Administracao</span>
@@ -145,7 +146,6 @@
           <q-icon name="directions_bus" size="18px" />
           <span>Painel de Motorista</span>
         </router-link>
-        <router-link to="/terms" class="link-terms">Termos e Condicoes</router-link>
         <button class="btn btn--logout" @click="handleLogout">
           <q-icon name="logout" size="18px" class="q-mr-xs" />
           <span>Sair da Conta</span>
@@ -291,7 +291,7 @@ async function handleRedeem() {
 
     // 2. Buy the free ticket (using first zone id or fallback 1)
     const zoneId = viagensStore.zones?.[0]?.id || 1
-    await ticketsStore.buyTickets(1, [zoneId])
+    await ticketsStore.buyTickets(1, zoneId)
 
     // 3. Refresh user profile (for points balance) and history
     await authStore.fetchUser()

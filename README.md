@@ -43,30 +43,30 @@ Disponivel em `https://localhost/swagger-ui.html` (ou `https://notub.bounceme.ne
 - Email de boas-vindas ao registar (via RabbitMQ + Mailtrap)
 - Edicao de perfil (nome, NIF, data nascimento, password)
 - Completar perfil apos Google OAuth2 (data nascimento obrigatoria, NIF opcional com "Nao tenho NIF")
-- NIF unico na base de dados (`@Column(unique = true)`), multiplos NULLs permitidos
+- NIF unico na base de dados (`@Column(unique = true)`), NIFs NULLs permitidos
 - Logout (limpa JWT + invalida sessao OAuth2 no backend)
 - Roles: `ADMINISTRADOR`, `UTILIZADOR`, `MOTORISTA`
 - Tipo de utilizador: `CRIANCA`, `ESTUDANTE`, `ADULTO`, `SENIOR`
 
 ### Gestao de Titulos de Transporte (Bilhetica)
 - Compra de bilhetes individuais (1 ou mais)
-- Compra de passes (H24, H48, H72, Semanal, Mensal, Anual)
+- Compra de passes (H24, H48, H72, Semanal, Mensal, Anual) (Falta integrar, só tem Mensal,Anual e tickets normais até agora)
 - Pagamento via Stripe Checkout Sessions
 - Precos dinamicos por tipo de utilizador, modalidade e numero de zonas
 - Precos visiveis apenas no checkout apos selecao de zona (nao mostrados na listagem da loja)
-- Titulos associados a zonas (ManyToMany)
+- Titulos associados a uma zona (ManyToOne, conforme PIM)
 - Bilhete marcado como usado apos validacao
 
 ### Utilizacao de Titulos e Validacao (Check-in/Check-out)
 - Leitura de QR Code (camera real via html5-qrcode)
 - Suporte multi-formato QR: JSON, URL params, comma-separated, matricula (raw text)
 - QR Code fisico no autocarro contem a matricula (ex: `SG-100-01`)
-- Apos leitura do QR: deteccao automatica da paragem mais proxima via GPS do utilizador (haversine)
-- Fallback graceful se GPS indisponivel (primeira paragem da lista)
-- Notificacao visual (toast) ao ler QR e ao detetar paragem
+- Apos leitura do QR: deteccao automatica da paragem mais proxima via GPS do utilizador (haversine) (MUDAR!)
+- Fallback graceful se GPS indisponivel (primeira paragem da lista) (MUDAR!)
+- Notificacao visual (toast-Vue) ao ler QR e ao detetar paragem
 - BoardingDialog com informacao do autocarro, linha e paragem de embarque detetada
-- Inicio de viagem: selecionar titulo + paragem de entrada (auto-detetada) + viagem de veiculo
-- Fim de viagem: selecionar paragem de saida
+- Inicio de viagem: selecionar titulo + paragem de entrada (detetada auto era ideal mas pelos pontos a cima é para mudar) + viagem de veiculo
+- Fim de viagem: Nao implementado nem testado
 - Validacao de titulo (Strategy pattern: `EstrategiaValidacao` -> `ValidacaoQRCode`)
 - Atribuicao automatica de pontos por viagem (10 pts) e por compra (5 pts)
 
@@ -120,7 +120,7 @@ Disponivel em `https://localhost/swagger-ui.html` (ou `https://notub.bounceme.ne
 
 | Bug | Causa | Fix |
 |-----|-------|-----|
-| `SyntaxError: JSON.parse` na TripsPage | Referencia circular JPA: `ViagemUtilizador` <-> `ViagemVeiculo` causava recursao infinita na serializacao JSON | Refactor completo para DTOs com mappers estaticos |
+ | `SyntaxError: JSON.parse` na TripsPage | Referencia circular JPA: `ViagemUtilizador` <-> `ViagemVeiculo` causava recursao infinita na serializacao JSON | Refactor completo para DTOs com mappers estaticos + eliminacao de relacoes bidirecionais |
 | `GET /api/viagens/utilizador` retornava viagens de TODOS os utilizadores | `ViagemService.getAllViagensUtilizador()` fazia `findAll()` sem filtro | `@AuthenticatedUser` + query JPQL polimorfica |
 | `sendBeacon('/logout')` criava JSESSIONID fantasma | Pedia logout na chain errada (STATELESS em vez da chain OAuth2) | Removido logout do frontend; sessao invalidada no `OAuth2AuthenticationSuccessHandler` |
 
@@ -148,7 +148,7 @@ Disponivel em `https://localhost/swagger-ui.html` (ou `https://notub.bounceme.ne
 - [ ] **Historico de Viagens** - Verificar se a pagina TripsPage mostra correctamente todas as viagens do utilizador apos o fix
 - [ ] **Mapa/Visualizacao de Paragens** - As paragens tem lat/lng mas nao ha mapa na interface
 - [ ] **Refresh Token** - Implementar rotacao de refresh tokens
-- [ ] **Actualizar PIM** - O PIM (Visual Paradigm) precisa de ser actualizado para incluir: `ViagemVeiculo`, `Tarifa`, `Transacao`, `HistoricoPontos`, `TokenRecuperacaoSenha`, `Point` (embeddable), enums adicionais
+- [ ] **Actualizar PIM** - O PIM (Visual Paradigm) precisa de ser actualizado para incluir: `ViagemVeiculo`, `Tarifa`, `Transacao`, `HistoricoPontos`, `TokenRecuperacaoSenha`, `Point` (embeddable), enums adicionais. As relacoes JPA estao agora alinhadas com o PIM (unidirecionais, ManyToOne `TituloTransporte`->`Zona`, ManyToOne `Paragem`->`Zona`).
 
 ### Baixa Prioridade
 - [ ] **Deploy Kubernetes (K8s)** - Orquestracao para producao com auto-scaling
@@ -203,6 +203,31 @@ O PIM foi modelado no Visual Paradigm (`diagramas (visual-paradigm)/PIM_NOTub_v2
 | `TokenRecuperacaoSenha` | Tokens para recuperacao de password |
 | `Point` (embeddable) | Coordenadas GPS (lat/lng) em Paragem e Veiculo |
 | Enums adicionais | `ModalidadePasse`, `AuthMethod`, `TipoPapel`, `EstadoPagamento`, `MetodoPagamento`, `TipoProduto` |
+
+### Modelo de Relacoes JPA
+
+Todas as relacoes seguem o PIM (navegabilidade unidireccional do lado que tem a FK). Nao ha relacoes bidirecionais.
+
+| Relacao | Tipo | Lado Dono (FK) | Descricao |
+|---|---|---|---|
+| `Bilhete` -> `Utilizador` | ManyToOne | `bilhete.utilizador_id` | Um bilhete pertence a um utilizador |
+| `Passe` -> `Utilizador` | OneToOne | `passe.utilizador_id` | Um passe pertence a um utilizador |
+| `TituloTransporte` -> `Zona` | ManyToOne | `titulo_transporte.zona_id` | Cada titulo e valido para uma zona |
+| `Paragem` -> `Zona` | ManyToOne | `paragem.zona_id` | Cada paragem pertence a uma zona |
+| `Trajeto` -> `Linha` | ManyToOne | `trajeto.linha_id` | Cada trajeto pertence a uma linha |
+| `Trajeto` -> `PontosDePassagem` | OneToMany | `pontos_de_passagem.trajeto_id` | Um trajeto tem varios pontos de passagem (composicao) |
+| `PontosDePassagem` -> `Paragem` | ManyToOne | `pontos_de_passagem.paragem_id` | Cada ponto refere uma paragem |
+| `ViagemVeiculo` -> `Veiculo` | ManyToOne | `viagem_veiculo.veiculo_id` | Viagem de veiculo associada a uma viatura |
+| `ViagemVeiculo` -> `Trajeto` | ManyToOne | `viagem_veiculo.trajeto_id` | Viagem de veiculo segue um trajeto |
+| `ViagemUtilizador` -> `TituloTransporte` | ManyToOne | `viagem_utilizador.titulo_id` | Viagem do utilizador usa um titulo |
+| `ViagemUtilizador` -> `ViagemVeiculo` | ManyToOne | `viagem_utilizador.viagem_veiculo_id` | Viagem do utilizador numa viagem de veiculo |
+| `ViagemUtilizador` -> `Paragem` (entrada) | ManyToOne | `viagem_utilizador.paragem_entrada_id` | Paragem de embarque |
+| `ViagemUtilizador` -> `Paragem` (saida) | ManyToOne | `viagem_utilizador.paragem_saida_id` | Paragem de desembarque |
+| `Transacao` -> `TituloTransporte` | ManyToOne | `transacao.titulo_id` | Pagamento associado a um titulo |
+| `Transacao` -> `Utilizador` | ManyToOne | `transacao.utilizador_id` | Pagamento feito por um utilizador |
+| `HistoricoPontos` -> `Utilizador` | ManyToOne | `historico_pontos.utilizador_id` | Historico de pontos de um utilizador |
+| `TokenRecuperacaoSenha` -> `Utilizador` | ManyToOne | `token_recuperacao_senha.utilizador_id` | Token de recuperacao de um utilizador |
+| `Autocarro` -> `Veiculo` | JOINED inheritance | - | Subclasse de Veiculo |
 
 ---
 

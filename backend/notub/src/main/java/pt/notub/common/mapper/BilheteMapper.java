@@ -15,7 +15,7 @@ public final class BilheteMapper {
         BilheteDTO dto = new BilheteDTO();
         dto.setId(b.getId());
         dto.setUsado(b.isUsado());
-        dto.setZonas(ZonaMapper.toDTOList(b.getZonas()));
+        dto.setZona(ZonaMapper.toDTO(b.getZona()));
         return dto;
     }
 

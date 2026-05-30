@@ -4,7 +4,6 @@ import pt.notub.models.ModalidadePasse;
 import pt.notub.zone.dto.ZonaDTO;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 public class PasseDTO {
 
@@ -12,7 +11,7 @@ public class PasseDTO {
     private LocalDateTime inicio;
     private LocalDateTime fim;
     private ModalidadePasse modalidade;
-    private List<ZonaDTO> zonas;
+    private ZonaDTO zona;
 
     public PasseDTO() {}
 
@@ -24,6 +23,6 @@ public class PasseDTO {
     public void setFim(LocalDateTime fim) { this.fim = fim; }
     public ModalidadePasse getModalidade() { return modalidade; }
     public void setModalidade(ModalidadePasse modalidade) { this.modalidade = modalidade; }
-    public List<ZonaDTO> getZonas() { return zonas; }
-    public void setZonas(List<ZonaDTO> zonas) { this.zonas = zonas; }
+    public ZonaDTO getZona() { return zona; }
+    public void setZona(ZonaDTO zona) { this.zona = zona; }
 }

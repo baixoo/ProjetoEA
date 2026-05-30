@@ -29,15 +29,15 @@ public class TicketService {
         this.servicoPontos = servicoPontos;
     }
 
-    public Bilhete criarBilhete(Utilizador utilizador, List<Zona> zonas) {
+    public Bilhete criarBilhete(Utilizador utilizador, Zona zona) {
         Bilhete bilhete = new Bilhete();
         bilhete.setUtilizador(utilizador);
         bilhete.setUsado(false);
-        bilhete.setZonas(zonas);
+        bilhete.setZona(zona);
         return bilheteRepository.save(bilhete);
     }
 
-    public Passe criarPasse(Utilizador utilizador, ModalidadePasse modalidade, List<Zona> zonas) {
+    public Passe criarPasse(Utilizador utilizador, ModalidadePasse modalidade, Zona zona) {
         passeRepository.findByUtilizadorId(utilizador.getId()).ifPresent(passe -> {
             if (passe.getFim() != null && passe.getFim().isAfter(LocalDateTime.now())) {
                 throw new RuntimeException("Utilizador ja tem um passe ativo ate " + passe.getFim());
@@ -48,27 +48,29 @@ public class TicketService {
         passe.setModalidade(modalidade);
         passe.setInicio(LocalDateTime.now());
         passe.setFim(calcularFimPasse(modalidade));
-        passe.setZonas(zonas);
+        passe.setZona(zona);
         return passeRepository.save(passe);
     }
 
-    public List<Bilhete> buyTickets(String email, int quantidade, List<Long> zonaIds) {
+    public List<Bilhete> buyTickets(String email, int quantidade, Long zonaId) {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
-        List<Zona> zonas = zonaRepository.findAllById(zonaIds);
+        Zona zona = zonaRepository.findById(zonaId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
         List<Bilhete> bilhetes = new ArrayList<>();
         for (int i = 0; i < quantidade; i++) {
-            bilhetes.add(criarBilhete(utilizador, zonas));
+            bilhetes.add(criarBilhete(utilizador, zona));
         }
         servicoPontos.atribuirPontosCompra(utilizador.getId());
         return bilhetes;
     }
 
-    public Passe buyPasse(String email, ModalidadePasse modalidade, List<Long> zonaIds) {
+    public Passe buyPasse(String email, ModalidadePasse modalidade, Long zonaId) {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
-        List<Zona> zonas = zonaRepository.findAllById(zonaIds);
-        Passe passe = criarPasse(utilizador, modalidade, zonas);
+        Zona zona = zonaRepository.findById(zonaId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
+        Passe passe = criarPasse(utilizador, modalidade, zona);
         servicoPontos.atribuirPontosCompra(utilizador.getId());
         return passe;
     }

@@ -2,7 +2,6 @@ package pt.notub.models;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
-import java.util.List;
 
 @Entity
 public class Utilizador {
@@ -34,12 +33,6 @@ public class Utilizador {
     @Column(length = 20)
     private AuthMethod authMethod;
 
-    @OneToMany(mappedBy = "utilizador", cascade = CascadeType.ALL)
-    private List<Bilhete> bilhetes;
-
-    @OneToOne(mappedBy = "utilizador", cascade = CascadeType.ALL)
-    private Passe passe;
-
     public Utilizador() {}
 
     public Long getId() { return id; }
@@ -64,8 +57,4 @@ public class Utilizador {
     public void setRole(TipoPapel role) { this.role = role; }
     public AuthMethod getAuthMethod() { return authMethod; }
     public void setAuthMethod(AuthMethod authMethod) { this.authMethod = authMethod; }
-    public List<Bilhete> getBilhetes() { return bilhetes; }
-    public void setBilhetes(List<Bilhete> bilhetes) { this.bilhetes = bilhetes; }
-    public Passe getPasse() { return passe; }
-    public void setPasse(Passe passe) { this.passe = passe; }
 }

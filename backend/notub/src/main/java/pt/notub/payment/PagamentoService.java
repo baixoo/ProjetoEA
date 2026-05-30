@@ -87,10 +87,9 @@ public class PagamentoService {
             }
         }
 
-        int nrZonas = (int) request.getZonaIds().stream()
-                .mapToLong(Long::longValue)
-                .max()
-                .orElse(1L);
+        Long zonaId = request.getZonaId();
+        if (zonaId == null) zonaId = 1L;
+        int nrZonas = zonaId.intValue();
 
         TipoUtilizador tipoUtilizador = utilizador.getTipoUtilizador();
         if (tipoUtilizador == null) {
@@ -127,7 +126,7 @@ public class PagamentoService {
         transacao.setTipoProduto(tipoProduto);
         transacao.setValor(totalValor);
         transacao.setToken(UUID.randomUUID().toString());
-        transacao.setZonaIds(request.getZonaIds().stream().map(String::valueOf).reduce((a, b) -> a + "," + b).orElse(""));
+        transacao.setZonaId(zonaId);
 
         if (tipoProduto == TipoProduto.BILHETE) {
             transacao.setQuantidade(request.getQuantidade());
@@ -176,7 +175,7 @@ public class PagamentoService {
                 transacao.getTipoProduto().name(),
                 transacao.getQuantidade(),
                 transacao.getModalidade(),
-                transacao.getZonaIds()
+                transacao.getZonaId()
         ));
     }
 

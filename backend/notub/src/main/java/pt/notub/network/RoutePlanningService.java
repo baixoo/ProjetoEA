@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import pt.notub.network.dto.RotaDTO;
 import pt.notub.models.*;
 import pt.notub.repositories.PontosDePassagemRepository;
+import pt.notub.repositories.TrajetoRepository;
 
 import java.util.*;
 
@@ -11,9 +12,12 @@ import java.util.*;
 public class RoutePlanningService {
 
     private final PontosDePassagemRepository pontosDePassagemRepository;
+    private final TrajetoRepository trajetoRepository;
 
-    public RoutePlanningService(PontosDePassagemRepository pontosDePassagemRepository) {
+    public RoutePlanningService(PontosDePassagemRepository pontosDePassagemRepository,
+                                TrajetoRepository trajetoRepository) {
         this.pontosDePassagemRepository = pontosDePassagemRepository;
+        this.trajetoRepository = trajetoRepository;
     }
 
     public RotaDTO planearRota(Long origemId, Long destinoId) {
@@ -31,9 +35,9 @@ public class RoutePlanningService {
         }
 
         Map<String, List<PontosDePassagem>> trajetoPontosMap = new HashMap<>();
-        for (PontosDePassagem p : allPontos) {
-            if (p.getTrajeto() != null) {
-                trajetoPontosMap.computeIfAbsent(String.valueOf(p.getTrajeto().getId()), k -> new ArrayList<>()).add(p);
+        for (Trajeto t : allTrajetos) {
+            if (t.getPontosDePassagem() != null) {
+                trajetoPontosMap.put(String.valueOf(t.getId()), new ArrayList<>(t.getPontosDePassagem()));
             }
         }
         for (List<PontosDePassagem> pontos : trajetoPontosMap.values()) {
@@ -60,7 +64,8 @@ public class RoutePlanningService {
             List<PontosDePassagem> pontosHere = paragemToPontos.getOrDefault(currentParagemId, List.of());
 
             for (PontosDePassagem ponto : pontosHere) {
-                Long trajetoId = ponto.getTrajeto().getId();
+                Long trajetoId = pontoToTrajeto.get(ponto.getId());
+                if (trajetoId == null) continue;
                 List<PontosDePassagem> trajetoPontos = trajetoPontosMap.get(String.valueOf(trajetoId));
 
                 int currentIdx = -1;
@@ -110,9 +115,14 @@ public class RoutePlanningService {
         }
 
         Map<Long, Trajeto> trajetoCache = new HashMap<>();
-        for (PontosDePassagem p : allPontos) {
-            if (p.getTrajeto() != null) {
-                trajetoCache.putIfAbsent(p.getTrajeto().getId(), p.getTrajeto());
+        Map<Long, Long> pontoToTrajeto = new HashMap<>();
+        List<Trajeto> allTrajetos = trajetoRepository.findAll();
+        for (Trajeto t : allTrajetos) {
+            trajetoCache.put(t.getId(), t);
+            if (t.getPontosDePassagem() != null) {
+                for (PontosDePassagem p : t.getPontosDePassagem()) {
+                    pontoToTrajeto.put(p.getId(), t.getId());
+                }
             }
         }
 

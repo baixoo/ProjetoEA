@@ -12,9 +12,6 @@ import pt.notub.models.Utilizador;
 import pt.notub.repositories.UtilizadorRepository;
 import pt.notub.ticket.TicketService;
 
-import java.util.Arrays;
-import java.util.List;
-
 @Component
 public class PagamentoEventListener {
 
@@ -34,16 +31,12 @@ public class PagamentoEventListener {
         try {
             Utilizador utilizador = utilizadorRepository.findById(event.utilizadorId())
                     .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
-            List<Long> zonaIds = Arrays.stream(event.zonaIds().split(","))
-                    .map(String::trim)
-                    .map(Long::parseLong)
-                    .toList();
 
             if (TipoProduto.BILHETE.name().equals(event.tipoProduto())) {
-                ticketService.buyTickets(utilizador.getEmail(), event.quantidade(), zonaIds);
+                ticketService.buyTickets(utilizador.getEmail(), event.quantidade(), event.zonaId());
             } else {
                 ModalidadePasse modalidade = ModalidadePasse.valueOf(event.modalidade());
-                ticketService.buyPasse(utilizador.getEmail(), modalidade, zonaIds);
+                ticketService.buyPasse(utilizador.getEmail(), modalidade, event.zonaId());
             }
             logger.info("Titulo criado apos pagamento confirmado para transacao {}", event.transacaoId());
         } catch (Exception e) {

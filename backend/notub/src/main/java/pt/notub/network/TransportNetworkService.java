@@ -11,7 +11,9 @@ import pt.notub.repositories.PontosDePassagemRepository;
 import pt.notub.repositories.TrajetoRepository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class TransportNetworkService {
@@ -61,5 +63,15 @@ public class TransportNetworkService {
 
     public List<PontosDePassagem> getPontosByTrajeto(Long trajetoId) {
         return pontosDePassagemRepository.findByTrajetoIdOrderByOrdemAsc(trajetoId);
+    }
+
+    public Map<Long, List<Trajeto>> getTrajetosByLinhaMap() {
+        return trajetoRepository.findAll().stream()
+                .filter(t -> t.getLinha() != null)
+                .collect(Collectors.groupingBy(t -> t.getLinha().getId()));
+    }
+
+    public List<Trajeto> getTrajetosForLinha(Long linhaId) {
+        return trajetoRepository.findByLinhaId(linhaId);
     }
 }

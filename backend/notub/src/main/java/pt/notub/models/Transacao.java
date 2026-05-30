@@ -24,7 +24,7 @@ public class Transacao {
     private Double valor;
     private Integer quantidade;
     private String modalidade;
-    private String zonaIds;
+    private Long zonaId;
 
     @Column(unique = true)
     private String token;
@@ -60,8 +60,8 @@ public class Transacao {
     public void setQuantidade(Integer quantidade) { this.quantidade = quantidade; }
     public String getModalidade() { return modalidade; }
     public void setModalidade(String modalidade) { this.modalidade = modalidade; }
-    public String getZonaIds() { return zonaIds; }
-    public void setZonaIds(String zonaIds) { this.zonaIds = zonaIds; }
+    public Long getZonaId() { return zonaId; }
+    public void setZonaId(Long zonaId) { this.zonaId = zonaId; }
     public String getStripeSessionId() { return stripeSessionId; }
     public void setStripeSessionId(String stripeSessionId) { this.stripeSessionId = stripeSessionId; }
     public TituloTransporte getTitulo() { return titulo; }

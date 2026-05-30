@@ -260,14 +260,8 @@ const selectedZoneNum = computed(() => {
   return zone ? zone.num : 1
 })
 
-const zonaIdsForBackend = computed(() => {
-  const num = selectedZoneNum.value
-  const ids = []
-  for (let i = 1; i <= num; i++) {
-    const zone = zoneOptions.value.find(z => z.num === i)
-    ids.push(zone ? zone.id : i)
-  }
-  return ids
+const selectedZonaId = computed(() => {
+  return selectedZoneId.value
 })
 
 const unusedTicketsCount = computed(() => {
@@ -293,9 +287,8 @@ const activePassModalidade = computed(() => {
 })
 
 const activePassZoneLabel = computed(() => {
-  if (!ticketsStore.activePass?.zonas?.length) return ''
-  const nums = ticketsStore.activePass.zonas.map(z => z.num).sort((a, b) => a - b)
-  return `Z${nums[0]} - Z${nums[nums.length - 1]}`
+  if (!ticketsStore.activePass?.zona) return ''
+  return `Zona ${ticketsStore.activePass.zona.num}`
 })
 
 const activePassExpiry = computed(() => {
@@ -353,7 +346,7 @@ async function processPayment() {
     const checkoutRequest = {
       metodoPagamento: 'CARTAO',
       tipoProduto: isTicket ? 'BILHETE' : 'PASSE',
-      zonaIds: zonaIdsForBackend.value
+      zonaId: selectedZonaId.value
     }
 
     if (isTicket) {

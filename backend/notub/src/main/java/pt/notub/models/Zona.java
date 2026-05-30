@@ -1,7 +1,6 @@
 package pt.notub.models;
 
 import jakarta.persistence.*;
-import java.util.List;
 
 @Entity
 public class Zona {
@@ -13,10 +12,6 @@ public class Zona {
 
     private String nome;
 
-    @OneToMany
-    @JoinColumn(name = "zona_id")
-    private List<Paragem> paragens;
-
     public Zona() {}
 
     public Long getId() { return id; }
@@ -25,6 +20,4 @@ public class Zona {
     public void setNum(int num) { this.num = num; }
     public String getNome() { return nome; }
     public void setNome(String nome) { this.nome = nome; }
-    public List<Paragem> getParagens() { return paragens; }
-    public void setParagens(List<Paragem> paragens) { this.paragens = paragens; }
 }

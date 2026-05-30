@@ -221,11 +221,9 @@ const entryStopName = computed(() => {
 })
 
 const formattedZones = computed(() => {
-  const zonas = activeTrip.value?.titulo?.zonas
-  if (!zonas || zonas.length === 0) return 'Z1'
-  const sorted = zonas.map(z => z.num).sort((a, b) => a - b)
-  if (sorted.length === 1) return `Z${sorted[0]}`
-  return `Z${sorted[0]} - Z${sorted[sorted.length - 1]}`
+  const zona = activeTrip.value?.titulo?.zona
+  if (!zona) return 'Z1'
+  return `Z${zona.num}`
 })
 
 const stopOptions = computed(() => {

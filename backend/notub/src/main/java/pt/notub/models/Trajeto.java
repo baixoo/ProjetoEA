@@ -16,10 +16,8 @@ public class Trajeto {
     @JoinColumn(name = "linha_id")
     private Linha linha;
 
-    @OneToMany(mappedBy = "trajeto", cascade = CascadeType.ALL)
-    private List<ViagemVeiculo> viagem;
-
-    @OneToMany(mappedBy = "trajeto", cascade = CascadeType.ALL)
+    @OneToMany(cascade = CascadeType.ALL)
+    @JoinColumn(name = "trajeto_id")
     private List<PontosDePassagem> pontosDePassagem;
 
     public Trajeto() {}
@@ -30,8 +28,6 @@ public class Trajeto {
     public void setDirecao(Direcao direcao) { this.direcao = direcao; }
     public Linha getLinha() { return linha; }
     public void setLinha(Linha linha) { this.linha = linha; }
-    public List<ViagemVeiculo> getViagem() { return viagem; }
-    public void setViagem(List<ViagemVeiculo> viagem) { this.viagem = viagem; }
     public List<PontosDePassagem> getPontosDePassagem() { return pontosDePassagem; }
     public void setPontosDePassagem(List<PontosDePassagem> pontosDePassagem) { this.pontosDePassagem = pontosDePassagem; }
 }

@@ -1,13 +1,11 @@
 package pt.notub.payment.dto;
 
-import java.util.List;
-
 public class CheckoutRequest {
     private String metodoPagamento;
     private String tipoProduto;
     private Integer quantidade;
     private String modalidade;
-    private List<Long> zonaIds;
+    private Long zonaId;
     private Double valor;
     private String telefone;
 
@@ -21,8 +19,8 @@ public class CheckoutRequest {
     public void setQuantidade(Integer quantidade) { this.quantidade = quantidade; }
     public String getModalidade() { return modalidade; }
     public void setModalidade(String modalidade) { this.modalidade = modalidade; }
-    public List<Long> getZonaIds() { return zonaIds; }
-    public void setZonaIds(List<Long> zonaIds) { this.zonaIds = zonaIds; }
+    public Long getZonaId() { return zonaId; }
+    public void setZonaId(Long zonaId) { this.zonaId = zonaId; }
     public Double getValor() { return valor; }
     public void setValor(Double valor) { this.valor = valor; }
     public String getTelefone() { return telefone; }

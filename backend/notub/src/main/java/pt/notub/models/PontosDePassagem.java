@@ -14,10 +14,6 @@ public class PontosDePassagem {
     private int tempoDesdeInicio;
 
     @ManyToOne
-    @JoinColumn(name = "trajeto_id")
-    private Trajeto trajeto;
-
-    @ManyToOne
     @JoinColumn(name = "paragem_id")
     private Paragem paragem;
 
@@ -31,8 +27,6 @@ public class PontosDePassagem {
     public void setHoraChegada(LocalTime horaChegada) { this.horaChegada = horaChegada; }
     public int getTempoDesdeInicio() { return tempoDesdeInicio; }
     public void setTempoDesdeInicio(int tempoDesdeInicio) { this.tempoDesdeInicio = tempoDesdeInicio; }
-    public Trajeto getTrajeto() { return trajeto; }
-    public void setTrajeto(Trajeto trajeto) { this.trajeto = trajeto; }
     public Paragem getParagem() { return paragem; }
     public void setParagem(Paragem paragem) { this.paragem = paragem; }
 }

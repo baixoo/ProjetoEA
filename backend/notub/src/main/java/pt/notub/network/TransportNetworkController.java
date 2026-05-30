@@ -38,13 +38,13 @@ public class TransportNetworkController {
 
     @GetMapping("/linhas")
     public ResponseEntity<List<LinhaDTO>> getLinhas() {
-        return ResponseEntity.ok(LinhaMapper.toDTOList(networkService.getAllLinhas()));
+        return ResponseEntity.ok(LinhaMapper.toDTOList(networkService.getAllLinhas(), networkService.getTrajetosByLinhaMap()));
     }
 
     @GetMapping("/linhas/{id}")
     public ResponseEntity<LinhaDTO> getLinhaById(@PathVariable Long id) {
         return networkService.getLinhaById(id)
-                .map(LinhaMapper::toDTO)
+                .map(l -> LinhaMapper.toDTO(l, networkService.getTrajetosForLinha(id)))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

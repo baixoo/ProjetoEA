@@ -45,16 +45,16 @@ public class AdminZonaController {
     public ResponseEntity<?> addParagem(@PathVariable Long id, @PathVariable Long paragemId) {
         Zona zona = zonaRepository.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
         Paragem paragem = paragemRepository.findById(paragemId).orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
-        zona.getParagens().add(paragem);
-        zonaRepository.save(zona);
+        paragem.setZona(zona);
+        paragemRepository.save(paragem);
         return ResponseEntity.ok(zona);
     }
 
     @DeleteMapping("/{id}/paragens/{paragemId}")
     public ResponseEntity<?> removeParagem(@PathVariable Long id, @PathVariable Long paragemId) {
-        Zona zona = zonaRepository.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
-        zona.getParagens().removeIf(p -> p.getId().equals(paragemId));
-        zonaRepository.save(zona);
-        return ResponseEntity.ok(zona);
+        Paragem paragem = paragemRepository.findById(paragemId).orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
+        paragem.setZona(null);
+        paragemRepository.save(paragem);
+        return ResponseEntity.ok("Paragem removida da zona");
     }
 }

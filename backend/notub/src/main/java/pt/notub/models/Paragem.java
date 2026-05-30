@@ -14,6 +14,10 @@ public class Paragem {
     @Embedded
     private Point localizacao;
 
+    @ManyToOne
+    @JoinColumn(name = "zona_id")
+    private Zona zona;
+
     public Paragem() {}
 
     // Getters and Setters
@@ -23,4 +27,6 @@ public class Paragem {
     public void setNome(String nome) { this.nome = nome; }
     public Point getLocalizacao() { return localizacao; }
     public void setLocalizacao(Point localizacao) { this.localizacao = localizacao; }
+    public Zona getZona() { return zona; }
+    public void setZona(Zona zona) { this.zona = zona; }
 }

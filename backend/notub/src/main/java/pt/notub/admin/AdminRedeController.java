@@ -85,8 +85,12 @@ public class AdminRedeController {
     @PostMapping("/trajetos/{trajetoId}/pontos")
     public ResponseEntity<PontosDePassagem> addPonto(@PathVariable Long trajetoId, @RequestBody PontosDePassagem ponto) {
         Trajeto trajeto = trajetoRepository.findById(trajetoId).orElseThrow(() -> new RecursoNaoEncontradoException("Trajeto nao encontrado"));
-        ponto.setTrajeto(trajeto);
-        return ResponseEntity.ok(pontosDePassagemRepository.save(ponto));
+        if (trajeto.getPontosDePassagem() == null) {
+            trajeto.setPontosDePassagem(new java.util.ArrayList<>());
+        }
+        trajeto.getPontosDePassagem().add(ponto);
+        trajetoRepository.save(trajeto);
+        return ResponseEntity.ok(ponto);
     }
 
     @DeleteMapping("/pontos/{id}")

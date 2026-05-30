@@ -137,9 +137,8 @@ const activePassName = computed(() => {
 })
 
 const activePassZoneLabel = computed(() => {
-  if (!ticketsStore.activePass?.zonas?.length) return null
-  const nums = ticketsStore.activePass.zonas.map(z => z.num).sort((a, b) => a - b)
-  return `Z${nums[0]} - Z${nums[nums.length - 1]}`
+  if (!ticketsStore.activePass?.zona) return null
+  return `Zona ${ticketsStore.activePass.zona.num}`
 })
 
 onMounted(async () => {

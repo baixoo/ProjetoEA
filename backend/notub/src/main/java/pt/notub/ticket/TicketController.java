@@ -27,12 +27,12 @@ public class TicketController {
 
     @PostMapping({"/buy", "/comprar"})
     public ResponseEntity<List<BilheteDTO>> buyTickets(@AuthenticatedUser Utilizador utilizador, @RequestBody BuyTicketRequest request) {
-        return ResponseEntity.ok(BilheteMapper.toDTOList(ticketService.buyTickets(utilizador.getEmail(), request.getQuantidade(), request.getZonaIds())));
+        return ResponseEntity.ok(BilheteMapper.toDTOList(ticketService.buyTickets(utilizador.getEmail(), request.getQuantidade(), request.getZonaId())));
     }
 
     @PostMapping({"/passe/buy", "/passe/comprar"})
     public ResponseEntity<PasseDTO> buyPasse(@AuthenticatedUser Utilizador utilizador, @RequestBody BuyPasseRequest request) {
-        return ResponseEntity.ok(PasseMapper.toDTO(ticketService.buyPasse(utilizador.getEmail(), request.getModalidade(), request.getZonaIds())));
+        return ResponseEntity.ok(PasseMapper.toDTO(ticketService.buyPasse(utilizador.getEmail(), request.getModalidade(), request.getZonaId())));
     }
 
     @GetMapping({"/my-tickets", "/meus-bilhetes"})
