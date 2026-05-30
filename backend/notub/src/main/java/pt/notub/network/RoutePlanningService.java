@@ -26,11 +26,23 @@ public class RoutePlanningService {
         }
 
         List<PontosDePassagem> allPontos = pontosDePassagemRepository.findAll();
+        List<Trajeto> allTrajetos = trajetoRepository.findAll();
 
         Map<Long, List<PontosDePassagem>> paragemToPontos = new HashMap<>();
         for (PontosDePassagem p : allPontos) {
             if (p.getParagem() != null) {
                 paragemToPontos.computeIfAbsent(p.getParagem().getId(), k -> new ArrayList<>()).add(p);
+            }
+        }
+
+        Map<Long, Trajeto> trajetoCache = new HashMap<>();
+        Map<Long, Long> pontoToTrajeto = new HashMap<>();
+        for (Trajeto t : allTrajetos) {
+            trajetoCache.put(t.getId(), t);
+            if (t.getPontosDePassagem() != null) {
+                for (PontosDePassagem p : t.getPontosDePassagem()) {
+                    pontoToTrajeto.put(p.getId(), t.getId());
+                }
             }
         }
 
@@ -111,18 +123,6 @@ public class RoutePlanningService {
         for (PontosDePassagem p : allPontos) {
             if (p.getParagem() != null) {
                 paragemCache.putIfAbsent(p.getParagem().getId(), p.getParagem());
-            }
-        }
-
-        Map<Long, Trajeto> trajetoCache = new HashMap<>();
-        Map<Long, Long> pontoToTrajeto = new HashMap<>();
-        List<Trajeto> allTrajetos = trajetoRepository.findAll();
-        for (Trajeto t : allTrajetos) {
-            trajetoCache.put(t.getId(), t);
-            if (t.getPontosDePassagem() != null) {
-                for (PontosDePassagem p : t.getPontosDePassagem()) {
-                    pontoToTrajeto.put(p.getId(), t.getId());
-                }
             }
         }
 
