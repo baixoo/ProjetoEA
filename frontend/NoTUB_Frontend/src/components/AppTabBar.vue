@@ -11,9 +11,6 @@
         <img :src="tab.icon" alt="" class="tab-icon" />
       </router-link>
     </div>
-    <div class="home-indicator">
-      <div class="home-indicator__bar"></div>
-    </div>
   </div>
 </template>
 
@@ -78,22 +75,4 @@ const tabs = [
   object-fit: contain;
 }
 
-.home-indicator {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 34px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.home-indicator__bar {
-  width: 134px;
-  height: 5px;
-  background: #000;
-  border-radius: 100px;
-  margin-bottom: 8px;
-}
 </style>
