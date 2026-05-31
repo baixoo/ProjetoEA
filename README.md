@@ -1,6 +1,6 @@
 # NoTUB
 
-**NoTUB - Transportes Urbanos de Braga** - Sistema de bilhetica para transportes publicos urbanos.
+**NoTUB - Novos Transportes Urbanos de Braga** - Sistema de bilhetica para transportes publicos urbanos.
 
 Projeto pratico de **Projeto em Engenharia de Aplicacoes** (MEI - Edicao 25/26, Universidade do Minho).
 
