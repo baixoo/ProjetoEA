@@ -37,8 +37,8 @@ const tabs = [
   bottom: 0;
   left: 0;
   width: 100%;
-  height: var(--tabbar-h, 78px);
-  background: rgba(255, 255, 255, 0.85);
+  height: var(--tabbar-h, 56px);
+  background: rgb(255, 255, 255);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-top: 0.5px solid #e6e6e6;
@@ -50,7 +50,7 @@ const tabs = [
   display: flex;
   align-items: flex-start;
   justify-content: space-around;
-  height: 44px;
+  height: auto;
   padding: 12px 0 8px;
 }
 

@@ -104,7 +104,7 @@ async function handleRegister() {
       email: form.email,
       primeiroNome,
       ultimoNome,
-      nif: form.nif,
+      nif: form.nif.trim() || null,
       dataNascimento: form.dataNascimento || null,
       password: form.password
     })

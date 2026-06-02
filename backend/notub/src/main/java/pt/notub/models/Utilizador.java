@@ -42,7 +42,7 @@ public class Utilizador {
     public String getUltimoNome() { return ultimoNome; }
     public void setUltimoNome(String ultimoNome) { this.ultimoNome = ultimoNome; }
     public String getNif() { return nif; }
-    public void setNif(String nif) { this.nif = nif; }
+    public void setNif(String nif) { this.nif = (nif == null || nif.isBlank()) ? null : nif; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
     public String getPassword() { return password; }
