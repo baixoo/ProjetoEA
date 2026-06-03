@@ -83,7 +83,10 @@ export const useTicketsStore = defineStore('tickets', () => {
 
   async function fetchPrice(tipoProduto, nrZonas, modalidade) {
     if (!authStore.token) return null
-    const params = new URLSearchParams({ nrZonas: String(nrZonas) })
+    const params = new URLSearchParams({
+      tipoProduto,
+      nrZonas: String(nrZonas)
+    })
     if (modalidade) params.set('modalidade', modalidade)
     const tipoUtilizador = authStore.user?.tipoUtilizador
     if (tipoUtilizador) params.set('tipoUtilizador', tipoUtilizador)

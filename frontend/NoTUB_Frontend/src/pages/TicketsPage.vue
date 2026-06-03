@@ -328,6 +328,12 @@ watch(checkoutOpen, (open) => {
   if (open) loadCheckoutPrice()
 })
 
+watch(selectedZoneId, (zoneId) => {
+  if (checkoutOpen.value && zoneId != null) {
+    loadCheckoutPrice()
+  }
+})
+
 function increaseQty() {
   quantity.value++
 }

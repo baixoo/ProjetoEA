@@ -13,7 +13,7 @@ public interface TarifaRepository extends JpaRepository<Tarifa, Long> {
 
     @Query("SELECT t FROM Tarifa t WHERE " +
            "(:tipoUtilizador IS NULL OR t.tipoUtilizador = :tipoUtilizador) AND " +
-           "(:modalidade IS NULL OR t.modalidade = :modalidade) AND " +
+           "((:modalidade IS NULL AND t.modalidade IS NULL) OR t.modalidade = :modalidade) AND " +
            "t.nrZonas = :nrZonas")
     Optional<Tarifa> findByCriteria(
             @Param("tipoUtilizador") TipoUtilizador tipoUtilizador,
