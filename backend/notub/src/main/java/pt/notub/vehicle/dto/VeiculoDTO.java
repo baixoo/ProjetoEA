@@ -1,0 +1,28 @@
+package pt.notub.vehicle.dto;
+
+import pt.notub.network.dto.PointDTO;
+
+public class VeiculoDTO {
+
+    private Long id;
+    private String matricula;
+    private int nLugares;
+    private int lotacaoAtual;
+    private PointDTO localizacaoAtual;
+    private String tipo;
+
+    public VeiculoDTO() {}
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getMatricula() { return matricula; }
+    public void setMatricula(String matricula) { this.matricula = matricula; }
+    public int getnLugares() { return nLugares; }
+    public void setnLugares(int nLugares) { this.nLugares = nLugares; }
+    public int getLotacaoAtual() { return lotacaoAtual; }
+    public void setLotacaoAtual(int lotacaoAtual) { this.lotacaoAtual = lotacaoAtual; }
+    public PointDTO getLocalizacaoAtual() { return localizacaoAtual; }
+    public void setLocalizacaoAtual(PointDTO localizacaoAtual) { this.localizacaoAtual = localizacaoAtual; }
+    public String getTipo() { return tipo; }
+    public void setTipo(String tipo) { this.tipo = tipo; }
+}

@@ -9,5 +9,4 @@ public class NotubApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(NotubApplication.class, args);
 	}
-
 }

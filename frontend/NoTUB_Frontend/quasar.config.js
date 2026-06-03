@@ -42,6 +42,7 @@ export default defineConfig((/* ctx */) => {
 
       vueRouterMode: 'history', // available values: 'hash', 'history'
       // vueRouterBase,
+      // Enable to use devtools
       // vueDevtools,
       // vueOptionsAPI: false,
 
@@ -98,17 +99,11 @@ export default defineConfig((/* ctx */) => {
     animations: [],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#sourcefiles
-    // sourceFiles: {
-    //   rootComponent: 'src/App.vue',
-    //   router: 'src/router/index',
-    //   store: 'src/store/index',
-    //   pwaRegisterServiceWorker: 'src-pwa/register-service-worker',
-    //   pwaServiceWorker: 'src-pwa/custom-service-worker',
-    //   pwaManifestFile: 'src-pwa/manifest.json',
-    //   electronMain: 'src-electron/electron-main',
-    //   electronPreload: 'src-electron/electron-preload'
-    //   bexManifestFile: 'src-bex/manifest.json
-    // },
+    sourceFiles: {
+      rootComponent: 'src/App.vue',
+      router: 'src/router/index',
+      store: 'src/stores/index'
+    },
 
     // https://v2.quasar.dev/quasar-cli-vite/developing-ssr/configuring-ssr
     ssr: {
@@ -136,15 +131,73 @@ export default defineConfig((/* ctx */) => {
 
     // https://v2.quasar.dev/quasar-cli-vite/developing-pwa/configuring-pwa
     pwa: {
-      workboxMode: 'GenerateSW' // 'GenerateSW' or 'InjectManifest'
-      // swFilename: 'sw.js',
-      // manifestFilename: 'manifest.json',
-      // extendManifestJson (json) {},
-      // useCredentialsForManifestTag: true,
-      // injectPwaMetaTags: false,
-      // extendPWACustomSWConf (esbuildConf) {},
-      // extendGenerateSWOptions (cfg) {},
-      // extendInjectManifestOptions (cfg) {}
+      workboxMode: 'GenerateSW',
+      injectPwaMetaTags: true,
+      swFilename: 'sw.js',
+      manifestFilename: 'manifest.json',
+      useCredentialsForManifestTag: false,
+      extendGenerateSWOptions(cfg) {
+        cfg.skipWaiting = true
+        cfg.clientsClaim = true
+        cfg.navigateFallbackDenylist = [
+          /^\/api\//,
+          /^\/oauth2\//,
+          /^\/login\//
+        ]
+        cfg.runtimeCaching = [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'gstatic-fonts-cache',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] }
+            }
+          }
+        ]
+      },
+      extendManifestJson(json) {
+        json.name = 'NoTUB'
+        json.short_name = 'NoTUB'
+        json.description = 'Sistema de Informacao de Transportes Publicos'
+        json.start_url = '/'
+        json.display = 'standalone'
+        json.orientation = 'portrait'
+        json.background_color = '#ffffff'
+        json.theme_color = '#028e5c'
+        json.lang = 'pt-PT'
+        json.scope = '/'
+        json.categories = ['transport', 'travel']
+        json.icons = [
+          { src: 'icons/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/android-chrome-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: 'icons/android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+        ]
+        json.shortcuts = [
+          {
+            name: 'Comprar Bilhete',
+            short_name: 'Bilhete',
+            url: '/tickets',
+            icons: [{ src: 'icons/android-chrome-192x192.png', sizes: '192x192' }]
+          },
+          {
+            name: 'Ler QR',
+            short_name: 'QR',
+            url: '/scan',
+            icons: [{ src: 'icons/android-chrome-192x192.png', sizes: '192x192' }]
+          }
+        ]
+      }
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/developing-cordova-apps/configuring-cordova
@@ -152,12 +205,6 @@ export default defineConfig((/* ctx */) => {
       // noIosLegacyBuildFlag: true, // uncomment only if you know what you are doing
     },
 
-    // Full list of options: https://v2.quasar.dev/quasar-cli-vite/developing-capacitor-apps/configuring-capacitor
-    capacitor: {
-      hideSplashscreen: true
-    },
-
-    // Full list of options: https://v2.quasar.dev/quasar-cli-vite/developing-electron-apps/configuring-electron
     electron: {
       // extendElectronMainConf (esbuildConf) {},
       // extendElectronPreloadConf (esbuildConf) {},

@@ -1,0 +1,33 @@
+package pt.notub.common.mapper;
+
+import pt.notub.models.Paragem;
+import pt.notub.models.Point;
+import pt.notub.network.dto.ParagemDTO;
+import pt.notub.network.dto.PointDTO;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+public final class ParagemMapper {
+
+    private ParagemMapper() {}
+
+    public static ParagemDTO toDTO(Paragem p) {
+        if (p == null) return null;
+        ParagemDTO dto = new ParagemDTO();
+        dto.setId(p.getId());
+        dto.setNome(p.getNome());
+        dto.setLocalizacao(toPointDTO(p.getLocalizacao()));
+        return dto;
+    }
+
+    public static List<ParagemDTO> toDTOList(List<Paragem> paragens) {
+        if (paragens == null) return null;
+        return paragens.stream().map(ParagemMapper::toDTO).collect(Collectors.toList());
+    }
+
+    static PointDTO toPointDTO(Point p) {
+        if (p == null) return null;
+        return new PointDTO(p.getLatitude(), p.getLongitude());
+    }
+}

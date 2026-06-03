@@ -1,4 +1,4 @@
-# NoTUB Backend
+# ProjetoEA Backend
 
 ## Stack de Dependências
 
