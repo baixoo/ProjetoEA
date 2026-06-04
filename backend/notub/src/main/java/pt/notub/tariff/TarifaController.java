@@ -68,6 +68,7 @@ public class TarifaController {
 
     @GetMapping("/calculadora")
     public ResponseEntity<TarifaDTO> calcularTarifa(
+            @RequestParam(required = false) String tipoProduto,
             @RequestParam(required = false) String tipoUtilizador,
             @RequestParam(required = false) String modalidade,
             @RequestParam int nrZonas) {
@@ -86,6 +87,13 @@ public class TarifaController {
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().build();
             }
+        }
+        if (tipoProduto != null && tipoProduto.equalsIgnoreCase("PASSE") && mod == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (tipoProduto != null && !tipoProduto.equalsIgnoreCase("BILHETE")
+                && !tipoProduto.equalsIgnoreCase("PASSE")) {
+            return ResponseEntity.badRequest().build();
         }
         return tarifaService.calcularTarifa(tipo, mod, nrZonas)
                 .map(TarifaMapper::toDTO)
