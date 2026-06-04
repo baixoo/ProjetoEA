@@ -2,6 +2,8 @@ package pt.notub.user;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import jakarta.validation.Valid;
 import pt.notub.common.mapper.UserMapper;
 import pt.notub.models.Utilizador;
 import pt.notub.security.AuthenticatedUser;
@@ -39,7 +41,7 @@ public class UtilizadorController {
     }
 
     @PutMapping("/perfil")
-    public ResponseEntity<?> updateMyProfile(@AuthenticatedUser Utilizador utilizador, @RequestBody Utilizador updated) {
+    public ResponseEntity<?> updateMyProfile(@AuthenticatedUser Utilizador utilizador, @Valid @RequestBody Utilizador updated) {
         try {
             return ResponseEntity.ok(UserMapper.toDTO(utilizadorService.updateUtilizador(utilizador.getEmail(), updated)));
         } catch (IllegalArgumentException e) {

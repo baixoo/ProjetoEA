@@ -15,7 +15,7 @@ export const useAuthStore = defineStore('auth', () => {
     })
     if (!response.ok) {
       const data = await response.json().catch(() => ({ message: 'Credenciais inválidas' }))
-      throw new Error(data.message || 'Login falhou')
+      throw new Error(data.message || 'O login falhou')
     }
     const data = await response.json()
     token.value = data.token
@@ -31,7 +31,7 @@ export const useAuthStore = defineStore('auth', () => {
     })
     if (!response.ok) {
       const text = await response.text()
-      throw new Error(text || 'Registo falhou')
+      throw new Error(text || 'O registo falhou')
     }
   }
 
@@ -80,7 +80,7 @@ export const useAuthStore = defineStore('auth', () => {
     })
     if (!response.ok) {
       const text = await response.text()
-      throw new Error(text || 'Erro ao solicitar recuperacao')
+      throw new Error(text || 'Erro ao solicitar recuperação')
     }
   }
 
