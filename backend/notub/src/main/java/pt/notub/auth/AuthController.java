@@ -97,7 +97,18 @@ public class AuthController {
         publicadorEventosEmail.publicarUtilizadorCriado(
                 utilizador.getId(), utilizador.getEmail(),
                 utilizador.getPrimeiroNome(), utilizador.getUltimoNome());
-        return ResponseEntity.ok("Utilizador registado com sucesso!");
+        
+        // Gerar token JWT automaticamente após registro
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(registerRequest.getEmail(), registerRequest.getPassword()));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        String jwt = jwtUtils.generateJwtToken(authentication);
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", jwt);
+        response.put("id", userDetails.getId());
+        response.put("email", userDetails.getUsername());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/me")

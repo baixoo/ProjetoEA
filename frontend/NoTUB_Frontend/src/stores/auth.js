@@ -33,6 +33,13 @@ export const useAuthStore = defineStore('auth', () => {
       const text = await response.text()
       throw new Error(text || 'O registo falhou')
     }
+    const data = await response.json()
+    // Se o backend retornar um token após registro
+    if (data.token) {
+      token.value = data.token
+      localStorage.setItem('token', data.token)
+      await fetchUser()
+    }
   }
 
   function setToken(newToken) {

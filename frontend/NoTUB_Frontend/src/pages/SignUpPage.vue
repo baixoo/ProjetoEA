@@ -134,7 +134,8 @@ async function handleRegister() {
       password: form.password
     })
     success.value = 'Conta criada com sucesso!'
-    setTimeout(() => router.push('/signin'), 1500)
+    // Redirecionar para a página inicial imediatamente
+    router.push({ name: 'home' })
   } catch (e) {
     error.value = e.message || 'Erro ao criar conta'
   } finally {
