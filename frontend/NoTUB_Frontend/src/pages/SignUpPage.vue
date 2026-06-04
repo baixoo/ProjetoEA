@@ -11,10 +11,10 @@
           <input v-model="form.email" type="email" placeholder="Email" class="field__input" autocomplete="email" required />
         </div>
         <div class="field">
-          <input v-model="form.nome" type="text" placeholder="Nome" class="field__input" autocomplete="name" required />
+          <input v-model="form.nome" type="text" placeholder="Nome" class="field__input" autocomplete="name" required @input="validarNome"/>
         </div>
         <div class="field">
-          <input v-model="form.nif" type="text" placeholder="NIF" class="field__input" maxlength="9" autocomplete="off" />
+          <input v-model="form.nif" type="text" placeholder="NIF" class="field__input" maxlength="9" autocomplete="off" @input="validarNif" />
         </div>
         <div class="field">
           <input v-model="form.dataNascimento" type="date" placeholder="Data de nascimento" class="field__input" autocomplete="bday" />
@@ -41,12 +41,12 @@
       </button>
 
       <p class="auth-link-text">
-        Ja tem uma conta? <router-link to="/signin" class="auth-link">Iniciar sessao</router-link>.
+        Já tem uma conta? <router-link to="/signin" class="auth-link">Iniciar sessão</router-link>.
       </p>
       <p class="auth-terms">
-        Ao clicar em continuar, voce concorda com os nossos
+        Ao clicar em continuar, você concorda com os nossos
         <a href="#" class="terms-link" @click.prevent="showTerms">Termos de Servico</a> e com a
-        <a href="#" class="terms-link" @click.prevent="showPrivacy">Politica de Privacidade</a>
+        <a href="#" class="terms-link" @click.prevent="showPrivacy">Política de Privacidade</a>
       </p>
     </div>
 
@@ -76,28 +76,53 @@ const success = ref('')
 const loading = ref(false)
 const termsOpen = ref(false)
 const termsSection = ref('terms')
-const termsTitle = ref('Termos e Condicoes')
+const termsTitle = ref('Termos e Condições')
 
 function showTerms() {
   termsSection.value = 'terms'
-  termsTitle.value = 'Termos e Condicoes'
+  termsTitle.value = 'Termos e Condições'
   termsOpen.value = true
 }
 
 function showPrivacy() {
   termsSection.value = 'privacy'
-  termsTitle.value = 'Politica de Privacidade'
+  termsTitle.value = 'Política de Privacidade'
   termsOpen.value = true
+}
+
+function validarNif(event) {
+  let valor = event.target.value;
+  
+  valor = valor.replace(/\D/g, '');
+  
+  form.nif = valor;
+}
+
+function validarNome(event) {
+  let valor = event.target.value;
+  valor = valor.replace(/[^a-zA-Z\s]/g, '');
+
+  if (valor.startsWith(' ')) {
+    valor = valor.trimStart();
+  }
+
+  form.nome = valor;
 }
 
 async function handleRegister() {
   error.value = ''
   success.value = ''
-  loading.value = true
 
   const nameParts = form.nome.trim().split(/\s+/)
   const primeiroNome = nameParts[0] || ''
   const ultimoNome = nameParts.slice(1).join(' ') || ''
+
+  if (form.nif && form.nif.length !== 9) {
+    error.value = 'O NIF deve conter exatamente 9 dígitos.'
+    return
+  }
+
+  loading.value = true
 
   try {
     await authStore.register({

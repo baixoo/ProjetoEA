@@ -3,15 +3,35 @@ package pt.notub.user.dto;
 import pt.notub.models.AuthMethod;
 import pt.notub.models.TipoPapel;
 import pt.notub.models.TipoUtilizador;
+import jakarta.persistence.Column;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
+
 
 public class UserDTO {
 
     private Long id;
+    @Column(name = "primeiro_nome")
+    @jakarta.validation.constraints.Pattern(
+        regexp = "^[a-zA-ZÀ-ÿ]+$", 
+        message = "O primeiro nome deve conter apenas letras"
+    )
     private String primeiroNome;
+
+    @Column(name = "ultimo_nome")
+    @jakarta.validation.constraints.Pattern(
+        regexp = "^[a-zA-ZÀ-ÿ\\s]*$", 
+        message = "O último nome deve conter apenas letras e espaços"
+    )
     private String ultimoNome;
+
+    @Column(name = "nif", unique = true)
+    @Size(min = 9, max = 9, message = "O NIF deve ter exatamente 9 dígitos")
+    @Pattern(regexp = "^[0-9]+$", message = "O NIF deve conter apenas números")
     private String nif;
+
     private String email;
     private LocalDate dataNascimento;
     private TipoUtilizador tipoUtilizador;
