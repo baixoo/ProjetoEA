@@ -26,6 +26,7 @@
       </div>
 
       <div v-else class="boarding-options">
+        <q-btn flat dense icon="arrow_back" label="Voltar à câmara" class="back-camera-btn" @click="closeDialog" />
         <p v-if="errorMsg" class="error-text">{{ errorMsg }}</p>
 
         <button
@@ -154,6 +155,10 @@ const activePass = computed(() => ticketsStore.activePass)
 const hasActivePass = computed(() => !!activePass.value)
 const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
 const unusedTicketsCount = computed(() => unusedTickets.value.length)
+
+function closeDialog() {
+  isOpen.value = false
+}
 
 async function confirmSelection() {
   submitting.value = true
