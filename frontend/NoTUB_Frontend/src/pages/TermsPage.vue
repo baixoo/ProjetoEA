@@ -46,7 +46,8 @@
 
         <section class="terms-section">
           <h2>6. Pontos e Recompensas</h2>
-          <p>O programa de pontos do NoTUB permite ao utilizador acumular pontos por cada compra realizada. Os pontos podem ser trocados por bilhetes gratuitos, de acordo com as condicoes vigentes.</p>
+          <p>O programa de pontos do NoTUB permite ao utilizador acumular pontos apenas quando a viagem e explicitamente terminada na aplicacao. Viagens nao encerradas ou concluídas fora do prazo máximo de 24 horas nao geram pontos.</p>
+          <p>Os pontos podem ser trocados por bilhetes gratuitos, de acordo com as condicoes vigentes.</p>
           <p>Os pontos acumulados nao sao transferiveis, nao possuem valor monetario e podem expirar apos 12 meses de inatividade na conta.</p>
         </section>
 

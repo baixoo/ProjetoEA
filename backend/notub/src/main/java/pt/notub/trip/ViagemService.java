@@ -102,6 +102,8 @@ public class ViagemService {
         return saved;
     }
 
+    private static final int MAX_HOURS_FOR_POINTS = 24;
+
     public ViagemUtilizador terminarViagem(Long viagemId, Long paragemSaidaId) {
         ViagemUtilizador viagem = viagemUtilizadorRepository.findById(viagemId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Viagem nao encontrada"));
@@ -114,10 +116,15 @@ public class ViagemService {
 
         ViagemUtilizador saved = viagemUtilizadorRepository.save(viagem);
 
-        if (viagem.getTitulo() instanceof Bilhete bilhete && bilhete.getUtilizador() != null) {
-            servicoPontos.atribuirPontosViagem(bilhete.getUtilizador().getId());
-        } else if (viagem.getTitulo() instanceof Passe passe && passe.getUtilizador() != null) {
-            servicoPontos.atribuirPontosViagem(passe.getUtilizador().getId());
+        boolean concederPontos = viagem.getInicio() != null &&
+                java.time.Duration.between(viagem.getInicio(), viagem.getFim()).toHours() <= MAX_HOURS_FOR_POINTS;
+
+        if (concederPontos) {
+            if (viagem.getTitulo() instanceof Bilhete bilhete && bilhete.getUtilizador() != null) {
+                servicoPontos.atribuirPontosViagem(bilhete.getUtilizador().getId());
+            } else if (viagem.getTitulo() instanceof Passe passe && passe.getUtilizador() != null) {
+                servicoPontos.atribuirPontosViagem(passe.getUtilizador().getId());
+            }
         }
 
         return saved;

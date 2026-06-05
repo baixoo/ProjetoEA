@@ -30,6 +30,7 @@
               {{ activePassName || 'Sem passe ativo' }}
             </span>
             <span v-if="activePassZoneLabel" class="title-meta">{{ activePassZoneLabel }}</span>
+            <span v-if="activePassExpiryLabel" class="title-meta">Data de extinção: {{ activePassExpiryLabel }}</span>
           </div>
 
           <div class="title-item">
@@ -143,6 +144,18 @@ const activePassName = computed(() => {
 const activePassZoneLabel = computed(() => {
   if (!ticketsStore.activePass?.zona) return null
   return `Zona ${ticketsStore.activePass.zona.num}`
+})
+
+const activePassExpiryLabel = computed(() => {
+  const expiry = ticketsStore.activePass?.fim
+  if (!expiry) return null
+  const date = new Date(expiry)
+  if (Number.isNaN(date.getTime())) return null
+  return new Intl.DateTimeFormat('pt-PT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }).format(date)
 })
 
 const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
