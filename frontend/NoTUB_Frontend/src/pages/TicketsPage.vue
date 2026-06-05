@@ -6,26 +6,6 @@
         <p class="page-subtitle">Compre bilhetes e passes de forma rapida e segura</p>
       </div>
 
-      <!-- Current Balances Display -->
-      <div class="balance-card q-mb-lg">
-        <div class="balance-item">
-          <span class="balance-label">Bilhetes Disponiveis</span>
-          <span class="balance-value">{{ unusedTicketsCount }}</span>
-        </div>
-        <div class="balance-divider"></div>
-        <div class="balance-item">
-          <span class="balance-label">Estado do Passe</span>
-          <span class="balance-value" :class="{ 'text-positive': hasActivePass }">
-            {{ hasActivePass ? 'Ativo' : 'Inativo' }}
-          </span>
-          <template v-if="hasActivePass">
-            <span class="balance-detail">{{ activePassModalidade }}</span>
-            <span class="balance-detail">{{ activePassZoneLabel }}</span>
-            <span class="balance-detail balance-expiry">Expira: {{ activePassExpiry }}</span>
-          </template>
-        </div>
-      </div>
-
       <!-- Shop Offerings List -->
       <div class="shop-list">
         <h2 class="section-title">Bilhetes Individuais</h2>
@@ -112,6 +92,10 @@
             <span class="product-name">{{ currentProduct.name }}</span>
             <span class="product-price-base">{{ checkoutUnitPrice != null ? checkoutUnitPrice.toFixed(2) + '€ / unid' : '...' }}</span>
           </div>
+          <div class="summary-details summary-user-type">
+            <span class="product-category-label">Tarifa aplicada:</span>
+            <span class="product-category-value">{{ userCategoryLabel }}</span>
+          </div>
           <div v-if="currentProduct.type === 'ticket'" class="quantity-selector">
             <q-btn round flat dense icon="remove" color="primary" @click="decreaseQty" :disabled="quantity <= 1" />
             <span class="quantity-value">{{ quantity }}</span>
@@ -180,10 +164,12 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTicketsStore } from 'src/stores/tickets'
 import { useViagensStore } from 'src/stores/viagens'
+import { useAuthStore } from 'src/stores/auth'
 
 const route = useRoute()
 const ticketsStore = useTicketsStore()
 const viagensStore = useViagensStore()
+const authStore = useAuthStore()
 
 const checkoutOpen = ref(false)
 const successOpen = ref(false)
@@ -264,37 +250,19 @@ const selectedZonaId = computed(() => {
   return selectedZoneId.value
 })
 
-const unusedTicketsCount = computed(() => {
-  return (ticketsStore.tickets || []).filter(t => !t.usado).length
-})
-
 const hasActivePass = computed(() => {
   if (!ticketsStore.activePass) return false
   const fim = ticketsStore.activePass.fim
   return fim ? new Date(fim) > new Date() : true
 })
 
-const activePassModalidade = computed(() => {
-  if (!ticketsStore.activePass) return ''
-  const m = ticketsStore.activePass.modalidade
-  if (m === 'MENSAL') return 'Passe Mensal'
-  if (m === 'ANUAL') return 'Passe Anual'
-  if (m === 'SEMANAL') return 'Passe Semanal'
-  if (m === 'H24') return 'Passe 24H'
-  if (m === 'H48') return 'Passe 48H'
-  if (m === 'H72') return 'Passe 72H'
-  return 'Passe Ativo'
-})
-
-const activePassZoneLabel = computed(() => {
-  if (!ticketsStore.activePass?.zona) return ''
-  return `Zona ${ticketsStore.activePass.zona.num}`
-})
-
-const activePassExpiry = computed(() => {
-  if (!ticketsStore.activePass?.fim) return ''
-  const d = new Date(ticketsStore.activePass.fim)
-  return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })
+const userCategoryLabel = computed(() => {
+  const tipo = authStore.tipoUtilizador || authStore.user?.tipoUtilizador
+  if (!tipo) return 'Sem categoria'
+  if (tipo === 'CRIANCA') return 'Criança'
+  if (tipo === 'SENIOR') return 'Senior'
+  if (tipo === 'ESTUDANTE') return 'Estudante'
+  return 'Adulto'
 })
 
 const totalPrice = computed(() => {

@@ -61,7 +61,6 @@ public class TicketService {
         for (int i = 0; i < quantidade; i++) {
             bilhetes.add(criarBilhete(utilizador, zona));
         }
-        servicoPontos.atribuirPontosCompra(utilizador.getId());
         return bilhetes;
     }
 
@@ -71,7 +70,6 @@ public class TicketService {
         Zona zona = zonaRepository.findById(zonaId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
         Passe passe = criarPasse(utilizador, modalidade, zona);
-        servicoPontos.atribuirPontosCompra(utilizador.getId());
         return passe;
     }
 

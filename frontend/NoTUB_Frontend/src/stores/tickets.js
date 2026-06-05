@@ -88,7 +88,7 @@ export const useTicketsStore = defineStore('tickets', () => {
       nrZonas: String(nrZonas)
     })
     if (modalidade) params.set('modalidade', modalidade)
-    const tipoUtilizador = authStore.user?.tipoUtilizador
+    const tipoUtilizador = authStore.tipoUtilizador || authStore.user?.tipoUtilizador
     if (tipoUtilizador) params.set('tipoUtilizador', tipoUtilizador)
     const response = await fetch(`/api/tarifas/calculadora?${params}`, {
       headers: { Authorization: `Bearer ${authStore.token}` }

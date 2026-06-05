@@ -4,9 +4,10 @@
       <router-link
         v-for="tab in tabs"
         :key="tab.name"
-        :to="tab.route"
+        :to="{ name: tab.name }"
         class="tab-bar__item"
         :class="{ 'tab-bar__item--active': activeTab === tab.name }"
+        exact-active-class="tab-bar__item--active"
       >
         <img :src="tab.icon" alt="" class="tab-icon" />
       </router-link>
