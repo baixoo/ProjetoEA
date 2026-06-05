@@ -8,7 +8,7 @@
 
       <form class="auth-form" @submit.prevent="handleRegister">
         <div class="field">
-          <input v-model="form.email" type="email" placeholder="Email" class="field__input" autocomplete="email" required />
+          <input v-model="form.email" type="text" placeholder="Email" class="field__input" autocomplete="email" required />
         </div>
         <div class="field">
           <input v-model="form.nome" type="text" placeholder="Nome" class="field__input" autocomplete="name" required @input="validarNome"/>
@@ -100,7 +100,7 @@ function validarNif(event) {
 
 function validarNome(event) {
   let valor = event.target.value;
-  valor = valor.replace(/[^a-zA-Z\s]/g, '');
+  valor = valor.replace(/[^a-zA-ZÀ-ÿ\s]/g, '');
 
   if (valor.startsWith(' ')) {
     valor = valor.trimStart();
@@ -113,6 +113,20 @@ async function handleRegister() {
   error.value = ''
   success.value = ''
 
+
+  //ver se email está correto
+  if (!form.email.trim()) {
+    error.value = 'O campo de email é obrigatório.'
+    return
+  }
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(form.email.trim())) {
+    error.value = 'Por favor, introduza um formato de email válido.'
+    return
+  }
+
+  // ver se nif tem 9 digitos
   const nameParts = form.nome.trim().split(/\s+/)
   const primeiroNome = nameParts[0] || ''
   const ultimoNome = nameParts.slice(1).join(' ') || ''
@@ -136,7 +150,7 @@ async function handleRegister() {
     success.value = 'Conta criada com sucesso!'
     setTimeout(() => router.push('/signin'), 1500)
   } catch (e) {
-    error.value = e.message || 'Erro ao criar conta'
+    error.value = e.message || 'Erro ao criar conta.'
   } finally {
     loading.value = false
   }
