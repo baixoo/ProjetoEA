@@ -92,6 +92,10 @@
             <span class="product-name">{{ currentProduct.name }}</span>
             <span class="product-price-base">{{ checkoutUnitPrice != null ? checkoutUnitPrice.toFixed(2) + '€ / unid' : '...' }}</span>
           </div>
+          <div class="summary-details summary-user-type">
+            <span class="product-category-label">Tarifa aplicada:</span>
+            <span class="product-category-value">{{ userCategoryLabel }}</span>
+          </div>
           <div v-if="currentProduct.type === 'ticket'" class="quantity-selector">
             <q-btn round flat dense icon="remove" color="primary" @click="decreaseQty" :disabled="quantity <= 1" />
             <span class="quantity-value">{{ quantity }}</span>
@@ -160,10 +164,12 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTicketsStore } from 'src/stores/tickets'
 import { useViagensStore } from 'src/stores/viagens'
+import { useAuthStore } from 'src/stores/auth'
 
 const route = useRoute()
 const ticketsStore = useTicketsStore()
 const viagensStore = useViagensStore()
+const authStore = useAuthStore()
 
 const checkoutOpen = ref(false)
 const successOpen = ref(false)
@@ -248,6 +254,15 @@ const hasActivePass = computed(() => {
   if (!ticketsStore.activePass) return false
   const fim = ticketsStore.activePass.fim
   return fim ? new Date(fim) > new Date() : true
+})
+
+const userCategoryLabel = computed(() => {
+  const tipo = authStore.tipoUtilizador || authStore.user?.tipoUtilizador
+  if (!tipo) return 'Sem categoria'
+  if (tipo === 'CRIANCA') return 'Criança'
+  if (tipo === 'SENIOR') return 'Senior'
+  if (tipo === 'ESTUDANTE') return 'Estudante'
+  return 'Adulto'
 })
 
 const totalPrice = computed(() => {

@@ -7,10 +7,10 @@
         <p class="user-card__sub">Pronto para a sua viagem?</p>
 
         <div class="user-card__status-section">
-          <p class="status-label">Estado Atual</p>
+          <p class="status-label">A cidade espera por si.</p>
           <div class="status-indicator">
             <q-icon name="check_circle" class="check-icon" />
-            <span class="status-text">{{ currentStatusText }}</span>
+            <span class="status-text">Viaje com a NoTUB!</span>
           </div>
         </div>
 
@@ -126,17 +126,6 @@ const selectedStop = ref(null)
 const firstName = computed(() => {
   if (authStore.user?.primeiroNome) return authStore.user.primeiroNome
   return 'Rui'
-})
-
-const currentStatusText = computed(() => {
-  if (ticketsStore.activePass) {
-    return 'Passe Ativo'
-  }
-  const unusedCount = (ticketsStore.tickets || []).filter(t => !t.usado).length
-  if (unusedCount > 0) {
-    return `${unusedCount} Bilhetes Disponíveis`
-  }
-  return 'Sem Títulos Ativos'
 })
 
 const activePassName = computed(() => {
