@@ -38450,6 +38450,9 @@ INSERT INTO tarifa (id, valor, tipo_utilizador, modalidade, nr_zonas) VALUES (11
 INSERT INTO tarifa (id, valor, tipo_utilizador, modalidade, nr_zonas) VALUES (111, 350.0, 'SENIOR', 'ANUAL', 3) ON CONFLICT (id) DO NOTHING;
 INSERT INTO tarifa (id, valor, tipo_utilizador, modalidade, nr_zonas) VALUES (112, 430.0, 'SENIOR', 'ANUAL', 4) ON CONFLICT (id) DO NOTHING;
 
+-- ═══ Viagem Veículo ═══
+INSERT INTO viagem_veiculo (id, trip_id, trajeto_id, veiculo_id) VALUES (1, NULL, 1, 1) ON CONFLICT (id) DO NOTHING;
+
 -- ═══ Reset Sequences ═══
 SELECT setval('zona_id_seq', 4);
 SELECT setval('paragem_id_seq', 4437);
@@ -38458,5 +38461,6 @@ SELECT setval('trajeto_id_seq', 886);
 SELECT setval('pontos_de_passagem_id_seq', 30784);
 SELECT setval('veiculo_id_seq', 886);
 SELECT setval('tarifa_id_seq', 112);
+SELECT setval('viagem_veiculo_id_seq', 1);
 
 COMMIT;

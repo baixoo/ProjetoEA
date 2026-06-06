@@ -29,6 +29,30 @@
         Aponte com a câmara do telemóvel para o código QR do autocarro e aguarde.
       </p>
 
+      <div class="guide-floating-container">
+        <q-btn round color="primary" icon="help_outline" class="guide-circle-btn">
+          <q-menu anchor="top middle" self="bottom middle" class="guide-speech-bubble">
+            <div class="q-pa-md guide-bubble-content">
+              <h6 class="bubble-title">Como Validar?</h6>
+              <div class="guide-steps">
+                <div class="step-item">
+                  <div class="step-num">1</div>
+                  <p class="step-text">Aponte a câmara para o código QR do veículo.</p>
+                </div>
+                <div class="step-item">
+                  <div class="step-num">2</div>
+                  <p class="step-text">Selecione o bilhete ou passe a utilizar no ecrã.</p>
+                </div>
+                <div class="step-item">
+                  <div class="step-num">3</div>
+                  <p class="step-text">Confirme e boa viagem!</p>
+                </div>
+              </div>
+            </div>
+          </q-menu>
+        </q-btn>
+      </div>
+
       <div class="scanner-status-panel">
         <div class="scanner-status-row">
           <span class="scanner-status-label">Estado:</span>
@@ -56,7 +80,7 @@
               </span>
             </div>
             <div class="status-item">
-              <span class="status-label">Passe Social:</span>
+              <span class="status-label">Passe:</span>
               <span class="status-badge" :class="activePassName ? 'badge--active' : 'badge--inactive'">
                 {{ activePassName || 'Não ativo' }}
               </span>
@@ -76,7 +100,7 @@
         </div>
 
         <!-- Guia Card -->
-        <div class="info-card guide-card">
+        <!-- <div class="info-card guide-card">
           <div class="card-header">
             <q-icon name="help_outline" size="20px" class="card-icon" />
             <span class="card-title">Como Validar?</span>
@@ -92,12 +116,12 @@
             </div>
             <div class="step-item">
               <div class="step-num">3</div>
-              <p class="step-text">Confirme e boa viagem! A animação começará de seguida.</p>
+              <p class="step-text">Confirme e boa viagem!</p>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </div> -->
+      </div> 
+    </div> 
 
     <!-- Boarding Dialog / Bottom Sheet (Design 120:804) -->
     <BoardingDialog
@@ -265,111 +289,74 @@ async function stopScanner() {
 }
 
 async function handleScannedCode(text) {
+  console.log('handleScannedCode iniciado. Texto:', text)
   if (scanLocked.value) return
   scanLocked.value = true
 
-  console.log("QR Code lido com sucesso:", text)
   lastScannedText.value = text
-  scanStatus.value = 'QR lido, a selecionar bilhete...'
-  $q.notify({ type: 'positive', message: `QR lido: ${text}`, position: 'top', timeout: 2000 })
-
   let tripMatched = false
 
-  // 1. Try to parse as JSON first
+  // 1. Tentar JSON
   try {
     const data = JSON.parse(text)
-    if (data.viagemVeiculoId || data.veiculoId) {
-      const vId = data.viagemVeiculoId || data.veiculoId
-      const sId = data.paragemEntradaId || data.paragemId
+    console.log('Trying match on JSON...')
+    const vId = data.viagemVeiculoId || data.veiculoId
+    const sId = data.paragemEntradaId || data.paragemId
 
-      const tripMatch = (viagensStore.vehicleTrips || []).find(vt => vt.id === Number(vId) || vt.veiculo?.id === Number(vId))
-      const stopMatch = (viagensStore.stops || []).find(s => s.id === Number(sId))
-
-      if (tripMatch) selectedVehicleTrip.value = tripMatch.id
-      if (stopMatch) selectedStop.value = stopMatch.id
-
-      if (tripMatch) tripMatched = true
-    }
-  } catch {
-    // Not a JSON
-  }
-
-  // 2. Try to parse as URL parameters
-  if (!tripMatched) {
-    try {
-      if (text.includes('?') || text.includes('&')) {
-        const urlParams = new URLSearchParams(text.split('?')[1] || text)
-        const vId = urlParams.get('viagemVeiculoId') || urlParams.get('veiculo') || urlParams.get('viagem')
-        const sId = urlParams.get('paragemEntradaId') || urlParams.get('paragem') || urlParams.get('entrada')
-
-        if (vId) {
-          const tripMatch = (viagensStore.vehicleTrips || []).find(vt => vt.id === Number(vId) || vt.veiculo?.id === Number(vId) || vt.veiculo?.matricula === vId)
-          if (tripMatch) selectedVehicleTrip.value = tripMatch.id
-
-          if (sId) {
-            const stopMatch = (viagensStore.stops || []).find(s => s.id === Number(sId) || s.nome?.toLowerCase() === sId.toLowerCase())
-            if (stopMatch) selectedStop.value = stopMatch.id
-          }
-
-          if (tripMatch) tripMatched = true
-        }
-      }
-    } catch {
-      // Not URL
-    }
-  }
-
-  // 3. Try comma-separated values: "viagemVeiculoId,paragemEntradaId" or just "viagemVeiculoId"
-  if (!tripMatched) {
-    const parts = text.split(',')
-    if (parts.length >= 1) {
-      const vId = parseInt(parts[0].trim(), 10)
-      if (!isNaN(vId)) {
-        const tripMatch = (viagensStore.vehicleTrips || []).find(vt => vt.id === vId)
-        if (tripMatch) {
-          selectedVehicleTrip.value = tripMatch.id
-          if (parts.length >= 2) {
-            const sId = parseInt(parts[1].trim(), 10)
-            if (!isNaN(sId)) {
-              const stopMatch = (viagensStore.stops || []).find(s => s.id === sId)
-              if (stopMatch) selectedStop.value = stopMatch.id
-            }
-          }
-          tripMatched = true
-        }
-      }
-    }
-  }
-
-  // 4. If raw text matches a stop name or vehicle plate directly
-  if (!tripMatched) {
-    const tripByPlate = (viagensStore.vehicleTrips || []).find(vt => vt.veiculo?.matricula?.toLowerCase() === text.trim().toLowerCase())
-    if (tripByPlate) {
-      selectedVehicleTrip.value = tripByPlate.id
+    const tripMatch = (viagensStore.vehicleTrips || []).find(vt => Number(vt.id) === Number(vId))
+    if (tripMatch) {
+      selectedVehicleTrip.value = tripMatch.id
       tripMatched = true
+      const stopMatch = (viagensStore.stops || []).find(s => Number(s.id) === Number(sId))
+      if (stopMatch) selectedStop.value = stopMatch.id
     }
+  } catch { 
+    console.log('Not Json...') 
   }
 
+  // 2. Tenta dar match com matrícula
   if (!tripMatched) {
-    const stopByName = (viagensStore.stops || []).find(s => s.nome?.toLowerCase() === text.trim().toLowerCase())
-    if (stopByName) {
-      selectedStop.value = stopByName.id
-      // Keep scanning until a vehicle trip is also identified
+    console.log('Trying match on plate...');
+    const cleanText = text.trim().toLowerCase();
+    
+    // Verificamos se vehicleTrips existe antes de usar o find
+    console.log('O objeto viagensStore existe?', !!viagensStore);
+    console.log('Conteúdo real de vehicleTrips:', JSON.parse(JSON.stringify(viagensStore.vehicleTrips)));
+    const trips = viagensStore.vehicleTrips || [];
+    const tripByPlate = trips.find(vt => 
+      vt.veiculo?.matricula?.toLowerCase() === cleanText
+    );
+
+    if (tripByPlate) {
+      console.log('✅ Match on plate found:', tripByPlate.veiculo.matricula);
+      selectedVehicleTrip.value = tripByPlate.id;
+      tripMatched = true;
     }
   }
 
-  if (selectedVehicleTrip.value) {
+  // 3. Tenta dar match com paragem
+  if (!tripMatched) {
+    console.log('Trying match on bus stop name...');
+    const stopByName = (viagensStore.stops || []).find(s => 
+      s.nome?.toLowerCase() === text.trim().toLowerCase()
+    );
+    if (stopByName) {
+      selectedStop.value = stopByName.id;
+      console.log('✅ bus stop identified:', stopByName.nome);
+    }
+  }
+
+  // Final decision
+  if (tripMatched && selectedVehicleTrip.value) {
+    console.log('✅  Success. Starting board...');
     await stopScanner()
     triggerBoarding()
-    return
+  } else {
+    console.log('❌ Error: No trip found.');
+    scanStatus.value = 'QR not known'
+    scanLocked.value = false // Libera para tentar de novo
   }
-
-  scanStatus.value = 'QR lido mas não corresponde a viagem válida'
-  $q.notify({ type: 'warning', message: 'QR lido mas não corresponde a uma viagem válida.', position: 'top', timeout: 3000 })
-  scanLocked.value = false
 }
-
-
 
 const selectedBusNumber = computed(() => {
   const trip = (viagensStore.vehicleTrips || []).find(vt => vt.id === selectedVehicleTrip.value)
@@ -378,6 +365,9 @@ const selectedBusNumber = computed(() => {
 
 function triggerBoarding() {
   if (!selectedVehicleTrip.value) return
+
+  const hasTickets = unusedTicketsCount.value > 0
+  const temPasse = !!activePassName.value
 
   if (!selectedStop.value) {
     detectNearestStop()
@@ -814,6 +804,79 @@ if (typeof window !== 'undefined') {
   margin: 0;
 }
 
+/* Contentor para posicionar a bolinha abaixo da câmara */
+.guide-floating-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px; /* Ajusta o espaço abaixo da câmara */
+  margin-bottom: 15px;
+}
+
+/* Estilo da bolinha */
+.guide-circle-btn {
+  width: 45px;
+  height: 45px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.guide-circle-btn:active {
+  transform: scale(0.95);
+}
+
+/* O Balão de Fala (Pop-up do Quasar) */
+.guide-speech-bubble {
+  border-radius: 12px !important;
+  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.15) !important;
+  max-width: 280px;
+  border: 1px solid #e0e0e0;
+  background-color: white;
+}
+
+.guide-bubble-content {
+  padding: 16px;
+}
+
+.bubble-title {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #1976D2; /* Cor primária do teu projeto */
+}
+
+/* Organização dos passos dentro do balão */
+.guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.step-num {
+  background-color: #e3f2fd;
+  color: #1976D2;
+  font-weight: bold;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.step-text {
+  margin: 0;
+  font-size: 13px;
+  color: #555;
+  line-height: 1.4;
+}
 
 </style>
 

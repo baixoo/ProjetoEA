@@ -3,6 +3,7 @@
 -- Generated: 2026-05-23T01:31:47.082091
 -- ============================================
 -- REFACTOR THIS FILE TO ADD A PROPER MOCK DATA FROM DATASET
+
 BEGIN;
 
 -- 1. Zonas
