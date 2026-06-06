@@ -26,64 +26,97 @@
       </div>
 
       <div v-else class="boarding-options">
-        <q-btn flat dense icon="arrow_back" label="Voltar à câmara" class="back-camera-btn" @click="closeDialog" />
-        <p v-if="errorMsg" class="error-text">{{ errorMsg }}</p>
+        <div v-if="showRoutePreview" class="route-preview-panel">
+          <div class="route-preview-header">
+            <q-icon name="alt_route" color="green-8" size="24px" />
+            <div>
+              <div class="route-preview-title">Confirmar embarque</div>
+              <div class="route-preview-subtitle">{{ routePreviewLineLabel }}</div>
+            </div>
+          </div>
 
-        <button
-          v-if="hasActivePass"
-          class="option-card"
-          :class="{ 'option-card--selected': selectedType === 'passe' }"
-          @click="selectedType = 'passe'"
-          :disabled="submitting"
-        >
-          <div class="option-icon-container bg-pass">
-            <q-icon name="credit_card" class="option-icon" />
+          <div class="route-preview-rail">
+            <template v-for="(item, index) in routePreviewItems" :key="item.key">
+              <div v-if="item.type === 'ellipsis'" class="route-stop-ellipsis">···</div>
+              <div v-else class="route-stop" :class="{
+                'route-stop--first': item.kind === 'first',
+                'route-stop--current': item.kind === 'current',
+                'route-stop--last': item.kind === 'last',
+                'route-stop--middle': item.kind === 'middle'
+              }">
+                <div class="route-stop__dot"></div>
+                <span class="route-stop__name">{{ item.name }}</span>
+              </div>
+              <div v-if="index < routePreviewItems.length - 1" class="route-connector"></div>
+            </template>
           </div>
-          <div class="option-details">
-            <span class="option-title">Usar Passe Ativo</span>
-            <span class="option-subtitle">Zona: {{ activePass?.zona?.num || '-' }}</span>
-          </div>
-          <q-icon v-if="selectedType === 'passe'" name="check_circle" class="selected-icon" />
-        </button>
 
-        <button
-          v-if="unusedTicketsCount > 0"
-          class="option-card"
-          :class="{ 'option-card--selected': selectedType === 'bilhete' }"
-          @click="selectedType = 'bilhete'"
-          :disabled="submitting"
-        >
-          <div class="option-icon-container bg-ticket">
-            <q-icon name="confirmation_number" class="option-icon" />
+          <div class="route-preview-actions">
+            <q-btn flat color="grey-7" label="Cancelar" @click="closeDialog" />
+            <q-btn color="green-8" label="Continuar" @click="showRoutePreview = false" />
           </div>
-          <div class="option-details">
-            <span class="option-title">Usar Bilhete{{ ticketQty > 1 ? 's' : '' }}</span>
-            <span class="option-subtitle">Restam {{ unusedTicketsCount }} bilhetes</span>
-          </div>
-          <q-icon v-if="selectedType === 'bilhete'" name="check_circle" class="selected-icon" />
-        </button>
-
-        <div v-if="selectedType === 'bilhete' && unusedTicketsCount > 1" class="qty-row">
-          <span class="qty-label">Quantidade:</span>
-          <q-btn round flat dense icon="remove" size="sm" @click="ticketQty = Math.max(1, ticketQty - 1)" />
-          <span class="qty-value">{{ ticketQty }}</span>
-          <q-btn round flat dense icon="add" size="sm" @click="ticketQty = Math.min(unusedTicketsCount, ticketQty + 1)" />
         </div>
 
-        <div v-if="!hasActivePass && unusedTicketsCount === 0" class="no-tickets-warning">
-          <p class="warning-message">Nao tem bilhetes ou passes ativos disponiveis.</p>
-          <q-btn color="positive" label="Comprar na Loja" class="full-width q-mt-sm" @click="goToShop" />
-        </div>
+        <template v-else>
+          <q-btn flat dense icon="arrow_back" label="Voltar à câmara" class="back-camera-btn" @click="closeDialog" />
+          <p v-if="errorMsg" class="error-text">{{ errorMsg }}</p>
 
-        <button
-          v-if="selectedType"
-          class="btn-start"
-          @click="confirmSelection"
-          :disabled="submitting"
-        >
-          <q-spinner v-if="submitting" size="18px" class="q-mr-sm" />
-          {{ submitting ? 'A iniciar...' : 'Confirmar Embarque' }}
-        </button>
+          <button
+            v-if="hasActivePass"
+            class="option-card"
+            :class="{ 'option-card--selected': selectedType === 'passe' }"
+            @click="selectedType = 'passe'"
+            :disabled="submitting"
+          >
+            <div class="option-icon-container bg-pass">
+              <q-icon name="credit_card" class="option-icon" />
+            </div>
+            <div class="option-details">
+              <span class="option-title">Usar Passe Ativo</span>
+              <span class="option-subtitle">Zona: {{ activePass?.zona?.num || '-' }}</span>
+            </div>
+            <q-icon v-if="selectedType === 'passe'" name="check_circle" class="selected-icon" />
+          </button>
+
+          <button
+            v-if="unusedTicketsCount > 0"
+            class="option-card"
+            :class="{ 'option-card--selected': selectedType === 'bilhete' }"
+            @click="selectedType = 'bilhete'"
+            :disabled="submitting"
+          >
+            <div class="option-icon-container bg-ticket">
+              <q-icon name="confirmation_number" class="option-icon" />
+            </div>
+            <div class="option-details">
+              <span class="option-title">Usar Bilhete{{ ticketQty > 1 ? 's' : '' }}</span>
+              <span class="option-subtitle">Restam {{ unusedTicketsCount }} bilhetes</span>
+            </div>
+            <q-icon v-if="selectedType === 'bilhete'" name="check_circle" class="selected-icon" />
+          </button>
+
+          <div v-if="selectedType === 'bilhete' && unusedTicketsCount > 1" class="qty-row">
+            <span class="qty-label">Quantidade:</span>
+            <q-btn round flat dense icon="remove" size="sm" @click="ticketQty = Math.max(1, ticketQty - 1)" />
+            <span class="qty-value">{{ ticketQty }}</span>
+            <q-btn round flat dense icon="add" size="sm" @click="ticketQty = Math.min(unusedTicketsCount, ticketQty + 1)" />
+          </div>
+
+          <div v-if="!hasActivePass && unusedTicketsCount === 0" class="no-tickets-warning">
+            <p class="warning-message">Nao tem bilhetes ou passes ativos disponiveis.</p>
+            <q-btn color="positive" label="Comprar na Loja" class="full-width q-mt-sm" @click="goToShop" />
+          </div>
+
+          <button
+            v-if="selectedType"
+            class="btn-start"
+            @click="confirmSelection"
+            :disabled="submitting"
+          >
+            <q-spinner v-if="submitting" size="18px" class="q-mr-sm" />
+            {{ submitting ? 'A iniciar...' : 'Confirmar Embarque' }}
+          </button>
+        </template>
       </div>
     </div>
   </q-dialog>
@@ -116,6 +149,7 @@ const submitting = ref(false)
 const errorMsg = ref('')
 const selectedType = ref(null)
 const ticketQty = ref(1)
+const showRoutePreview = ref(true)
 
 const linhaNome = computed(() => {
   const vt = (viagensStore.vehicleTrips || []).find(v => v.id == props.viagemVeiculoId)
@@ -128,9 +162,85 @@ const stopName = computed(() => {
   return stop?.nome || ''
 })
 
+const selectedTrip = computed(() => {
+  return (viagensStore.vehicleTrips || []).find(v => v.id == props.viagemVeiculoId) || null
+})
+
+const routePreviewLineLabel = computed(() => {
+  return selectedTrip.value?.trajeto?.linha?.nome || ''
+})
+
+const routePreviewItems = computed(() => {
+  const pontos = [...(selectedTrip.value?.trajeto?.pontosDePassagem || [])]
+    .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+    .map(ponto => ({ id: ponto.paragem?.id ?? null, name: ponto.paragem?.nome || 'Paragem' }))
+    .filter(stop => stop.id !== null)
+
+  if (!pontos.length) {
+    return stopName.value
+      ? [{ key: 'current-fallback', type: 'stop', kind: 'current', name: stopName.value }]
+      : []
+  }
+
+  const currentIndex = pontos.findIndex(s => Number(s.id) === Number(props.paragemEntradaId))
+  const cur = currentIndex >= 0 ? currentIndex : Math.min(1, pontos.length - 1)
+  const first = pontos[0]
+  const last = pontos[pontos.length - 1]
+
+  const items = []
+  const pushStop = (stop, kind) => items.push({ key: `${kind}-${stop.id}`, type: 'stop', kind, name: stop.name })
+  const pushEllipsis = (key) => items.push({ key, type: 'ellipsis' })
+
+  // Primeira paragem sempre
+  pushStop(first, 'first')
+
+  // 2 paragens antes da atual
+  const beforeFrom = Math.max(1, cur - 2)
+  const beforeTo = Math.max(0, cur - 1)
+
+  if (beforeFrom > 1) pushEllipsis('ellipsis-left')
+
+  for (let i = beforeFrom; i <= beforeTo; i++) {
+    if (pontos[i].id !== first.id && pontos[i].id !== last.id)
+      pushStop(pontos[i], 'middle')
+  }
+
+  // Paragem atual (se não for a primeira nem a última)
+  if (cur > 0 && cur < pontos.length - 1)
+    pushStop(pontos[cur], 'current')
+
+  // 2 paragens depois da atual
+  const afterFrom = Math.min(pontos.length - 2, cur + 1)
+  const afterTo = Math.min(pontos.length - 2, cur + 2)
+
+  for (let i = afterFrom; i <= afterTo; i++) {
+    if (pontos[i].id !== first.id && pontos[i].id !== last.id)
+      pushStop(pontos[i], 'middle')
+  }
+
+  if (afterTo < pontos.length - 2) pushEllipsis('ellipsis-right')
+
+  // Última paragem sempre
+  if (last.id !== first.id) pushStop(last, 'last')
+
+  return items
+})
+
 watch(() => props.modelValue, (val) => {
+  if (val) {
+    console.log('BoardingDialog abriu. Props:', {
+      viagemVeiculoId: props.viagemVeiculoId,
+      paragemEntradaId: props.paragemEntradaId,
+      busNumber: props.busNumber
+    })
+    console.log('selectedTrip encontrado:', selectedTrip.value)
+    console.log('routePreviewItems:', routePreviewItems.value)
+  }
   isOpen.value = val
-  if (val) loadTitulos()
+  if (val) {
+    showRoutePreview.value = true
+    loadTitulos()
+  }
 })
 
 watch(isOpen, (val) => emit('update:modelValue', val))
@@ -164,6 +274,16 @@ async function confirmSelection() {
   submitting.value = true
   errorMsg.value = ''
   try {
+    if (!hasActivePass.value && unusedTicketsCount.value === 0) {
+      errorMsg.value = 'Nao tem bilhetes nem passe ativos disponiveis.'
+      return
+    }
+
+    if (!selectedType.value) {
+      errorMsg.value = 'Selecione um bilhete ou passe para continuar.'
+      return
+    }
+
     if (props.paragemEntradaId) {
       try {
         const pos = await new Promise((resolve) => {
@@ -457,4 +577,130 @@ export default { name: 'BoardingDialog' }
   color: #505050;
   margin: 0;
 }
+
+.route-preview-panel {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 16px;
+  width: 100%;
+}
+
+.route-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.route-preview-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #121212;
+}
+
+.route-preview-subtitle {
+  font-size: 12px;
+  color: #028e5c;
+  font-weight: 500;
+}
+
+.route-preview-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9e9e9e;
+  margin-bottom: 12px;
+}
+
+.route-preview-rail {
+  display: flex;
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+  gap: 0;
+  scrollbar-width: none;
+}
+
+.route-preview-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.route-connector {
+  flex-shrink: 0;
+  height: 2px;
+  width: 20px;
+  background: #028e5c;
+  margin-top: 9px;
+}
+
+.route-stop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  max-width: 64px;
+}
+
+.route-stop__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #028e5c;
+  flex-shrink: 0;
+}
+
+.route-stop--first .route-stop__dot,
+.route-stop--last .route-stop__dot {
+  background: #028e5c;
+  width: 12px;
+  height: 12px;
+}
+
+.route-stop--current .route-stop__dot {
+  background: #a8f0d0;
+  width: 16px;
+  height: 16px;
+  box-shadow: 0 0 0 3px rgba(1, 188, 116, 0.25);
+}
+
+.route-stop__name {
+  font-size: 10px;
+  color: #757575;
+  text-align: center;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.route-stop--first .route-stop__name,
+.route-stop--last .route-stop__name {
+  font-weight: 600;
+  color: #121212;
+}
+
+.route-stop--current .route-stop__name {
+  font-weight: 700;
+  color: #1876d2;
+}
+
+.route-stop-ellipsis {
+  font-size: 14px;
+  color: #bdbdbd;
+  margin-top: 4px;
+  flex-shrink: 0;
+  letter-spacing: 1px;
+}
+
+.route-preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 12px;
+}
+
 </style>

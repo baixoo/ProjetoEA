@@ -25,6 +25,24 @@
         </div>
       </div>
 
+      <q-dialog v-model="titlesDialogOpen" persistent>
+        <q-card class="titles-dialog-card">
+          <q-card-section class="row items-center q-gutter-sm">
+            <q-icon name="confirmation_number" color="primary" size="24px" />
+            <div class="text-h6">Sem títulos válidos</div>
+          </q-card-section>
+
+          <q-card-section>
+            <div>Nao tem bilhetes nem passe ativo para embarcar neste autocarro.</div>
+          </q-card-section>
+
+          <q-card-actions align="right" class="q-pa-md q-pt-none">
+            <q-btn flat color="grey-7" label="Cancelar" @click="cancelTitlesDialog" />
+            <q-btn color="primary" label="Comprar títulos" @click="goToTicketsFromDialog" />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+
       <p class="scanner-instructions">
         Aponte com a câmara do telemóvel para o código QR do autocarro e aguarde.
       </p>
@@ -136,14 +154,15 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
+// import { useQuasar } from 'quasar'
+// import { Notify } from 'quasar'
 import { useViagensStore } from 'src/stores/viagens'
 import { useTicketsStore } from 'src/stores/tickets'
 import { useAuthStore } from 'src/stores/auth'
 import BoardingDialog from 'src/components/BoardingDialog.vue'
 import { Html5Qrcode } from 'html5-qrcode'
 
-const $q = useQuasar()
+// const $q = useQuasar()
 const router = useRouter()
 const viagensStore = useViagensStore()
 const ticketsStore = useTicketsStore()
@@ -152,12 +171,14 @@ const authStore = useAuthStore()
 const boardingOpen = ref(false)
 const selectedVehicleTrip = ref(null)
 const selectedStop = ref(null)
+const titlesDialogOpen = ref(false)
 
 const scannerRunning = ref(false)
 const scannerError = ref(null)
 const lastScannedText = ref('')
 const scanStatus = ref('Aguardando QR...')
 const scanLocked = ref(false)
+const ignoredScanText = ref('')
 let html5QrcodeInstance = null
 
 const pointsBalance = computed(() => authStore.user?.nrPontos ?? 0)
@@ -291,6 +312,7 @@ async function stopScanner() {
 async function handleScannedCode(text) {
   console.log('handleScannedCode iniciado. Texto:', text)
   if (scanLocked.value) return
+  if (ignoredScanText.value && ignoredScanText.value === text) return
   scanLocked.value = true
 
   lastScannedText.value = text
@@ -364,77 +386,100 @@ const selectedBusNumber = computed(() => {
 })
 
 function triggerBoarding() {
+  console.log('triggerBoarding chamado', {
+    selectedVehicleTrip: selectedVehicleTrip.value,
+    hasTickets: unusedTicketsCount.value > 0,
+    hasPass: !!activePassName.value,
+    selectedStop: selectedStop.value
+  })
+
   if (!selectedVehicleTrip.value) return
 
   const hasTickets = unusedTicketsCount.value > 0
-  const temPasse = !!activePassName.value
+  const hasPass = !!activePassName.value
+
+  if (!hasTickets && !hasPass) {
+    ignoredScanText.value = lastScannedText.value
+    titlesDialogOpen.value = true
+    stopScanner()
+    return
+  }
 
   if (!selectedStop.value) {
+    console.log('Sem paragem, a detetar...')
     detectNearestStop()
     return
   }
 
+  console.log('A abrir boardingOpen!')
   boardingOpen.value = true
 }
 
+function cancelTitlesDialog() {
+  titlesDialogOpen.value = false
+  scanLocked.value = false
+  ignoredScanText.value = ''
+  startScanner()
+}
+
+function goToTicketsFromDialog() {
+  titlesDialogOpen.value = false
+  scanLocked.value = false
+  router.push('/tickets')
+}
+
 function detectNearestStop() {
-  if (!navigator.geolocation) {
+  const trip = (viagensStore.vehicleTrips || []).find(vt => vt.id === selectedVehicleTrip.value)
+  const pontos = trip?.trajeto?.pontosDePassagem || []
+
+  if (!pontos.length) {
     fallbackStop()
     return
   }
 
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const userLat = pos.coords.latitude
-      const userLng = pos.coords.longitude
-      const allStops = viagensStore.stops || []
+  const now = new Date()
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
 
-      let nearest = null
-      let minDist = Infinity
+  let nearest = null
+  let minDiff = Infinity
 
-      for (const stop of allStops) {
-        const loc = stop.localizacao
-        if (!loc) continue
-        const d = haversineKm(userLat, userLng, loc.latitude, loc.longitude)
-        if (d < minDist) {
-          minDist = d
-          nearest = stop
-        }
-      }
+  for (const ponto of pontos) {
+    if (!ponto.horaChegada || !ponto.paragem?.id) continue
+    const [h, m] = ponto.horaChegada.split(':').map(Number)
+    const diff = Math.abs((h * 60 + m) - nowMinutes)
+    if (diff < minDiff) {
+      minDiff = diff
+      nearest = ponto
+    }
+  }
 
-      if (nearest) {
-        selectedStop.value = nearest.id
-        $q.notify({ type: 'info', message: `Paragem detetada: ${nearest.nome}`, position: 'top', timeout: 3000 })
-      } else {
-        fallbackStop()
-      }
+  if (nearest) {
+    selectedStop.value = nearest.paragem.id
+  } else {
+    fallbackStop()
+    return
+  }
 
-      boardingOpen.value = true
-    },
-    () => {
-      fallbackStop()
-    },
-    { timeout: 5000, enableHighAccuracy: true }
-  )
+  boardingOpen.value = true
 }
 
 function fallbackStop() {
-  const first = (viagensStore.stops || [])[0]
-  if (first) {
-    selectedStop.value = first.id
-    $q.notify({ type: 'warning', message: 'Localização indisponível, paragem preenchida automaticamente', position: 'top', timeout: 3000 })
+  const trip = (viagensStore.vehicleTrips || []).find(vt => vt.id === selectedVehicleTrip.value)
+  const primeiro = trip?.trajeto?.pontosDePassagem?.[0]
+  if (primeiro?.paragem?.id) {
+    selectedStop.value = primeiro.paragem.id
   }
   boardingOpen.value = true
 }
 
-function haversineKm(lat1, lng1, lat2, lng2) {
-  const R = 6371
-  const toRad = (deg) => deg * Math.PI / 180
-  const dLat = toRad(lat2 - lat1)
-  const dLng = toRad(lng2 - lng1)
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
+// function haversineKm(lat1, lng1, lat2, lng2) {
+//   const R = 6371
+//   const toRad = (deg) => deg * Math.PI / 180
+//   const dLat = toRad(lat2 - lat1)
+//   const dLng = toRad(lng2 - lng1)
+//   const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+//   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+// }
 
 // Expose simulation helper globally for tests/automation
 if (typeof window !== 'undefined') {
@@ -450,7 +495,7 @@ if (typeof window !== 'undefined') {
   min-height: 100vh;
   padding-top: calc(var(--header-h, 42px) + 10px);
   padding-bottom: calc(var(--tabbar-h, 78px) + 16px);
-  background: #121212;
+  background: #f7f9fa;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -465,20 +510,17 @@ if (typeof window !== 'undefined') {
   padding: 0 var(--page-pad, 20px);
 }
 
-.scanner-viewport-fullscreen {
-  display: none;
-}
-
 .scanner-viewport {
   position: relative;
   width: 100%;
   max-width: 340px;
   aspect-ratio: 6 / 5;
-  border-radius: 12px;
+  border-radius: 16px;
   margin-top: 15px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
   background: #000;
+  border: 1px solid #e0e0e0;
 }
 
 .scanner-camera-view {
@@ -489,14 +531,12 @@ if (typeof window !== 'undefined') {
   z-index: 1;
 }
 
-/* Force video to fill container properly */
 .scanner-camera-view :deep(video) {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
 }
 
-/* Hide html5-qrcode default white corner borders */
 .scanner-camera-view :deep(#qr-shaded-region > div) {
   display: none !important;
 }
@@ -510,17 +550,6 @@ if (typeof window !== 'undefined') {
   pointer-events: none;
   filter: brightness(0.6);
   z-index: 2;
-}
-
-.scanner-subtract {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  opacity: 0.3;
-  z-index: 3;
 }
 
 .scanner-frame {
@@ -539,30 +568,11 @@ if (typeof window !== 'undefined') {
   height: 40px;
 }
 
-.corner--tl {
-  top: -8px;
-  left: -8px;
-  transform: rotate(-90deg);
-}
+.corner--tl { top: -8px; left: -8px; transform: rotate(-90deg); }
+.corner--tr { top: -8px; right: -8px; }
+.corner--bl { bottom: -8px; left: -8px; transform: rotate(180deg); }
+.corner--br { bottom: -8px; right: -8px; transform: rotate(90deg); }
 
-.corner--tr {
-  top: -8px;
-  right: -8px;
-}
-
-.corner--bl {
-  bottom: -8px;
-  left: -8px;
-  transform: rotate(180deg);
-}
-
-.corner--br {
-  bottom: -8px;
-  right: -8px;
-  transform: rotate(90deg);
-}
-
-/* Animated premium laser line scanner */
 .scanner-line {
   position: absolute;
   left: 0;
@@ -574,26 +584,16 @@ if (typeof window !== 'undefined') {
 }
 
 @keyframes scan-laser {
-  0% {
-    top: 0%;
-    opacity: 0.3;
-  }
-  15% {
-    opacity: 1;
-  }
-  85% {
-    opacity: 1;
-  }
-  100% {
-    top: 100%;
-    opacity: 0.3;
-  }
+  0%   { top: 0%;   opacity: 0.3; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { top: 100%; opacity: 0.3; }
 }
 
 .scanner-error-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(255, 255, 255, 0.92);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -605,59 +605,71 @@ if (typeof window !== 'undefined') {
 }
 
 .error-msg {
-  font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 500;
-  color: #fff;
-  opacity: 0.9;
+  color: #121212;
 }
 
 .scanner-instructions {
-  margin: 15px 0;
+  margin: 12px 0 0;
   padding: 0 20px;
-  font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.4;
   text-align: center;
-  color: rgba(255, 255, 255, 0.7);
+  color: #757575;
 }
 
-.scanner-instruction-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.92), transparent);
-  padding: 30px 20px 18px;
-  text-align: center;
-  z-index: 10;
+/* Status panel */
+.scanner-status-panel {
+  display: flex;
+  width: 100%;
+  max-width: 340px;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px auto;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.scanner-instruction-text {
-  font-family: 'Inter', sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  color: #fff;
-  margin: 0;
+.scanner-status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+  color: #616161;
 }
 
+.scanner-status-label {
+  font-weight: 600;
+  color: #121212;
+}
+
+.last-qrcode {
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+/* Info cards */
 .scanner-info-cards {
   display: flex;
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  margin-top: 10px;
+  margin-top: 4px;
 }
 
 .info-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
   border-radius: 16px;
   padding: 16px;
-  transition: transform 0.2s, border-color 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s;
 }
 
 .info-card:hover {
@@ -669,7 +681,7 @@ if (typeof window !== 'undefined') {
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid #f0f0f0;
   padding-bottom: 8px;
 }
 
@@ -678,10 +690,9 @@ if (typeof window !== 'undefined') {
 }
 
 .card-title {
-  font-family: 'Inter', sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: #ffffff;
+  color: #121212;
 }
 
 .card-content {
@@ -694,9 +705,13 @@ if (typeof window !== 'undefined') {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: 'Inter', sans-serif;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: #616161;
+}
+
+.status-label {
+  color: #757575;
+  font-weight: 500;
 }
 
 .status-badge {
@@ -707,23 +722,22 @@ if (typeof window !== 'undefined') {
 }
 
 .badge--active {
-  background: rgba(1, 188, 116, 0.15);
-  color: #01bc74;
+  background: rgba(1, 188, 116, 0.10);
+  color: #028e5c;
 }
 
 .badge--inactive {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.4);
+  background: #f0f0f0;
+  color: #9e9e9e;
 }
 
 .points-item {
   margin-top: 4px;
   padding-top: 8px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  border-top: 1px dashed #f0f0f0;
 }
 
 .pass-zone-item {
-  padding-top: 0;
   margin-top: -4px;
 }
 
@@ -736,87 +750,18 @@ if (typeof window !== 'undefined') {
   color: #ffb300;
 }
 
-.guide-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.scanner-status-panel {
-  display: flex;
-  width: 100%;
-  max-width: 340px;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0 auto 12px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.scanner-status-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.scanner-status-label {
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.last-qrcode {
-  overflow-wrap: anywhere;
-  text-align: right;
-}
-
-.step-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.step-num {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #01bc74;
-  color: #121212;
-  font-size: 11px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.step-text {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  line-height: 1.4;
-  color: rgba(255, 255, 255, 0.7);
-  margin: 0;
-}
-
-/* Contentor para posicionar a bolinha abaixo da câmara */
+/* Help button & bubble */
 .guide-floating-container {
   display: flex;
   justify-content: center;
-  margin-top: 15px; /* Ajusta o espaço abaixo da câmara */
+  margin-top: 15px;
   margin-bottom: 15px;
 }
 
-/* Estilo da bolinha */
 .guide-circle-btn {
   width: 45px;
   height: 45px;
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10);
   transition: transform 0.2s ease;
 }
 
@@ -824,10 +769,9 @@ if (typeof window !== 'undefined') {
   transform: scale(0.95);
 }
 
-/* O Balão de Fala (Pop-up do Quasar) */
 .guide-speech-bubble {
   border-radius: 12px !important;
-  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10) !important;
   max-width: 280px;
   border: 1px solid #e0e0e0;
   background-color: white;
@@ -840,11 +784,10 @@ if (typeof window !== 'undefined') {
 .bubble-title {
   margin: 0 0 12px 0;
   font-size: 16px;
-  font-weight: bold;
-  color: #1976D2; /* Cor primária do teu projeto */
+  font-weight: 700;
+  color: #121212;
 }
 
-/* Organização dos passos dentro do balão */
 .guide-steps {
   display: flex;
   flex-direction: column;
@@ -858,9 +801,9 @@ if (typeof window !== 'undefined') {
 }
 
 .step-num {
-  background-color: #e3f2fd;
-  color: #1976D2;
-  font-weight: bold;
+  background-color: rgba(1, 188, 116, 0.12);
+  color: #028e5c;
+  font-weight: 700;
   border-radius: 50%;
   width: 22px;
   height: 22px;
@@ -869,14 +812,20 @@ if (typeof window !== 'undefined') {
   justify-content: center;
   font-size: 12px;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .step-text {
   margin: 0;
   font-size: 13px;
-  color: #555;
+  color: #616161;
   line-height: 1.4;
 }
 
+/* Dialog */
+.titles-dialog-card {
+  width: min(92vw, 420px);
+  border-radius: 16px;
+}
 </style>
 
