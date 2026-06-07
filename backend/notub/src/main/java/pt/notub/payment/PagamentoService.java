@@ -62,24 +62,42 @@ public class PagamentoService {
                     .isAfter(LocalDateTime.now());
 
             if (withinTimeout) {
-                PaymentProcessor processor = processorFactory.getDefault();
-                PaymentStatus status = processor.checkStatus(existing.getStripeSessionId());
-
-                if (status.status() == PaymentProviderStatus.SUCCESS) {
-                    confirmarPagamento(existing.getId());
-                    return new CheckoutResponse(existing.getId(), existing.getToken(), null, "CONCLUIDO");
+                boolean mesmoProduto = existing.getTipoProduto() == tipoProduto;
+                boolean mesmoValor = false;
+                if (mesmoProduto) {
+                    Long zonaIdReq = request.getZonaId() != null ? request.getZonaId() : 1L;
+                    if (tipoProduto == TipoProduto.BILHETE) {
+                        mesmoValor = existing.getZonaId().equals(zonaIdReq);
+                    } else {
+                        mesmoValor = existing.getZonaId().equals(zonaIdReq)
+                                && existing.getModalidade() != null
+                                && existing.getModalidade().equals(request.getModalidade());
+                    }
                 }
-                if (status.status() == PaymentProviderStatus.EXPIRED
-                        || status.status() == PaymentProviderStatus.DECLINED) {
+
+                if (!mesmoProduto || !mesmoValor) {
                     existing.setEstadoPagamento(EstadoPagamento.CANCELADO);
                     transacaoRepository.save(existing);
                 } else {
-                    String url = processor.getSessionUrl(existing.getStripeSessionId());
-                    if (url != null) {
-                        return new CheckoutResponse(existing.getId(), existing.getToken(), url, "EM_CURSO");
+                    PaymentProcessor processor = processorFactory.getDefault();
+                    PaymentStatus status = processor.checkStatus(existing.getStripeSessionId());
+
+                    if (status.status() == PaymentProviderStatus.SUCCESS) {
+                        confirmarPagamento(existing.getId());
+                        return new CheckoutResponse(existing.getId(), existing.getToken(), null, "CONCLUIDO");
                     }
-                    existing.setEstadoPagamento(EstadoPagamento.CANCELADO);
-                    transacaoRepository.save(existing);
+                    if (status.status() == PaymentProviderStatus.EXPIRED
+                            || status.status() == PaymentProviderStatus.DECLINED) {
+                        existing.setEstadoPagamento(EstadoPagamento.CANCELADO);
+                        transacaoRepository.save(existing);
+                    } else {
+                        String url = processor.getSessionUrl(existing.getStripeSessionId());
+                        if (url != null) {
+                            return new CheckoutResponse(existing.getId(), existing.getToken(), url, "EM_CURSO");
+                        }
+                        existing.setEstadoPagamento(EstadoPagamento.CANCELADO);
+                        transacaoRepository.save(existing);
+                    }
                 }
             } else {
                 existing.setEstadoPagamento(EstadoPagamento.CANCELADO);
