@@ -76,6 +76,10 @@
           <span class="scanner-status-label">Estado:</span>
           <span class="scanner-status-value">{{ scanStatus }}</span>
         </div>
+        <div v-if="tripErrorMsg" class="scanner-status-row">
+          <span class="scanner-status-label" style="color: #d32f2f;">⚠️ Aviso:</span>
+          <span class="scanner-status-value" style="color: #d32f2f;">{{ tripErrorMsg }}</span>
+        </div>
         <div v-if="lastScannedText" class="scanner-status-row">
           <span class="scanner-status-label">Último QR:</span>
           <span class="scanner-status-value last-qrcode">{{ lastScannedText }}</span>
@@ -179,6 +183,7 @@ const lastScannedText = ref('')
 const scanStatus = ref('Aguardando QR...')
 const scanLocked = ref(false)
 const ignoredScanText = ref('')
+const tripErrorMsg = ref('')
 let html5QrcodeInstance = null
 
 const pointsBalance = computed(() => authStore.user?.nrPontos ?? 0)
@@ -315,6 +320,8 @@ async function handleScannedCode(text) {
   if (ignoredScanText.value && ignoredScanText.value === text) return
   scanLocked.value = true
 
+  await viagensStore.fetchVehicleTrips()
+
   lastScannedText.value = text
   let tripMatched = false
 
@@ -368,7 +375,6 @@ async function handleScannedCode(text) {
     }
   }
 
-  // Final decision
   if (tripMatched && selectedVehicleTrip.value) {
     console.log('✅  Success. Starting board...');
     await stopScanner()
@@ -428,39 +434,31 @@ function goToTicketsFromDialog() {
   router.push('/tickets')
 }
 
-function detectNearestStop() {
-  const trip = (viagensStore.vehicleTrips || []).find(vt => vt.id === selectedVehicleTrip.value)
-  const pontos = trip?.trajeto?.pontosDePassagem || []
+async function detectNearestStop() {
+  try {
+    const resp = await fetch(`/api/viagens/veiculo/${selectedVehicleTrip.value}/paragem-atual`, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
 
-  if (!pontos.length) {
-    fallbackStop()
-    return
-  }
+    if (resp.status === 409) {
+      tripErrorMsg.value = 'A viagem não está a decorrer.'
+      scanLocked.value = false
+      startScanner()
+      return
+}
 
-  const now = new Date()
-  const nowMinutes = now.getHours() * 60 + now.getMinutes()
-
-  let nearest = null
-  let minDiff = Infinity
-
-  for (const ponto of pontos) {
-    if (!ponto.horaChegada || !ponto.paragem?.id) continue
-    const [h, m] = ponto.horaChegada.split(':').map(Number)
-    const diff = Math.abs((h * 60 + m) - nowMinutes)
-    if (diff < minDiff) {
-      minDiff = diff
-      nearest = ponto
+    if (!resp.ok) {
+      fallbackStop()
+      return
     }
-  }
 
-  if (nearest) {
-    selectedStop.value = nearest.paragem.id
-  } else {
+    const data = await resp.json()
+    selectedStop.value = data.paragemId
+    boardingOpen.value = true
+
+  } catch {
     fallbackStop()
-    return
   }
-
-  boardingOpen.value = true
 }
 
 function fallbackStop() {

@@ -18,8 +18,6 @@
         </div>
       </div>
 
-      <p class="boarding-question">Como deseja viajar?</p>
-
       <div v-if="loading" class="flex flex-center q-py-md">
         <q-spinner color="primary" size="30px" />
         <span class="q-ml-sm text-grey-7">A validar...</span>
@@ -37,7 +35,7 @@
 
           <div class="route-preview-rail">
             <template v-for="(item, index) in routePreviewItems" :key="item.key">
-              <div v-if="item.type === 'ellipsis'" class="route-stop-ellipsis">···</div>
+              <div v-if="item.type === 'ellipsis'" class="route-stop-ellipsis">- - -&gt;</div>
               <div v-else class="route-stop" :class="{
                 'route-stop--first': item.kind === 'first',
                 'route-stop--current': item.kind === 'current',
@@ -183,45 +181,30 @@ const routePreviewItems = computed(() => {
   }
 
   const currentIndex = pontos.findIndex(s => Number(s.id) === Number(props.paragemEntradaId))
-  const cur = currentIndex >= 0 ? currentIndex : Math.min(1, pontos.length - 1)
-  const first = pontos[0]
+  const cur = currentIndex >= 0 ? currentIndex : 0
   const last = pontos[pontos.length - 1]
 
   const items = []
   const pushStop = (stop, kind) => items.push({ key: `${kind}-${stop.id}`, type: 'stop', kind, name: stop.name })
   const pushEllipsis = (key) => items.push({ key, type: 'ellipsis' })
 
-  // Primeira paragem sempre
-  pushStop(first, 'first')
+  pushStop(pontos[cur], 'current')
 
-  // 2 paragens antes da atual
-  const beforeFrom = Math.max(1, cur - 2)
-  const beforeTo = Math.max(0, cur - 1)
-
-  if (beforeFrom > 1) pushEllipsis('ellipsis-left')
-
-  for (let i = beforeFrom; i <= beforeTo; i++) {
-    if (pontos[i].id !== first.id && pontos[i].id !== last.id)
-      pushStop(pontos[i], 'middle')
+  let added = 0
+  for (let i = cur + 1; i < pontos.length - 1 && added < 2; i++) {
+    pushStop(pontos[i], 'middle')
+    added++
   }
 
-  // Paragem atual (se não for a primeira nem a última)
-  if (cur > 0 && cur < pontos.length - 1)
-    pushStop(pontos[cur], 'current')
-
-  // 2 paragens depois da atual
-  const afterFrom = Math.min(pontos.length - 2, cur + 1)
-  const afterTo = Math.min(pontos.length - 2, cur + 2)
-
-  for (let i = afterFrom; i <= afterTo; i++) {
-    if (pontos[i].id !== first.id && pontos[i].id !== last.id)
-      pushStop(pontos[i], 'middle')
+  const lastShownIndex = cur + 1 + added - 1
+  if (lastShownIndex < pontos.length - 2) {
+    pushEllipsis('ellipsis-right')
   }
 
-  if (afterTo < pontos.length - 2) pushEllipsis('ellipsis-right')
-
-  // Última paragem sempre
-  if (last.id !== first.id) pushStop(last, 'last')
+  // Última paragem sempre (se não for a atual)
+  if (last.id !== pontos[cur].id) {
+    pushStop(last, 'last')
+  }
 
   return items
 })
@@ -605,20 +588,14 @@ export default { name: 'BoardingDialog' }
   font-weight: 500;
 }
 
-.route-preview-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #9e9e9e;
-  margin-bottom: 12px;
-}
-
 .route-preview-rail {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding-top: 10px;
+  padding-bottom: 25px; 
+  padding-left: 20px;   
+  padding-right: 20px;  
   margin-bottom: 16px;
   gap: 0;
   scrollbar-width: none;
@@ -628,57 +605,51 @@ export default { name: 'BoardingDialog' }
   display: none;
 }
 
-.route-connector {
-  flex-shrink: 0;
-  height: 2px;
-  width: 20px;
-  background: #028e5c;
-  margin-top: 9px;
-}
-
 .route-stop {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  position: relative;
   flex-shrink: 0;
-  max-width: 64px;
 }
 
 .route-stop__dot {
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #028e5c;
   flex-shrink: 0;
+  z-index: 2;
+}
+
+.route-stop__name {
+  position: absolute;
+  top: 22px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.route-connector {
+  flex-shrink: 0;
+  height: 3px;
+  width: 28px;
+  background: #028e5c;
+  z-index: 1;
 }
 
 .route-stop--first .route-stop__dot,
 .route-stop--last .route-stop__dot {
   background: #028e5c;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 .route-stop--current .route-stop__dot {
-  background: #a8f0d0;
-  width: 16px;
-  height: 16px;
-  box-shadow: 0 0 0 3px rgba(1, 188, 116, 0.25);
-}
-
-.route-stop__name {
-  font-size: 10px;
-  color: #757575;
-  text-align: center;
-  line-height: 1.3;
-  word-break: break-word;
-}
-
-.route-stop--first .route-stop__name,
-.route-stop--last .route-stop__name {
-  font-weight: 600;
-  color: #121212;
+  background: #1876d2;
+  width: 14px;
+  height: 14px;
 }
 
 .route-stop--current .route-stop__name {
@@ -686,12 +657,21 @@ export default { name: 'BoardingDialog' }
   color: #1876d2;
 }
 
+.route-stop--middle .route-stop__name,
+.route-stop--last .route-stop__name {
+  font-weight: 600;
+  color: #028e5c;
+}
+
 .route-stop-ellipsis {
-  font-size: 14px;
-  color: #bdbdbd;
-  margin-top: 4px;
+  font-size: 13px;
+  color: #028e5c;
   flex-shrink: 0;
-  letter-spacing: 1px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
 }
 
 .route-preview-actions {
@@ -702,5 +682,4 @@ export default { name: 'BoardingDialog' }
   border-top: 1px solid #f0f0f0;
   padding-top: 12px;
 }
-
 </style>
