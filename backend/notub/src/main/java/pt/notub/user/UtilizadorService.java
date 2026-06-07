@@ -6,6 +6,8 @@ import pt.notub.models.TipoUtilizador;
 import pt.notub.models.Utilizador;
 import pt.notub.repositories.UtilizadorRepository;
 
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,6 +18,15 @@ public class UtilizadorService {
 
     public UtilizadorService(UtilizadorRepository utilizadorRepository) {
         this.utilizadorRepository = utilizadorRepository;
+    }
+
+    public static TipoUtilizador calcularTipoUtilizador(LocalDate dataNascimento) {
+        if (dataNascimento == null) return TipoUtilizador.ADULTO;
+        int age = Period.between(dataNascimento, LocalDate.now()).getYears();
+        if (age < 12) return TipoUtilizador.CRIANCA;
+        if (age <= 23) return TipoUtilizador.ESTUDANTE;
+        if (age >= 65) return TipoUtilizador.SENIOR;
+        return TipoUtilizador.ADULTO;
     }
 
     public List<Utilizador> getAllUtilizadores() {
@@ -36,8 +47,10 @@ public class UtilizadorService {
 
         if (updated.getPrimeiroNome() != null) utilizador.setPrimeiroNome(updated.getPrimeiroNome());
         if (updated.getUltimoNome() != null) utilizador.setUltimoNome(updated.getUltimoNome());
-        if (updated.getDataNascimento() != null) utilizador.setDataNascimento(updated.getDataNascimento());
-        if (updated.getTipoUtilizador() != null) utilizador.setTipoUtilizador(updated.getTipoUtilizador());
+        if (updated.getDataNascimento() != null) {
+            utilizador.setDataNascimento(updated.getDataNascimento());
+            utilizador.setTipoUtilizador(calcularTipoUtilizador(updated.getDataNascimento()));
+        }
 
         String novoNif = updated.getNif();
         if (novoNif != null && novoNif.isBlank()) {

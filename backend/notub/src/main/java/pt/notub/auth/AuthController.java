@@ -23,6 +23,7 @@ import pt.notub.security.JwtUtils;
 import pt.notub.security.UserDetailsImpl;
 import pt.notub.security.AuthenticatedUser;
 import pt.notub.notification.PublicadorEventosEmail;
+import pt.notub.user.UtilizadorService;
 import pt.notub.user.dto.UserDTO;
 
 import java.time.LocalDate;
@@ -89,7 +90,9 @@ public class AuthController {
         utilizador.setUltimoNome(registerRequest.getUltimoNome());
         utilizador.setNif(registerRequest.getNif());
         if (registerRequest.getDataNascimento() != null && !registerRequest.getDataNascimento().isEmpty()) {
-            utilizador.setDataNascimento(LocalDate.parse(registerRequest.getDataNascimento()));
+            LocalDate dataNascimento = LocalDate.parse(registerRequest.getDataNascimento());
+            utilizador.setDataNascimento(dataNascimento);
+            utilizador.setTipoUtilizador(UtilizadorService.calcularTipoUtilizador(dataNascimento));
         }
         utilizador.setRole(TipoPapel.UTILIZADOR);
         utilizador.setAuthMethod(AuthMethod.CREDENTIALS);

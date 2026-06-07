@@ -7,29 +7,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!token.value)
 
-  const tipoUtilizador = computed(() => {
-    if (!user.value) return null
-    if (user.value.tipoUtilizador) return user.value.tipoUtilizador
-
-    const rawDate = user.value.dataNascimento || user.value.data_nascimento || user.value.nascimento
-    if (!rawDate) return null
-
-    const dob = new Date(rawDate)
-    if (Number.isNaN(dob.getTime())) return null
-
-    const today = new Date()
-    let age = today.getFullYear() - dob.getFullYear()
-    const monthDiff = today.getMonth() - dob.getMonth()
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-      age--
-    }
-
-    if (age < 12) return 'CRIANCA'
-    if (age >= 12 && age <= 23) return 'ESTUDANTE'
-    if (age >= 65) return 'SENIOR'
-    return 'ADULTO'
-  })
-
   async function login(email, password) {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
@@ -135,7 +112,6 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     token,
     user,
-    tipoUtilizador,
     isAuthenticated,
     login,
     register,
