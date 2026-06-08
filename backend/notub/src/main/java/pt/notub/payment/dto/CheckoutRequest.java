@@ -1,7 +1,6 @@
 package pt.notub.payment.dto;
 
 public class CheckoutRequest {
-
     private String metodoPagamento;
     private String tipoProduto;
     private Integer quantidade;
@@ -9,8 +8,6 @@ public class CheckoutRequest {
     private Long zonaId;
     private Double valor;
     private String telefone;
-    private int mesInicio;
-    private int anoInicio;
 
     public CheckoutRequest() {}
 
@@ -28,8 +25,4 @@ public class CheckoutRequest {
     public void setValor(Double valor) { this.valor = valor; }
     public String getTelefone() { return telefone; }
     public void setTelefone(String telefone) { this.telefone = telefone; }
-    public int getMesInicio() { return mesInicio; }
-    public void setMesInicio(int mesInicio) { this.mesInicio = mesInicio; }
-    public int getAnoInicio() { return anoInicio; }
-    public void setAnoInicio(int anoInicio) { this.anoInicio = anoInicio; }
 }

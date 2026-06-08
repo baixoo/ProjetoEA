@@ -43,22 +43,23 @@
 
         <h2 class="section-title q-mt-lg">Passes Mensais & Anuais</h2>
         <div class="grid-layout">
-          <div class="offer-card">
+          <div class="offer-card" :class="{ 'offer-card--disabled': hasActivePass }">
             <div class="offer-icon bg-orange">
               <q-icon name="credit_card" size="28px" color="warning" />
             </div>
             <div class="offer-info">
               <h3 class="offer-name">Passe Mensal</h3>
-              <p class="offer-desc">Viagens ilimitadas durante 1 mes</p>
+              <p class="offer-desc">Viagens ilimitadas durante 30 dias</p>
             </div>
             <div class="offer-price-action">
-              <button class="btn-add" @click="openCheckout('pass_monthly')">
+              <span v-if="hasActivePass" class="btn-disabled-label">Passe ativo</span>
+              <button v-else class="btn-add" @click="openCheckout('pass_monthly')">
                 <span>Adicionar</span>
               </button>
             </div>
           </div>
 
-          <div class="offer-card">
+          <div class="offer-card" :class="{ 'offer-card--disabled': hasActivePass }">
             <div class="offer-icon bg-orange">
               <q-icon name="workspace_premium" size="28px" color="warning" />
             </div>
@@ -67,7 +68,8 @@
               <p class="offer-desc">Viagens ilimitadas durante 1 ano (Melhor Preco)</p>
             </div>
             <div class="offer-price-action">
-              <button class="btn-add" @click="openCheckout('pass_annual')">
+              <span v-if="hasActivePass" class="btn-disabled-label">Passe ativo</span>
+              <button v-else class="btn-add" @click="openCheckout('pass_annual')">
                 <span>Adicionar</span>
               </button>
             </div>
@@ -101,44 +103,9 @@
           </div>
         </div>
 
-        <!-- Seletor de mês/ano (apenas para passes) -->
-        <div v-if="currentProduct.type === 'pass'" class="month-section q-mb-md">
-          <label class="section-label">Mês de inicio:</label>
-          <div class="month-year-row">
-            <div class="month-grid">
-              <div
-                v-for="m in monthOptions"
-                :key="m.value"
-                class="month-pill"
-                :class="{
-                  'month-pill--selected': selectedMonth === m.value && selectedYear === selectedYear,
-                  'month-pill--occupied': isMonthOccupied(selectedYear, m.value),
-                  'month-pill--past': isMonthPast(selectedYear, m.value)
-                }"
-                @click="selectMonth(m.value)"
-              >
-                {{ m.label }}
-              </div>
-            </div>
-            <div class="year-selector">
-              <button class="year-btn" @click="selectedYear--" :disabled="selectedYear <= currentYear">‹</button>
-              <span class="year-value">{{ selectedYear }}</span>
-              <button class="year-btn" @click="selectedYear++" :disabled="selectedYear >= currentYear + 2">›</button>
-            </div>
-          </div>
-          <p v-if="selectedMonthOccupied" class="month-conflict-msg">
-            Ja tem um passe para este periodo. Escolha outro mes.
-          </p>
-          <p v-else-if="selectedMonthLabel" class="month-selected-info">
-            {{ currentProduct.modalidade === 'MENSAL'
-              ? `Valido de 1 de ${selectedMonthLabel} de ${selectedYear} ao fim do mes`
-              : `Valido de 1 de ${selectedMonthLabel} de ${selectedYear} a 31 de dezembro de ${selectedYear}` }}
-          </p>
-        </div>
-
         <div v-if="errorMessage" class="error-msg q-mb-sm">{{ errorMessage }}</div>
 
-        <!-- Zone selection -->
+        <!-- Zone selection (single) -->
         <div class="zone-section q-mb-md">
           <label class="section-label">Selecione a Zona:</label>
           <div class="zones-grid">
@@ -167,11 +134,7 @@
         </div>
 
         <!-- Pay Action Button -->
-        <button
-          class="btn-pay"
-          @click="processPayment"
-          :disabled="submitting || !selectedZoneId || checkoutUnitPrice == null || (currentProduct.type === 'pass' && selectedMonthOccupied)"
-        >
+        <button class="btn-pay" @click="processPayment" :disabled="submitting || !selectedZoneId || checkoutUnitPrice == null">
           <q-spinner v-if="submitting" size="20px" class="q-mr-sm" />
           <span>{{ submitting ? 'A redirecionar para o pagamento...' : 'Confirmar e Pagar' }}</span>
         </button>
@@ -214,48 +177,27 @@ const submitting = ref(false)
 const errorMessage = ref('')
 const quantity = ref(1)
 const selectedZoneId = ref(null)
+
 const checkoutUnitPrice = ref(null)
 
-// mês/ano para passes
-const now = new Date()
-const currentYear = now.getFullYear()
-const currentMonth = now.getMonth() + 1 // 1-12
-const selectedMonth = ref(currentMonth)
-const selectedYear = ref(currentYear)
-
-const monthOptions = [
-  { label: 'Jan', value: 1 },
-  { label: 'Fev', value: 2 },
-  { label: 'Mar', value: 3 },
-  { label: 'Abr', value: 4 },
-  { label: 'Mai', value: 5 },
-  { label: 'Jun', value: 6 },
-  { label: 'Jul', value: 7 },
-  { label: 'Ago', value: 8 },
-  { label: 'Set', value: 9 },
-  { label: 'Out', value: 10 },
-  { label: 'Nov', value: 11 },
-  { label: 'Dez', value: 12 }
-]
-
-const monthNames = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
-]
-
-const currentProduct = ref({ id: '', name: '', type: '', modalidade: '' })
+const currentProduct = ref({
+  id: '',
+  name: '',
+  price: 0,
+  type: ''
+})
 
 const products = {
   ticket_single: { id: 'ticket_single', name: 'Bilhete Simples', type: 'ticket', ticketsQty: 1 },
-  ticket_pack5:  { id: 'ticket_pack5',  name: 'Pack 5 Viagens',  type: 'ticket', ticketsQty: 5 },
-  pass_monthly:  { id: 'pass_monthly',  name: 'Passe Mensal',    type: 'pass',   modalidade: 'MENSAL' },
-  pass_annual:   { id: 'pass_annual',   name: 'Passe Anual',     type: 'pass',   modalidade: 'ANUAL'  }
+  ticket_pack5: { id: 'ticket_pack5', name: 'Pack 5 Viagens', type: 'ticket', ticketsQty: 5 },
+  pass_monthly: { id: 'pass_monthly', name: 'Passe Mensal', type: 'pass', modalidade: 'MENSAL' },
+  pass_annual: { id: 'pass_annual', name: 'Passe Anual', type: 'pass', modalidade: 'ANUAL' }
 }
 
 onMounted(async () => {
   await Promise.all([
     ticketsStore.fetchMyTickets(),
-    ticketsStore.fetchMyPasses(),
+    ticketsStore.fetchMyPass(),
     viagensStore.fetchZones()
   ])
 
@@ -273,48 +215,14 @@ onMounted(async () => {
   }
 })
 
-// ---- helpers de mês ----
-
-function isMonthOccupied(year, month) {
-  const key = `${year}-${String(month).padStart(2, '0')}`
-  // Para passe anual, verificar se qualquer mês do ano está ocupado
-  if (currentProduct.value.modalidade === 'ANUAL') {
-    for (let m = month; m <= 12; m++) {
-      const k = `${year}-${String(m).padStart(2, '0')}`
-      if (ticketsStore.mesesOcupados.has(k)) return true
-    }
-    return false
-  }
-  return ticketsStore.mesesOcupados.has(key)
-}
-
-function isMonthPast(year, month) {
-  if (year < currentYear) return true
-  if (year === currentYear && month < currentMonth) return true
-  return false
-}
-
-function selectMonth(month) {
-  if (isMonthOccupied(selectedYear.value, month)) return
-  if (isMonthPast(selectedYear.value, month)) return
-  selectedMonth.value = month
-}
-
-const selectedMonthOccupied = computed(() =>
-  isMonthOccupied(selectedYear.value, selectedMonth.value)
-)
-
-const selectedMonthLabel = computed(() =>
-  monthNames[selectedMonth.value - 1]
-)
-
-// ---- preço ----
-
 async function loadCheckoutPrice() {
   const nr = selectedZoneNum.value
   const prod = currentProduct.value
   if (!prod.id) return
-  const modalidade = prod.type === 'pass' ? products[prod.id]?.modalidade : null
+  let modalidade = null
+  if (prod.type === 'pass') {
+    modalidade = products[prod.id]?.modalidade || null
+  }
   checkoutUnitPrice.value = await ticketsStore.fetchPrice(
     prod.type === 'ticket' ? 'BILHETE' : 'PASSE',
     nr,
@@ -323,13 +231,29 @@ async function loadCheckoutPrice() {
 }
 
 const zoneOptions = computed(() => {
-  if (viagensStore.zones?.length > 0) return viagensStore.zones
-  return [{ id: 1, num: 1 }, { id: 2, num: 2 }, { id: 3, num: 3 }]
+  if (viagensStore.zones?.length > 0) {
+    return viagensStore.zones
+  }
+  return [
+    { id: 1, num: 1 },
+    { id: 2, num: 2 },
+    { id: 3, num: 3 }
+  ]
 })
 
 const selectedZoneNum = computed(() => {
   const zone = zoneOptions.value.find(z => z.id === selectedZoneId.value)
   return zone ? zone.num : 1
+})
+
+const selectedZonaId = computed(() => {
+  return selectedZoneId.value
+})
+
+const hasActivePass = computed(() => {
+  if (!ticketsStore.activePass) return false
+  const fim = ticketsStore.activePass.fim
+  return fim ? new Date(fim) > new Date() : true
 })
 
 const userCategoryLabel = computed(() => {
@@ -343,7 +267,9 @@ const userCategoryLabel = computed(() => {
 
 const totalPrice = computed(() => {
   if (checkoutUnitPrice.value == null) return 0
-  if (currentProduct.value.type === 'pass') return checkoutUnitPrice.value
+  if (currentProduct.value.type === 'pass') {
+    return checkoutUnitPrice.value
+  }
   const unitQty = products[currentProduct.value.id]?.ticketsQty || 1
   return checkoutUnitPrice.value * unitQty * quantity.value
 })
@@ -351,11 +277,10 @@ const totalPrice = computed(() => {
 function openCheckout(productId) {
   const prod = products[productId]
   if (!prod) return
+
   currentProduct.value = { ...prod }
   quantity.value = 1
   errorMessage.value = ''
-  selectedMonth.value = currentMonth
-  selectedYear.value = currentYear
 
   if (viagensStore.zones?.length > 0) {
     selectedZoneId.value = viagensStore.zones[0].id
@@ -367,11 +292,25 @@ function openCheckout(productId) {
   loadCheckoutPrice()
 }
 
-watch(checkoutOpen, (open) => { if (open) loadCheckoutPrice() })
-watch(selectedZoneId, (zoneId) => { if (checkoutOpen.value && zoneId != null) loadCheckoutPrice() })
+watch(checkoutOpen, (open) => {
+  if (open) loadCheckoutPrice()
+})
 
-function increaseQty() { quantity.value++ }
-function decreaseQty() { if (quantity.value > 1) quantity.value-- }
+watch(selectedZoneId, (zoneId) => {
+  if (checkoutOpen.value && zoneId != null) {
+    loadCheckoutPrice()
+  }
+})
+
+function increaseQty() {
+  quantity.value++
+}
+
+function decreaseQty() {
+  if (quantity.value > 1) {
+    quantity.value--
+  }
+}
 
 async function processPayment() {
   submitting.value = true
@@ -381,23 +320,22 @@ async function processPayment() {
     const checkoutRequest = {
       metodoPagamento: 'CARTAO',
       tipoProduto: isTicket ? 'BILHETE' : 'PASSE',
-      zonaId: selectedZoneId.value
+      zonaId: selectedZonaId.value
     }
 
     if (isTicket) {
       checkoutRequest.quantidade = currentProduct.value.ticketsQty * quantity.value
     } else {
       checkoutRequest.modalidade = currentProduct.value.modalidade
-      checkoutRequest.mesInicio = selectedMonth.value
-      checkoutRequest.anoInicio = selectedYear.value
     }
 
     const result = await ticketsStore.checkout(checkoutRequest)
+
     checkoutOpen.value = false
 
     if (result.estado === 'CONCLUIDO') {
       await ticketsStore.fetchMyTickets()
-      await ticketsStore.fetchMyPasses()
+      await ticketsStore.fetchMyPass()
       successOpen.value = true
     } else if (result.redirectUrl) {
       window.location.href = result.redirectUrl
@@ -414,7 +352,7 @@ async function pollStripeResult(token) {
     const status = await ticketsStore.checkPaymentStatus(token)
     if (status.estado === 'CONCLUIDO') {
       await ticketsStore.fetchMyTickets()
-      await ticketsStore.fetchMyPasses()
+      await ticketsStore.fetchMyPass()
       successOpen.value = true
     }
   } catch (e) {
@@ -461,6 +399,56 @@ function closeSuccess() {
   margin: 4px 0 0 0;
 }
 
+.balance-card {
+  background: linear-gradient(135deg, #0e2d24 0%, #153c30 100%);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(11, 26, 22, 0.15);
+}
+
+.balance-item {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  align-items: center;
+}
+
+.balance-divider {
+  width: 1px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.balance-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.balance-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.balance-detail {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 2px;
+}
+
+.balance-expiry {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+}
+
 .section-title {
   font-family: 'Inter', sans-serif;
   font-size: 16px;
@@ -492,6 +480,11 @@ function closeSuccess() {
   box-shadow: 0 6px 12px rgba(0,0,0,0.05);
 }
 
+.offer-card--disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .offer-icon {
   width: 48px;
   height: 48px;
@@ -502,10 +495,17 @@ function closeSuccess() {
   flex-shrink: 0;
 }
 
-.bg-blue   { background: #ebf3ff; }
-.bg-orange { background: #fff5eb; }
+.bg-blue {
+  background: #ebf3ff;
+}
 
-.offer-info  { flex-grow: 1; }
+.bg-orange {
+  background: #fff5eb;
+}
+
+.offer-info {
+  flex-grow: 1;
+}
 
 .offer-name {
   font-family: 'Inter', sans-serif;
@@ -545,117 +545,24 @@ function closeSuccess() {
   transition: background-color 0.2s, transform 0.1s;
 }
 
-.btn-add:hover   { background: #017a4e; }
-.btn-add:active  { transform: scale(0.96); }
-
-/* ---- Seletor de mês ---- */
-.month-section { }
-
-.month-year-row {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.btn-add:hover {
+  background: #017a4e;
 }
 
-.month-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+.btn-add:active {
+  transform: scale(0.96);
 }
 
-.month-pill {
-  padding: 7px 4px;
-  border-radius: 8px;
-  border: 1px solid #dee2e6;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  color: #495057;
-  text-align: center;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.15s;
-}
-
-.month-pill:hover:not(.month-pill--occupied):not(.month-pill--past) {
-  border-color: #028e5c;
-  color: #028e5c;
-}
-
-.month-pill--selected {
-  background: #e6f7f0;
-  border-color: #028e5c;
-  color: #028e5c;
-  font-weight: 700;
-}
-
-.month-pill--occupied {
-  background: #fff5f5;
-  border-color: #ffc9c9;
-  color: #c92a2a;
-  cursor: not-allowed;
-  text-decoration: line-through;
-}
-
-.month-pill--past {
-  background: #f8f9fa;
-  color: #ced4da;
-  cursor: not-allowed;
-}
-
-.year-selector {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.year-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: 1px solid #dee2e6;
-  background: #fff;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #495057;
-  transition: border-color 0.15s;
-}
-
-.year-btn:hover:not(:disabled) { border-color: #028e5c; color: #028e5c; }
-.year-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.year-value {
-  font-family: 'Inter', sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  color: #0b1a16;
-  min-width: 40px;
-  text-align: center;
-}
-
-.month-conflict-msg {
+.btn-disabled-label {
   font-family: 'Inter', sans-serif;
   font-size: 11px;
-  color: #c92a2a;
-  margin: 6px 0 0 0;
   font-weight: 600;
-}
-
-.month-selected-info {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  color: #028e5c;
-  margin: 6px 0 0 0;
-  font-weight: 600;
-  background: #e6f7f0;
-  padding: 6px 10px;
+  color: #868e96;
+  padding: 4px 10px;
   border-radius: 6px;
+  background: #e9ecef;
 }
 
-/* ---- resto do checkout (igual ao original) ---- */
 .checkout-sheet {
   background: #fff;
   border-top-left-radius: 16px;
@@ -699,7 +606,10 @@ function closeSuccess() {
   align-items: center;
 }
 
-.summary-details { display: flex; flex-direction: column; }
+.summary-details {
+  display: flex;
+  flex-direction: column;
+}
 
 .product-name {
   font-family: 'Inter', sans-serif;

@@ -36,10 +36,8 @@ public class PagamentoEventListener {
                 ticketService.buyTickets(utilizador.getEmail(), event.quantidade(), event.zonaId());
             } else {
                 ModalidadePasse modalidade = ModalidadePasse.valueOf(event.modalidade());
-                ticketService.buyPasse(utilizador.getEmail(), modalidade, event.zonaId(),
-                        event.mesInicio(), event.anoInicio());
+                ticketService.buyPasse(utilizador.getEmail(), modalidade, event.zonaId());
             }
-
             logger.info("Titulo criado apos pagamento confirmado para transacao {}", event.transacaoId());
         } catch (Exception e) {
             logger.error("Erro ao criar titulo apos pagamento: {}", e.getMessage());

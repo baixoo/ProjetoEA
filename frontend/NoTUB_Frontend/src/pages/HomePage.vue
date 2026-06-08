@@ -1,7 +1,7 @@
 <template>
   <q-page class="home-page">
     <div class="home-content">
-      <!-- Personalized Green Card -->
+      <!-- Personalized Green Card (Design 162:357) -->
       <div class="user-card">
         <h2 class="user-card__greeting">Olá, {{ firstName }}!</h2>
         <p class="user-card__sub">Pronto para a sua viagem?</p>
@@ -14,6 +14,7 @@
           </div>
         </div>
 
+        <!-- Bus Icon (Design 162:374) -->
         <div class="bus-icon-container">
           <q-icon name="directions_bus" class="bus-icon" />
         </div>
@@ -23,34 +24,16 @@
         <p class="section-title">Os seus Títulos</p>
 
         <div class="titles-card">
-          <!-- Passe ativo -->
           <div class="title-item">
             <span class="title-label">Passe ativo</span>
             <span class="title-value">
               {{ activePassName || 'Sem passe ativo' }}
             </span>
             <span v-if="activePassZoneLabel" class="title-meta">{{ activePassZoneLabel }}</span>
-            <span v-if="activePassExpiryLabel" class="title-meta">Válido até {{ activePassExpiryLabel }}</span>
+            <span v-if="activePassExpiryLabel" class="title-meta">Data de extinção: {{ activePassExpiryLabel }}</span>
           </div>
 
-          <!-- Passes futuros -->
-          <div v-if="ticketsStore.passesFuturos.length > 0" class="inactive-block">
-            <span class="inactive-heading">Passes futuros</span>
-            <div
-              v-for="passe in ticketsStore.passesFuturos"
-              :key="passe.id"
-              class="future-pass-item"
-            >
-              <span class="future-pass-name">{{ passeName(passe.modalidade) }}</span>
-              <span class="future-pass-meta">
-                {{ formatPassePeriod(passe) }}
-                <template v-if="passe.zona"> · Zona {{ passe.zona.num }}</template>
-              </span>
-            </div>
-          </div>
-
-          <!-- Bilhetes -->
-          <div class="title-item" :class="{ 'title-item--bordered': ticketsStore.passesFuturos.length > 0 }">
+          <div class="title-item">
             <span class="title-label">Bilhetes por usar</span>
             <div class="title-value">
               <div v-if="unusedTicketZoneGroups.length === 0">Sem bilhetes por usar</div>
@@ -69,6 +52,7 @@
       <div class="action-section">
         <p class="section-title">Para onde vamos?</p>
 
+        <!-- Destination Selector -->
         <div class="destination-box" @click="router.push('/routes')">
           <div class="destination-search">
             <q-icon name="search" class="search-icon" />
@@ -76,8 +60,10 @@
           </div>
         </div>
 
+        <!-- Boarding Options Simulator -->
         <div class="boarding-simulator q-mt-md">
           <p class="simulator-label">Simulador de Embarque Rápido</p>
+          
           <div class="row q-col-gutter-sm">
             <div class="col-6">
               <q-select
@@ -104,12 +90,14 @@
           </div>
         </div>
 
+        <!-- Iniciar Button -->
         <button class="btn-start q-mt-lg" @click="triggerBoarding">
           <span>Iniciar Viagem</span>
         </button>
       </div>
     </div>
 
+    <!-- Boarding Dialog / Bottom Sheet (Design 120:804) -->
     <BoardingDialog
       v-model="boardingOpen"
       :bus-number="selectedBusNumber"
@@ -136,41 +124,39 @@ const boardingOpen = ref(false)
 const selectedVehicleTrip = ref(null)
 const selectedStop = ref(null)
 
-const firstName = computed(() => authStore.user?.primeiroNome || 'Rui')
-
-// ---- passes ----
-
-function passeName(modalidade) {
-  if (modalidade === 'MENSAL') return 'Passe Mensal'
-  if (modalidade === 'ANUAL')  return 'Passe Anual'
-  return 'Passe'
-}
-
-const dateFormat = new Intl.DateTimeFormat('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })
-
-function formatDate(dt) {
-  if (!dt) return ''
-  const d = new Date(dt)
-  return Number.isNaN(d.getTime()) ? '' : dateFormat.format(d)
-}
-
-function formatPassePeriod(passe) {
-  return `${formatDate(passe.inicio)} – ${formatDate(passe.fim)}`
-}
+const firstName = computed(() => {
+  if (authStore.user?.primeiroNome) return authStore.user.primeiroNome
+  return 'Rui'
+})
 
 const activePassName = computed(() => {
-  if (!ticketsStore.passeAtivo) return null
-  return passeName(ticketsStore.passeAtivo.modalidade)
+  if (!ticketsStore.activePass) return null
+  const modalidade = ticketsStore.activePass.modalidade
+  if (modalidade === 'MENSAL') return 'Passe Mensal'
+  if (modalidade === 'SEMANAL') return 'Passe Semanal'
+  if (modalidade === 'ANUAL') return 'Passe Anual'
+  if (modalidade === 'H24') return 'Passe 24H'
+  if (modalidade === 'H48') return 'Passe 48H'
+  if (modalidade === 'H72') return 'Passe 72H'
+  return 'Passe Ativo'
 })
 
 const activePassZoneLabel = computed(() => {
-  const zona = ticketsStore.passeAtivo?.zona
-  return zona ? `Zona ${zona.num}` : null
+  if (!ticketsStore.activePass?.zona) return null
+  return `Zona ${ticketsStore.activePass.zona.num}`
 })
 
-const activePassExpiryLabel = computed(() => formatDate(ticketsStore.passeAtivo?.fim))
-
-// ---- bilhetes ----
+const activePassExpiryLabel = computed(() => {
+  const expiry = ticketsStore.activePass?.fim
+  if (!expiry) return null
+  const date = new Date(expiry)
+  if (Number.isNaN(date.getTime())) return null
+  return new Intl.DateTimeFormat('pt-PT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }).format(date)
+})
 
 const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
 const unusedTicketZoneGroups = computed(() => {
@@ -183,39 +169,44 @@ const unusedTicketZoneGroups = computed(() => {
   return Object.entries(counts).map(([zoneLabel, count]) => ({ zoneLabel, count }))
 })
 
-// ---- mount ----
-
 onMounted(async () => {
+  // Check if we are already in an active trip
   const active = await viagensStore.fetchActiveTrip()
   if (active) {
     router.push('/traveling')
     return
   }
 
+  // Load backend metadata & ticket counts
   await Promise.all([
     ticketsStore.fetchMyTickets(),
-    ticketsStore.fetchMyPasses(),
+    ticketsStore.fetchMyPass(),
     viagensStore.fetchStops(),
     viagensStore.fetchVehicleTrips()
   ])
 
-  if (viagensStore.vehicleTrips?.length > 0) selectedVehicleTrip.value = viagensStore.vehicleTrips[0].id
-  if (viagensStore.stops?.length > 0)        selectedStop.value = viagensStore.stops[0].id
+  if (viagensStore.vehicleTrips?.length > 0) {
+    selectedVehicleTrip.value = viagensStore.vehicleTrips[0].id
+  }
+  if (viagensStore.stops?.length > 0) {
+    selectedStop.value = viagensStore.stops[0].id
+  }
 })
 
-// ---- viagem ----
+const stopOptions = computed(() => {
+  return (viagensStore.stops || []).map(s => ({
+    label: s.nome,
+    value: s.id
+  }))
+})
 
-const stopOptions = computed(() =>
-  (viagensStore.stops || []).map(s => ({ label: s.nome, value: s.id }))
-)
-
-const vehicleTripOptions = computed(() =>
-  (viagensStore.vehicleTrips || []).map(vt => ({
+const vehicleTripOptions = computed(() => {
+  return (viagensStore.vehicleTrips || []).map(vt => ({
     label: `${vt.veiculo?.matricula || 'Autocarro'} - ${vt.trajeto?.linha?.nome || 'Rota'}`,
     value: vt.id,
     matricula: vt.veiculo?.matricula
   }))
-)
+})
 
 const selectedBusNumber = computed(() => {
   const trip = (viagensStore.vehicleTrips || []).find(vt => vt.id === selectedVehicleTrip.value)
@@ -224,6 +215,7 @@ const selectedBusNumber = computed(() => {
 
 function triggerBoarding() {
   if (!selectedVehicleTrip.value || !selectedStop.value) {
+    // If no values from backend, use fallback IDs to guarantee simulation works
     selectedVehicleTrip.value = selectedVehicleTrip.value || 1
     selectedStop.value = selectedStop.value || 1
   }
@@ -265,13 +257,16 @@ function triggerBoarding() {
   font-weight: 700;
   color: #fff;
   margin: 0;
+  line-height: normal;
 }
 
 .user-card__sub {
   font-family: 'Inter', sans-serif;
   font-size: 11px;
-  color: rgba(255,255,255,0.8);
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.8);
   margin: 2px 0 0 0;
+  line-height: normal;
 }
 
 .user-card__status-section {
@@ -284,7 +279,7 @@ function triggerBoarding() {
   font-family: 'Inter', sans-serif;
   font-size: 11px;
   font-weight: 500;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255, 255, 255, 0.6);
   margin: 0 0 4px 0;
   text-transform: uppercase;
 }
@@ -295,8 +290,17 @@ function triggerBoarding() {
   gap: 6px;
 }
 
-.check-icon  { font-size: 18px; color: #82fda2; }
-.status-text { font-family: 'Inter', sans-serif; font-size: 15px; color: #82fda2; }
+.check-icon {
+  font-size: 18px;
+  color: #82fda2;
+}
+
+.status-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  color: #82fda2;
+}
 
 .bus-icon-container {
   position: absolute;
@@ -305,7 +309,10 @@ function triggerBoarding() {
   transform: rotate(16deg);
 }
 
-.bus-icon { font-size: 32px; color: #fff; }
+.bus-icon {
+  font-size: 32px;
+  color: #fff;
+}
 
 .section-summary {
   width: 100%;
@@ -330,11 +337,6 @@ function triggerBoarding() {
   gap: 6px;
 }
 
-.title-item--bordered {
-  border-top: 1px solid #e2e2e2;
-  padding-top: 14px;
-}
-
 .title-label {
   font-family: 'Inter', sans-serif;
   font-size: 12px;
@@ -356,6 +358,25 @@ function triggerBoarding() {
   color: #737373;
 }
 
+.zone-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.zone-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #3c3c3c;
+}
+
+.zone-count {
+  font-weight: 700;
+}
+
 .inactive-block {
   border-top: 1px solid #e2e2e2;
   padding-top: 12px;
@@ -372,37 +393,11 @@ function triggerBoarding() {
   text-transform: uppercase;
 }
 
-.future-pass-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.future-pass-name {
+.inactive-item {
   font-family: 'Inter', sans-serif;
   font-size: 14px;
-  font-weight: 600;
-  color: #3c3c3c;
+  color: #4f4f4f;
 }
-
-.future-pass-meta {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  color: #737373;
-}
-
-.zone-list { display: flex; flex-direction: column; gap: 8px; }
-
-.zone-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  color: #3c3c3c;
-}
-
-.zone-count { font-weight: 700; }
 
 /* Action Section */
 .action-section {
@@ -443,9 +438,14 @@ function triggerBoarding() {
   transition: background-color 0.2s;
 }
 
-.destination-search:hover { background: #e5e5e5; }
+.destination-search:hover {
+  background: #e5e5e5;
+}
 
-.search-icon { font-size: 18px; color: #505050; }
+.search-icon {
+  font-size: 18px;
+  color: #505050;
+}
 
 .search-text {
   font-family: 'Inter', sans-serif;
@@ -483,6 +483,12 @@ function triggerBoarding() {
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.btn-start:hover   { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(24,118,210,0.4); }
-.btn-start:active  { transform: translateY(0); }
+.btn-start:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(24, 118, 210, 0.4);
+}
+
+.btn-start:active {
+  transform: translateY(0);
+}
 </style>

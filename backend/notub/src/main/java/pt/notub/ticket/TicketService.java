@@ -6,9 +6,7 @@ import pt.notub.models.*;
 import pt.notub.points.ServicoPontos;
 import pt.notub.repositories.*;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,27 +37,17 @@ public class TicketService {
         return bilheteRepository.save(bilhete);
     }
 
-    /**
-     * Cria um passe com início no dia 1 do mês/ano indicado.
-     * Para MENSAL: fim = último momento do mesmo mês.
-     * Para ANUAL:  fim = último momento do mês 12 do ano de início.
-     * Rejeita se o intervalo colidir com qualquer passe já existente do utilizador.
-     */
-    public Passe criarPasse(Utilizador utilizador, ModalidadePasse modalidade, Zona zona,
-                            int mesInicio, int anoInicio) {
-        LocalDateTime inicio = LocalDate.of(anoInicio, mesInicio, 1).atStartOfDay();
-        LocalDateTime fim = calcularFimPasse(modalidade, YearMonth.of(anoInicio, mesInicio));
-
-        if (passeRepository.existeConflito(utilizador.getId(), inicio, fim)) {
-            throw new RuntimeException(
-                "Já existe um passe para o período selecionado. Escolha um mês diferente.");
-        }
-
+    public Passe criarPasse(Utilizador utilizador, ModalidadePasse modalidade, Zona zona) {
+        passeRepository.findByUtilizadorId(utilizador.getId()).ifPresent(passe -> {
+            if (passe.getFim() != null && passe.getFim().isAfter(LocalDateTime.now())) {
+                throw new RuntimeException("Utilizador ja tem um passe ativo ate " + passe.getFim());
+            }
+        });
         Passe passe = new Passe();
         passe.setUtilizador(utilizador);
         passe.setModalidade(modalidade);
-        passe.setInicio(inicio);
-        passe.setFim(fim);
+        passe.setInicio(LocalDateTime.now());
+        passe.setFim(calcularFimPasse(modalidade));
         passe.setZona(zona);
         return passeRepository.save(passe);
     }
@@ -76,13 +64,13 @@ public class TicketService {
         return bilhetes;
     }
 
-    public Passe buyPasse(String email, ModalidadePasse modalidade, Long zonaId,
-                          int mesInicio, int anoInicio) {
+    public Passe buyPasse(String email, ModalidadePasse modalidade, Long zonaId) {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
         Zona zona = zonaRepository.findById(zonaId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
-        return criarPasse(utilizador, modalidade, zona, mesInicio, anoInicio);
+        Passe passe = criarPasse(utilizador, modalidade, zona);
+        return passe;
     }
 
     public List<Bilhete> getUserTickets(String email) {
@@ -91,29 +79,20 @@ public class TicketService {
         return bilheteRepository.findByUtilizadorId(utilizador.getId());
     }
 
-    /** Todos os passes do utilizador, ordenados por data de início. */
-    public List<Passe> getUserPasses(String email) {
+    public Passe getUserPasse(String email) {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
-        return passeRepository.findByUtilizadorIdOrderByInicioAsc(utilizador.getId());
+        return passeRepository.findByUtilizadorId(utilizador.getId()).orElse(null);
     }
 
-    /** Passe ativo neste momento (null se não existir). */
-    public Passe getPasseAtivo(String email) {
-        Utilizador utilizador = utilizadorRepository.findByEmail(email)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
-        return passeRepository.findPasseAtivo(utilizador.getId(), LocalDateTime.now()).orElse(null);
-    }
-
-    // ----- helpers -----
-
-    private LocalDateTime calcularFimPasse(ModalidadePasse modalidade, YearMonth ym) {
+    private LocalDateTime calcularFimPasse(ModalidadePasse modalidade) {
         return switch (modalidade) {
-            case MENSAL -> ym.atEndOfMonth().atTime(23, 59, 59);
-            case ANUAL  -> YearMonth.of(ym.getYear(), 12).atEndOfMonth().atTime(23, 59, 59);
-            // modalidades de curta duração não são usadas no fluxo de compra,
-            // mas ficam mapeadas para não quebrar o switch
-            default -> LocalDateTime.now().plusHours(24);
+            case H24 -> LocalDateTime.now().plusHours(24);
+            case H48 -> LocalDateTime.now().plusHours(48);
+            case H72 -> LocalDateTime.now().plusHours(72);
+            case SEMANAL -> LocalDateTime.now().plusWeeks(1);
+            case MENSAL -> LocalDateTime.now().plusMonths(1);
+            case ANUAL -> LocalDateTime.now().plusYears(1);
         };
     }
 }
