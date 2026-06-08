@@ -25,14 +25,60 @@
         </div>
       </div>
 
+      <q-dialog v-model="titlesDialogOpen" persistent>
+        <q-card class="titles-dialog-card">
+          <q-card-section class="row items-center q-gutter-sm">
+            <q-icon name="confirmation_number" color="primary" size="24px" />
+            <div class="text-h6">Sem títulos válidos</div>
+          </q-card-section>
+
+          <q-card-section>
+            <div>Nao tem bilhetes nem passe ativo para embarcar neste autocarro.</div>
+          </q-card-section>
+
+          <q-card-actions align="right" class="q-pa-md q-pt-none">
+            <q-btn flat color="grey-7" label="Cancelar" @click="cancelTitlesDialog" />
+            <q-btn color="primary" label="Comprar títulos" @click="goToTicketsFromDialog" />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+
       <p class="scanner-instructions">
         Aponte com a câmara do telemóvel para o código QR do autocarro e aguarde.
       </p>
+
+      <div class="guide-floating-container">
+        <q-btn round color="primary" icon="help_outline" class="guide-circle-btn">
+          <q-menu anchor="top middle" self="bottom middle" class="guide-speech-bubble">
+            <div class="q-pa-md guide-bubble-content">
+              <h6 class="bubble-title">Como Validar?</h6>
+              <div class="guide-steps">
+                <div class="step-item">
+                  <div class="step-num">1</div>
+                  <p class="step-text">Aponte a câmara para o código QR do veículo.</p>
+                </div>
+                <div class="step-item">
+                  <div class="step-num">2</div>
+                  <p class="step-text">Selecione o bilhete ou passe a utilizar no ecrã.</p>
+                </div>
+                <div class="step-item">
+                  <div class="step-num">3</div>
+                  <p class="step-text">Confirme e boa viagem!</p>
+                </div>
+              </div>
+            </div>
+          </q-menu>
+        </q-btn>
+      </div>
 
       <div class="scanner-status-panel">
         <div class="scanner-status-row">
           <span class="scanner-status-label">Estado:</span>
           <span class="scanner-status-value">{{ scanStatus }}</span>
+        </div>
+        <div v-if="tripErrorMsg" class="scanner-status-row">
+          <span class="scanner-status-label" style="color: #d32f2f;">⚠️ Aviso:</span>
+          <span class="scanner-status-value" style="color: #d32f2f;">{{ tripErrorMsg }}</span>
         </div>
         <div v-if="lastScannedText" class="scanner-status-row">
           <span class="scanner-status-label">Último QR:</span>
@@ -56,7 +102,7 @@
               </span>
             </div>
             <div class="status-item">
-              <span class="status-label">Passe Social:</span>
+              <span class="status-label">Passe:</span>
               <span class="status-badge" :class="activePassName ? 'badge--active' : 'badge--inactive'">
                 {{ activePassName || 'Não ativo' }}
               </span>
@@ -74,30 +120,8 @@
             </div>
           </div>
         </div>
-
-        <!-- Guia Card -->
-        <div class="info-card guide-card">
-          <div class="card-header">
-            <q-icon name="help_outline" size="20px" class="card-icon" />
-            <span class="card-title">Como Validar?</span>
-          </div>
-          <div class="guide-steps">
-            <div class="step-item">
-              <div class="step-num">1</div>
-              <p class="step-text">Aponte a câmara para o código QR do veículo.</p>
-            </div>
-            <div class="step-item">
-              <div class="step-num">2</div>
-              <p class="step-text">Selecione o bilhete ou passe a utilizar no ecrã.</p>
-            </div>
-            <div class="step-item">
-              <div class="step-num">3</div>
-              <p class="step-text">Confirme e boa viagem! A animação começará de seguida.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      </div> 
+    </div> 
 
     <!-- Boarding Dialog / Bottom Sheet (Design 120:804) -->
     <BoardingDialog
@@ -112,14 +136,15 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
+// import { useQuasar } from 'quasar'
+// import { Notify } from 'quasar'
 import { useViagensStore } from 'src/stores/viagens'
 import { useTicketsStore } from 'src/stores/tickets'
 import { useAuthStore } from 'src/stores/auth'
 import BoardingDialog from 'src/components/BoardingDialog.vue'
 import { Html5Qrcode } from 'html5-qrcode'
 
-const $q = useQuasar()
+// const $q = useQuasar()
 const router = useRouter()
 const viagensStore = useViagensStore()
 const ticketsStore = useTicketsStore()
@@ -128,12 +153,15 @@ const authStore = useAuthStore()
 const boardingOpen = ref(false)
 const selectedVehicleTrip = ref(null)
 const selectedStop = ref(null)
+const titlesDialogOpen = ref(false)
 
 const scannerRunning = ref(false)
 const scannerError = ref(null)
 const lastScannedText = ref('')
 const scanStatus = ref('Aguardando QR...')
 const scanLocked = ref(false)
+const ignoredScanText = ref('')
+const tripErrorMsg = ref('')
 let html5QrcodeInstance = null
 
 const pointsBalance = computed(() => authStore.user?.nrPontos ?? 0)
@@ -265,111 +293,76 @@ async function stopScanner() {
 }
 
 async function handleScannedCode(text) {
+  console.log('handleScannedCode iniciado. Texto:', text)
   if (scanLocked.value) return
+  if (ignoredScanText.value && ignoredScanText.value === text) return
   scanLocked.value = true
 
-  console.log("QR Code lido com sucesso:", text)
-  lastScannedText.value = text
-  scanStatus.value = 'QR lido, a selecionar bilhete...'
-  $q.notify({ type: 'positive', message: `QR lido: ${text}`, position: 'top', timeout: 2000 })
+  await viagensStore.fetchVehicleTrips()
 
+  lastScannedText.value = text
   let tripMatched = false
 
-  // 1. Try to parse as JSON first
+  // 1. Tentar JSON
   try {
     const data = JSON.parse(text)
-    if (data.viagemVeiculoId || data.veiculoId) {
-      const vId = data.viagemVeiculoId || data.veiculoId
-      const sId = data.paragemEntradaId || data.paragemId
+    console.log('Trying match on JSON...')
+    const vId = data.viagemVeiculoId || data.veiculoId
+    const sId = data.paragemEntradaId || data.paragemId
 
-      const tripMatch = (viagensStore.vehicleTrips || []).find(vt => vt.id === Number(vId) || vt.veiculo?.id === Number(vId))
-      const stopMatch = (viagensStore.stops || []).find(s => s.id === Number(sId))
-
-      if (tripMatch) selectedVehicleTrip.value = tripMatch.id
-      if (stopMatch) selectedStop.value = stopMatch.id
-
-      if (tripMatch) tripMatched = true
-    }
-  } catch {
-    // Not a JSON
-  }
-
-  // 2. Try to parse as URL parameters
-  if (!tripMatched) {
-    try {
-      if (text.includes('?') || text.includes('&')) {
-        const urlParams = new URLSearchParams(text.split('?')[1] || text)
-        const vId = urlParams.get('viagemVeiculoId') || urlParams.get('veiculo') || urlParams.get('viagem')
-        const sId = urlParams.get('paragemEntradaId') || urlParams.get('paragem') || urlParams.get('entrada')
-
-        if (vId) {
-          const tripMatch = (viagensStore.vehicleTrips || []).find(vt => vt.id === Number(vId) || vt.veiculo?.id === Number(vId) || vt.veiculo?.matricula === vId)
-          if (tripMatch) selectedVehicleTrip.value = tripMatch.id
-
-          if (sId) {
-            const stopMatch = (viagensStore.stops || []).find(s => s.id === Number(sId) || s.nome?.toLowerCase() === sId.toLowerCase())
-            if (stopMatch) selectedStop.value = stopMatch.id
-          }
-
-          if (tripMatch) tripMatched = true
-        }
-      }
-    } catch {
-      // Not URL
-    }
-  }
-
-  // 3. Try comma-separated values: "viagemVeiculoId,paragemEntradaId" or just "viagemVeiculoId"
-  if (!tripMatched) {
-    const parts = text.split(',')
-    if (parts.length >= 1) {
-      const vId = parseInt(parts[0].trim(), 10)
-      if (!isNaN(vId)) {
-        const tripMatch = (viagensStore.vehicleTrips || []).find(vt => vt.id === vId)
-        if (tripMatch) {
-          selectedVehicleTrip.value = tripMatch.id
-          if (parts.length >= 2) {
-            const sId = parseInt(parts[1].trim(), 10)
-            if (!isNaN(sId)) {
-              const stopMatch = (viagensStore.stops || []).find(s => s.id === sId)
-              if (stopMatch) selectedStop.value = stopMatch.id
-            }
-          }
-          tripMatched = true
-        }
-      }
-    }
-  }
-
-  // 4. If raw text matches a stop name or vehicle plate directly
-  if (!tripMatched) {
-    const tripByPlate = (viagensStore.vehicleTrips || []).find(vt => vt.veiculo?.matricula?.toLowerCase() === text.trim().toLowerCase())
-    if (tripByPlate) {
-      selectedVehicleTrip.value = tripByPlate.id
+    const tripMatch = (viagensStore.vehicleTrips || []).find(vt => Number(vt.id) === Number(vId))
+    if (tripMatch) {
+      selectedVehicleTrip.value = tripMatch.id
       tripMatched = true
+      const stopMatch = (viagensStore.stops || []).find(s => Number(s.id) === Number(sId))
+      if (stopMatch) selectedStop.value = stopMatch.id
     }
+  } catch { 
+    console.log('Not Json...') 
   }
 
+  // 2. Tenta dar match com matrícula
   if (!tripMatched) {
-    const stopByName = (viagensStore.stops || []).find(s => s.nome?.toLowerCase() === text.trim().toLowerCase())
-    if (stopByName) {
-      selectedStop.value = stopByName.id
-      // Keep scanning until a vehicle trip is also identified
+    console.log('Trying match on plate...');
+    const cleanText = text.trim().toLowerCase();
+    
+    // Verificamos se vehicleTrips existe antes de usar o find
+    console.log('O objeto viagensStore existe?', !!viagensStore);
+    console.log('Conteúdo real de vehicleTrips:', JSON.parse(JSON.stringify(viagensStore.vehicleTrips)));
+    const trips = viagensStore.vehicleTrips || [];
+    const tripByPlate = trips.find(vt => 
+      vt.veiculo?.matricula?.toLowerCase() === cleanText
+    );
+
+    if (tripByPlate) {
+      console.log('✅ Match on plate found:', tripByPlate.veiculo.matricula);
+      selectedVehicleTrip.value = tripByPlate.id;
+      tripMatched = true;
     }
   }
 
-  if (selectedVehicleTrip.value) {
+  // 3. Tenta dar match com paragem
+  if (!tripMatched) {
+    console.log('Trying match on bus stop name...');
+    const stopByName = (viagensStore.stops || []).find(s => 
+      s.nome?.toLowerCase() === text.trim().toLowerCase()
+    );
+    if (stopByName) {
+      selectedStop.value = stopByName.id;
+      console.log('✅ bus stop identified:', stopByName.nome);
+    }
+  }
+
+  if (tripMatched && selectedVehicleTrip.value) {
+    console.log('✅  Success. Starting board...');
     await stopScanner()
     triggerBoarding()
-    return
+  } else {
+    console.log('❌ Error: No trip found.');
+    scanStatus.value = 'QR not known'
+    scanLocked.value = false // Libera para tentar de novo
   }
-
-  scanStatus.value = 'QR lido mas não corresponde a viagem válida'
-  $q.notify({ type: 'warning', message: 'QR lido mas não corresponde a uma viagem válida.', position: 'top', timeout: 3000 })
-  scanLocked.value = false
 }
-
-
 
 const selectedBusNumber = computed(() => {
   const trip = (viagensStore.vehicleTrips || []).find(vt => vt.id === selectedVehicleTrip.value)
@@ -377,76 +370,84 @@ const selectedBusNumber = computed(() => {
 })
 
 function triggerBoarding() {
+  console.log('triggerBoarding chamado', {
+    selectedVehicleTrip: selectedVehicleTrip.value,
+    hasTickets: unusedTicketsCount.value > 0,
+    hasPass: !!activePassName.value,
+    selectedStop: selectedStop.value
+  })
+
   if (!selectedVehicleTrip.value) return
 
+  const hasTickets = unusedTicketsCount.value > 0
+  const hasPass = !!activePassName.value
+
+  if (!hasTickets && !hasPass) {
+    ignoredScanText.value = lastScannedText.value
+    titlesDialogOpen.value = true
+    stopScanner()
+    return
+  }
+
   if (!selectedStop.value) {
+    console.log('Sem paragem, a detetar...')
     detectNearestStop()
     return
   }
 
+  console.log('A abrir boardingOpen!')
   boardingOpen.value = true
 }
 
-function detectNearestStop() {
-  if (!navigator.geolocation) {
-    fallbackStop()
-    return
-  }
+function cancelTitlesDialog() {
+  titlesDialogOpen.value = false
+  scanLocked.value = false
+  ignoredScanText.value = ''
+  startScanner()
+}
 
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const userLat = pos.coords.latitude
-      const userLng = pos.coords.longitude
-      const allStops = viagensStore.stops || []
+function goToTicketsFromDialog() {
+  titlesDialogOpen.value = false
+  scanLocked.value = false
+  router.push('/tickets')
+}
 
-      let nearest = null
-      let minDist = Infinity
+async function detectNearestStop() {
+  try {
+    const resp = await fetch(`/api/viagens/veiculo/${selectedVehicleTrip.value}/paragem-atual`, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
 
-      for (const stop of allStops) {
-        const loc = stop.localizacao
-        if (!loc) continue
-        const d = haversineKm(userLat, userLng, loc.latitude, loc.longitude)
-        if (d < minDist) {
-          minDist = d
-          nearest = stop
-        }
-      }
+    if (resp.status === 409) {
+      tripErrorMsg.value = 'A viagem não está a decorrer.'
+      scanLocked.value = false
+      startScanner()
+      return
+    }
 
-      if (nearest) {
-        selectedStop.value = nearest.id
-        $q.notify({ type: 'info', message: `Paragem detetada: ${nearest.nome}`, position: 'top', timeout: 3000 })
-      } else {
-        fallbackStop()
-      }
-
-      boardingOpen.value = true
-    },
-    () => {
+    if (!resp.ok) {
       fallbackStop()
-    },
-    { timeout: 5000, enableHighAccuracy: true }
-  )
+      return
+    }
+
+    const data = await resp.json()
+    selectedStop.value = data.paragemId
+    boardingOpen.value = true
+
+  } catch {
+    fallbackStop()
+  }
 }
 
 function fallbackStop() {
-  const first = (viagensStore.stops || [])[0]
-  if (first) {
-    selectedStop.value = first.id
-    $q.notify({ type: 'warning', message: 'Localização indisponível, paragem preenchida automaticamente', position: 'top', timeout: 3000 })
+  const trip = (viagensStore.vehicleTrips || []).find(vt => vt.id === selectedVehicleTrip.value)
+  const primeiro = trip?.trajeto?.pontosDePassagem?.[0]
+  if (primeiro?.paragem?.id) {
+    selectedStop.value = primeiro.paragem.id
   }
   boardingOpen.value = true
 }
 
-function haversineKm(lat1, lng1, lat2, lng2) {
-  const R = 6371
-  const toRad = (deg) => deg * Math.PI / 180
-  const dLat = toRad(lat2 - lat1)
-  const dLng = toRad(lng2 - lng1)
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
-// Expose simulation helper globally for tests/automation
 if (typeof window !== 'undefined') {
   window.simulateQRScan = (text) => {
     handleScannedCode(text)
@@ -460,7 +461,7 @@ if (typeof window !== 'undefined') {
   min-height: 100vh;
   padding-top: calc(var(--header-h, 42px) + 10px);
   padding-bottom: calc(var(--tabbar-h, 78px) + 16px);
-  background: #121212;
+  background: #f7f9fa;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -475,20 +476,17 @@ if (typeof window !== 'undefined') {
   padding: 0 var(--page-pad, 20px);
 }
 
-.scanner-viewport-fullscreen {
-  display: none;
-}
-
 .scanner-viewport {
   position: relative;
   width: 100%;
   max-width: 340px;
   aspect-ratio: 6 / 5;
-  border-radius: 12px;
+  border-radius: 16px;
   margin-top: 15px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
   background: #000;
+  border: 1px solid #e0e0e0;
 }
 
 .scanner-camera-view {
@@ -499,14 +497,12 @@ if (typeof window !== 'undefined') {
   z-index: 1;
 }
 
-/* Force video to fill container properly */
 .scanner-camera-view :deep(video) {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
 }
 
-/* Hide html5-qrcode default white corner borders */
 .scanner-camera-view :deep(#qr-shaded-region > div) {
   display: none !important;
 }
@@ -520,17 +516,6 @@ if (typeof window !== 'undefined') {
   pointer-events: none;
   filter: brightness(0.6);
   z-index: 2;
-}
-
-.scanner-subtract {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  opacity: 0.3;
-  z-index: 3;
 }
 
 .scanner-frame {
@@ -549,30 +534,11 @@ if (typeof window !== 'undefined') {
   height: 40px;
 }
 
-.corner--tl {
-  top: -8px;
-  left: -8px;
-  transform: rotate(-90deg);
-}
+.corner--tl { top: -8px; left: -8px; transform: rotate(-90deg); }
+.corner--tr { top: -8px; right: -8px; }
+.corner--bl { bottom: -8px; left: -8px; transform: rotate(180deg); }
+.corner--br { bottom: -8px; right: -8px; transform: rotate(90deg); }
 
-.corner--tr {
-  top: -8px;
-  right: -8px;
-}
-
-.corner--bl {
-  bottom: -8px;
-  left: -8px;
-  transform: rotate(180deg);
-}
-
-.corner--br {
-  bottom: -8px;
-  right: -8px;
-  transform: rotate(90deg);
-}
-
-/* Animated premium laser line scanner */
 .scanner-line {
   position: absolute;
   left: 0;
@@ -584,26 +550,16 @@ if (typeof window !== 'undefined') {
 }
 
 @keyframes scan-laser {
-  0% {
-    top: 0%;
-    opacity: 0.3;
-  }
-  15% {
-    opacity: 1;
-  }
-  85% {
-    opacity: 1;
-  }
-  100% {
-    top: 100%;
-    opacity: 0.3;
-  }
+  0%   { top: 0%;   opacity: 0.3; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { top: 100%; opacity: 0.3; }
 }
 
 .scanner-error-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(255, 255, 255, 0.92);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -615,59 +571,71 @@ if (typeof window !== 'undefined') {
 }
 
 .error-msg {
-  font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 500;
-  color: #fff;
-  opacity: 0.9;
+  color: #121212;
 }
 
 .scanner-instructions {
-  margin: 15px 0;
+  margin: 12px 0 0;
   padding: 0 20px;
-  font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.4;
   text-align: center;
-  color: rgba(255, 255, 255, 0.7);
+  color: #757575;
 }
 
-.scanner-instruction-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.92), transparent);
-  padding: 30px 20px 18px;
-  text-align: center;
-  z-index: 10;
+/* Status panel */
+.scanner-status-panel {
+  display: flex;
+  width: 100%;
+  max-width: 340px;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px auto;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.scanner-instruction-text {
-  font-family: 'Inter', sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  color: #fff;
-  margin: 0;
+.scanner-status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+  color: #616161;
 }
 
+.scanner-status-label {
+  font-weight: 600;
+  color: #121212;
+}
+
+.last-qrcode {
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+/* Info cards */
 .scanner-info-cards {
   display: flex;
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  margin-top: 10px;
+  margin-top: 4px;
 }
 
 .info-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
   border-radius: 16px;
   padding: 16px;
-  transition: transform 0.2s, border-color 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s;
 }
 
 .info-card:hover {
@@ -679,7 +647,7 @@ if (typeof window !== 'undefined') {
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid #f0f0f0;
   padding-bottom: 8px;
 }
 
@@ -688,10 +656,9 @@ if (typeof window !== 'undefined') {
 }
 
 .card-title {
-  font-family: 'Inter', sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: #ffffff;
+  color: #121212;
 }
 
 .card-content {
@@ -704,9 +671,13 @@ if (typeof window !== 'undefined') {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: 'Inter', sans-serif;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: #616161;
+}
+
+.status-label {
+  color: #757575;
+  font-weight: 500;
 }
 
 .status-badge {
@@ -717,23 +688,22 @@ if (typeof window !== 'undefined') {
 }
 
 .badge--active {
-  background: rgba(1, 188, 116, 0.15);
-  color: #01bc74;
+  background: rgba(1, 188, 116, 0.10);
+  color: #028e5c;
 }
 
 .badge--inactive {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.4);
+  background: #f0f0f0;
+  color: #9e9e9e;
 }
 
 .points-item {
   margin-top: 4px;
   padding-top: 8px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  border-top: 1px dashed #f0f0f0;
 }
 
 .pass-zone-item {
-  padding-top: 0;
   margin-top: -4px;
 }
 
@@ -746,74 +716,82 @@ if (typeof window !== 'undefined') {
   color: #ffb300;
 }
 
+/* Help button & bubble */
+.guide-floating-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.guide-circle-btn {
+  width: 45px;
+  height: 45px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10);
+  transition: transform 0.2s ease;
+}
+
+.guide-circle-btn:active {
+  transform: scale(0.95);
+}
+
+.guide-speech-bubble {
+  border-radius: 12px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10) !important;
+  max-width: 280px;
+  border: 1px solid #e0e0e0;
+  background-color: white;
+}
+
+.guide-bubble-content {
+  padding: 16px;
+}
+
+.bubble-title {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #121212;
+}
+
 .guide-steps {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.scanner-status-panel {
-  display: flex;
-  width: 100%;
-  max-width: 340px;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0 auto 12px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.scanner-status-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.scanner-status-label {
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.last-qrcode {
-  overflow-wrap: anywhere;
-  text-align: right;
+  gap: 10px;
 }
 
 .step-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
 }
 
 .step-num {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #01bc74;
-  color: #121212;
-  font-size: 11px;
+  background-color: rgba(1, 188, 116, 0.12);
+  color: #028e5c;
   font-weight: 700;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 12px;
   flex-shrink: 0;
   margin-top: 2px;
 }
 
 .step-text {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  line-height: 1.4;
-  color: rgba(255, 255, 255, 0.7);
   margin: 0;
+  font-size: 13px;
+  color: #616161;
+  line-height: 1.4;
 }
 
-
+/* Dialog */
+.titles-dialog-card {
+  width: min(92vw, 420px);
+  border-radius: 16px;
+}
 </style>
 
