@@ -1,13 +1,37 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAuthStore } from './auth'
 
 export const useTicketsStore = defineStore('tickets', () => {
   const authStore = useAuthStore()
   const tickets = ref([])
-  const activePass = ref(null)
+  const passes = ref([])        // todos os passes do utilizador
+  const passeAtivo = ref(null)  // passe ativo neste momento (ou null)
   const loading = ref(false)
   const error = ref(null)
+
+  // Meses já ocupados por algum passe: Set de strings "YYYY-MM"
+  const mesesOcupados = computed(() => {
+    const ocupados = new Set()
+    for (const passe of passes.value) {
+      const inicio = new Date(passe.inicio)
+      const fim = new Date(passe.fim)
+      const cur = new Date(inicio.getFullYear(), inicio.getMonth(), 1)
+      const end = new Date(fim.getFullYear(), fim.getMonth(), 1)
+      while (cur <= end) {
+        const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`
+        ocupados.add(key)
+        cur.setMonth(cur.getMonth() + 1)
+      }
+    }
+    return ocupados
+  })
+
+  // Passes futuros (inicio > agora)
+  const passesFuturos = computed(() => {
+    const now = new Date()
+    return passes.value.filter(p => new Date(p.inicio) > now)
+  })
 
   async function fetchMyTickets() {
     if (!authStore.token) return
@@ -27,17 +51,22 @@ export const useTicketsStore = defineStore('tickets', () => {
     }
   }
 
-  async function fetchMyPass() {
+  async function fetchMyPasses() {
     if (!authStore.token) return
     loading.value = true
     error.value = null
     try {
-      const response = await fetch('/api/tickets/meu-passe', {
-        headers: { Authorization: `Bearer ${authStore.token}` }
-      })
-      if (!response.ok) throw new Error('Falha ao obter passe')
-      const data = await response.json().catch(() => null)
-      activePass.value = data
+      const [passesRes, ativoRes] = await Promise.all([
+        fetch('/api/tickets/meus-passes', {
+          headers: { Authorization: `Bearer ${authStore.token}` }
+        }),
+        fetch('/api/tickets/meu-passe/ativo', {
+          headers: { Authorization: `Bearer ${authStore.token}` }
+        })
+      ])
+      if (!passesRes.ok) throw new Error('Falha ao obter passes')
+      passes.value = await passesRes.json()
+      passeAtivo.value = ativoRes.status === 204 ? null : await ativoRes.json()
     } catch (e) {
       error.value = e.message
       console.error(e)
@@ -120,13 +149,13 @@ export const useTicketsStore = defineStore('tickets', () => {
       return data
     } catch (e) {
       error.value = e.message
-      throw e;
+      throw e
     } finally {
       loading.value = false
     }
   }
 
-  async function buyPass(modalidade, zonaId) {
+  async function buyPass(modalidade, zonaId, mesInicio, anoInicio) {
     if (!authStore.token) throw new Error('Não autenticado')
     loading.value = true
     error.value = null
@@ -137,18 +166,18 @@ export const useTicketsStore = defineStore('tickets', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authStore.token}`
         },
-        body: JSON.stringify({ modalidade, zonaId })
+        body: JSON.stringify({ modalidade, zonaId, mesInicio, anoInicio })
       })
       if (!response.ok) {
         const text = await response.text()
         throw new Error(text || 'Falha ao comprar passe')
       }
       const data = await response.json()
-      await fetchMyPass()
+      await fetchMyPasses()
       return data
     } catch (e) {
       error.value = e.message
-      throw e;
+      throw e
     } finally {
       loading.value = false
     }
@@ -156,11 +185,14 @@ export const useTicketsStore = defineStore('tickets', () => {
 
   return {
     tickets,
-    activePass,
+    passes,
+    passeAtivo,
+    mesesOcupados,
+    passesFuturos,
     loading,
     error,
     fetchMyTickets,
-    fetchMyPass,
+    fetchMyPasses,
     checkout,
     checkPaymentStatus,
     fetchPrice,

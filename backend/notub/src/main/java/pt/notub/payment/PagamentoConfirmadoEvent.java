@@ -6,5 +6,7 @@ public record PagamentoConfirmadoEvent(
     String tipoProduto,
     Integer quantidade,
     String modalidade,
-    Long zonaId
+    Long zonaId,
+    int mesInicio,
+    int anoInicio
 ) {}

@@ -71,7 +71,9 @@ public class PagamentoService {
                     } else {
                         mesmoValor = existing.getZonaId().equals(zonaIdReq)
                                 && existing.getModalidade() != null
-                                && existing.getModalidade().equals(request.getModalidade());
+                                && existing.getModalidade().equals(request.getModalidade())
+                                && existing.getMesInicio() == request.getMesInicio()
+                                && existing.getAnoInicio() == request.getAnoInicio();
                     }
                 }
 
@@ -110,9 +112,7 @@ public class PagamentoService {
         int nrZonas = zonaId.intValue();
 
         TipoUtilizador tipoUtilizador = utilizador.getTipoUtilizador();
-        if (tipoUtilizador == null) {
-            tipoUtilizador = TipoUtilizador.ADULTO;
-        }
+        if (tipoUtilizador == null) tipoUtilizador = TipoUtilizador.ADULTO;
 
         float unitPrice;
         if (tipoProduto == TipoProduto.BILHETE) {
@@ -150,6 +150,8 @@ public class PagamentoService {
             transacao.setQuantidade(request.getQuantidade());
         } else {
             transacao.setModalidade(request.getModalidade());
+            transacao.setMesInicio(request.getMesInicio());
+            transacao.setAnoInicio(request.getAnoInicio());
         }
 
         String merchantTxId = UUID.randomUUID().toString().replace("-", "").substring(0, 32);
@@ -180,9 +182,7 @@ public class PagamentoService {
         Transacao transacao = transacaoRepository.findById(transacaoId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Transacao nao encontrada"));
 
-        if (transacao.getEstadoPagamento() == EstadoPagamento.CONCLUIDO) {
-            return;
-        }
+        if (transacao.getEstadoPagamento() == EstadoPagamento.CONCLUIDO) return;
 
         transacao.setEstadoPagamento(EstadoPagamento.CONCLUIDO);
         transacaoRepository.save(transacao);
@@ -193,7 +193,9 @@ public class PagamentoService {
                 transacao.getTipoProduto().name(),
                 transacao.getQuantidade(),
                 transacao.getModalidade(),
-                transacao.getZonaId()
+                transacao.getZonaId(),
+                transacao.getMesInicio(),
+                transacao.getAnoInicio()
         ));
     }
 
@@ -242,7 +244,8 @@ public class PagamentoService {
                 confirmarPagamento(transacao.getId());
                 response.setEstado(EstadoPagamento.CONCLUIDO.name());
                 response.setTituloCriado(true);
-            } else if (status.status() == PaymentProviderStatus.EXPIRED || status.status() == PaymentProviderStatus.DECLINED) {
+            } else if (status.status() == PaymentProviderStatus.EXPIRED
+                    || status.status() == PaymentProviderStatus.DECLINED) {
                 rejeitarPagamento(transacao.getId());
                 response.setEstado(EstadoPagamento.REJEITADO.name());
             }

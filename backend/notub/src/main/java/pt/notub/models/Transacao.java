@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 @Entity
 public class Transacao {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -25,6 +26,8 @@ public class Transacao {
     private Integer quantidade;
     private String modalidade;
     private Long zonaId;
+    private int mesInicio;
+    private int anoInicio;
 
     @Column(unique = true)
     private String token;
@@ -62,6 +65,10 @@ public class Transacao {
     public void setModalidade(String modalidade) { this.modalidade = modalidade; }
     public Long getZonaId() { return zonaId; }
     public void setZonaId(Long zonaId) { this.zonaId = zonaId; }
+    public int getMesInicio() { return mesInicio; }
+    public void setMesInicio(int mesInicio) { this.mesInicio = mesInicio; }
+    public int getAnoInicio() { return anoInicio; }
+    public void setAnoInicio(int anoInicio) { this.anoInicio = anoInicio; }
     public String getStripeSessionId() { return stripeSessionId; }
     public void setStripeSessionId(String stripeSessionId) { this.stripeSessionId = stripeSessionId; }
     public TituloTransporte getTitulo() { return titulo; }

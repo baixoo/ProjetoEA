@@ -9,7 +9,7 @@ public class Passe extends TituloTransporte {
     private LocalDateTime inicio;
     private LocalDateTime fim;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "utilizador_id")
     private Utilizador utilizador;
 
