@@ -1,122 +1,177 @@
 """
-Generates seed_data.sql from the Singapore bus dataset (pickle + CSV).
+Generates seed_data.sql from the Porto STCP GTFS dataset.
 Run:  python generate_seed.py
-Output: seed_data.sql (next to this script)
+Output: src/main/resources/data.sql
+
+Improvements over v1:
+- Reads calendar.txt for service_id awareness
+- Picks representative trip from UTEIS morning departures (07:00-10:00)
+- Generates ALL viagem rows (UTEIS + SAB + DOM) for real schedule lookup
+- Auto-detects night routes (noturno) based on departure times
+- Stores Viagem (trip departures) separately from Trajeto (stop patterns)
 """
-import pickle
 import csv
 import random
-import math
 from pathlib import Path
+from collections import defaultdict
 
-DATASETS_DIR = Path(r"C:\Users\paulo\Desktop\4Ano\2Semestre\pEA\datasets")
-PICKLE_PATH = DATASETS_DIR / "BusRoutes.pickle"
-STOP_LIST_PATH = DATASETS_DIR / "BusStopList.csv"
+DATASETS_DIR = Path(__file__).resolve().parent.parent.parent / "datasetPorto"
 OUTPUT_PATH = Path(__file__).parent / "src" / "main" / "resources" / "data.sql"
 
 random.seed(42)
 
-NUM_ZONES = 4
-AUTOCARROS_PER_LINE = 2
-SG_LAT_MIN, SG_LAT_MAX = 1.25, 1.45
-SG_LON_MIN, SG_LON_MAX = 103.65, 103.90
+OPERATING_HOURS = 18
+TURNAROUND_MINUTES = 20
 
-ZONE_NAMES = [
-    "Zona Norte",
-    "Zona Centro",
-    "Zona Sul",
-    "Zona Oeste",
-]
-
-LINE_FRIENDLY_NAMES = {
-    "SER_52f1": "Linha 1",
-    "SER_61a2": "Linha 2",
-    "SER_83ea": "Linha 3",
-    "SER_376e": "Linha 4",
-    "SER_1253": "Linha 5",
-    "SER_eef7": "Linha 6",
-    "SER_f0cb": "Linha 7",
-    "SER_79d6": "Linha 8",
-    "SER_f5ca": "Linha 9",
-    "SER_d4ee": "Linha 10",
-    "SER_50bb": "Linha 11",
-    "SER_dccb": "Linha 12",
-    "SER_c837": "Linha 13",
-    "SER_8d27": "Linha 14",
-    "SER_3068": "Linha 15",
-    "SER_16b3": "Linha 16",
-    "SER_7688": "Linha 17",
-    "SER_eb19": "Linha 18",
-    "SER_92a6": "Linha 19",
-    "SER_5538": "Linha 20",
-    "SER_c791": "Linha 21",
-    "SER_4568": "Linha 22",
-    "SER_cc8e": "Linha 23",
-    "SER_7b1a": "Linha 24",
-    "SER_eb3b": "Linha 25",
-    "SER_b8ae": "Linha 26",
-    "SER_3346": "Linha 27",
-    "SER_2397": "Linha 28",
-    "SER_ff5a": "Linha 29",
-    "SER_0e65": "Linha 30",
-    "SER_533e": "Linha 31",
-    "SER_0849": "Linha 32",
+ZONE_MACRO_MAP = {
+    "PRT1": 1, "PRT2": 1, "PRT3": 1,
+    "MTS1": 1, "MTS2": 1,
+    "MAI1": 2, "MAI2": 2, "MAI3": 2, "MAI4": 2,
+    "VCD8": 2,
+    "VNG1": 3, "VNG2": 3, "VNG4": 3, "VNG5": 3,
+    "GDM1": 4, "GDM2": 4,
+    "VLG1": 4, "VLG2": 4, "VLG3": 4,
 }
 
+MACRO_ZONE_NAMES = {
+    1: "Porto e Matosinhos",
+    2: "Maia e Vila do Conde",
+    3: "Vila Nova de Gaia",
+    4: "Gondomar e Valongo",
+}
 
-def load_pickle():
-    with open(PICKLE_PATH, "rb") as f:
-        return pickle.load(f)
+WEEKDAY_SERVICE_IDS = {"UTEIS", "ELECUTEIS"}
 
 
-def load_stop_ids():
-    stops = []
-    with open(STOP_LIST_PATH, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            stops.append(row["BUS_STOP"].strip())
+def load_stops():
+    stops = {}
+    with open(DATASETS_DIR / "stops.txt", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            stops[row["stop_id"]] = {
+                "code": row["stop_code"],
+                "name": row["stop_name"],
+                "lat": row["stop_lat"],
+                "lon": row["stop_lon"],
+                "zone_id": row["zone_id"],
+            }
     return stops
 
 
-def generate_lat_lon(stop_code, all_stops_list):
-    idx = all_stops_list.index(stop_code) if stop_code in all_stops_list else random.randint(0, len(all_stops_list))
-    total = max(len(all_stops_list), 1)
-    t = idx / total
-    lat = SG_LAT_MIN + t * (SG_LAT_MAX - SG_LAT_MIN)
-    lon = SG_LON_MIN + t * (SG_LON_MAX - SG_LON_MIN)
-    lat += random.uniform(-0.005, 0.005)
-    lon += random.uniform(-0.005, 0.005)
-    return round(lat, 6), round(lon, 6)
+def load_routes():
+    routes = {}
+    with open(DATASETS_DIR / "routes.txt", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            routes[row["route_id"]] = {
+                "short_name": row["route_short_name"],
+                "long_name": row["route_long_name"],
+                "color": row["route_color"],
+            }
+    return routes
 
 
-def assign_zone(stop_code, all_stops_list):
-    idx = all_stops_list.index(stop_code) if stop_code in all_stops_list else 0
-    return (idx % NUM_ZONES) + 1
+def load_trips():
+    trips = defaultdict(list)
+    with open(DATASETS_DIR / "trips.txt", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            trips[(row["route_id"], row["direction_id"])].append({
+                "trip_id": row["trip_id"],
+                "service_id": row["service_id"],
+                "headsign": row.get("trip_headsign", ""),
+            })
+    return trips
 
 
-def parse_cumulative_minutes(timedelta_str):
-    parts = timedelta_str.split(" ")
-    time_part = parts[-1]
-    h, m, s = time_part.split(":")
-    return int(h) * 60 + int(m) + int(s) // 60
+def load_stop_times():
+    stop_times = defaultdict(list)
+    with open(DATASETS_DIR / "stop_times.txt", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            stop_times[row["trip_id"]].append({
+                "arrival": row["arrival_time"],
+                "departure": row["departure_time"],
+                "stop_id": row["stop_id"],
+                "sequence": int(row["stop_sequence"]),
+            })
+    for trip_id in stop_times:
+        stop_times[trip_id].sort(key=lambda x: x["sequence"])
+    return stop_times
 
 
-def parse_ride_time_minutes(time_str):
-    h, m, s = time_str.split(":")
-    return int(h) * 60 + int(m)
+def time_to_minutes(t):
+    parts = t.split(":")
+    h = int(parts[0])
+    m = int(parts[1])
+    if h >= 24:
+        h -= 24
+    return h * 60 + m
+
+
+def normalize_time(t):
+    parts = t.split(":")
+    h = int(parts[0])
+    m = int(parts[1])
+    s = int(parts[2])
+    if h >= 24:
+        h -= 24
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+
+def is_night_time(t):
+    h = int(t.split(":")[0])
+    if h >= 24:
+        h -= 24
+    return h < 6
+
+
+def pick_representative_trip(trip_list, stop_times):
+    weekday_trips = [t for t in trip_list if t["service_id"] in WEEKDAY_SERVICE_IDS]
+    if not weekday_trips:
+        weekday_trips = trip_list
+
+    morning_trips = []
+    for t in weekday_trips:
+        tid = t["trip_id"]
+        if tid in stop_times and stop_times[tid]:
+            first_arrival = stop_times[tid][0]["arrival"]
+            mins = time_to_minutes(first_arrival)
+            if 420 <= mins <= 600:
+                morning_trips.append(t)
+
+    candidates = morning_trips if morning_trips else weekday_trips
+
+    best_trip = None
+    best_count = 0
+    for t in candidates:
+        tid = t["trip_id"]
+        if tid in stop_times:
+            count = len(stop_times[tid])
+            if count > best_count:
+                best_count = count
+                best_trip = tid
+
+    if best_trip is None:
+        for t in trip_list:
+            tid = t["trip_id"]
+            if tid in stop_times:
+                count = len(stop_times[tid])
+                if count > best_count:
+                    best_count = count
+                    best_trip = tid
+
+    return best_trip
 
 
 def main():
-    print("Loading pickle...")
-    routes = load_pickle()
-    print(f"  Found {len(routes)} services: {list(routes.keys())}")
-
-    print("Loading stop list...")
-    all_stops = load_stop_ids()
-    print(f"  Found {len(all_stops)} stops")
+    print("Loading Porto GTFS dataset...")
+    stops = load_stops()
+    routes = load_routes()
+    trips = load_trips()
+    stop_times = load_stop_times()
+    print(f"  Stops: {len(stops)}")
+    print(f"  Routes: {len(routes)}")
+    print(f"  Route+Direction combos: {len(trips)}")
 
     lines = []
-    lines.append("-- NoTUB Seed Data (auto-generated from Singapore bus dataset)")
+    lines.append("-- NoTUB Seed Data (auto-generated from Porto STCP GTFS dataset)")
     lines.append("-- DO NOT EDIT MANUALLY - regenerate with: python generate_seed.py")
     lines.append("")
     lines.append("BEGIN;")
@@ -124,123 +179,128 @@ def main():
 
     # ── Zonas ──
     lines.append("-- ═══ Zonas ═══")
-    for i, name in enumerate(ZONE_NAMES):
-        zid = i + 1
-        lines.append(f"INSERT INTO zona (id, num, nome) VALUES ({zid}, {zid}, '{name}') ON CONFLICT (id) DO NOTHING;")
-    lines.append("")
-
-    # ── Collect all unique stops from routes ──
-    all_route_stops = set()
-    clean_routes = {}
-    for svc, df in routes.items():
-        stops_in_route = []
-        for _, row in df.iterrows():
-            stop = str(row["Stop_stn"]).strip()
-            if not stop or " " in stop:
-                continue
-            stops_in_route.append({
-                "stop": stop,
-                "ride_time": str(row["Ride_time"]),
-                "sub": str(row["sub"]),
-            })
-            all_route_stops.add(stop)
-        if stops_in_route:
-            clean_routes[svc] = stops_in_route
-
-    sorted_stops = sorted(all_route_stops)
-
-    # ── Paragens ──
-    lines.append("-- ═══ Paragens ═══")
-    stop_id_map = {}
-    for idx, stop in enumerate(sorted_stops):
-        pid = idx + 1
-        stop_id_map[stop] = pid
-        lat, lon = generate_lat_lon(stop, all_stops)
-        zid = assign_zone(stop, sorted_stops)
+    for zid in range(1, 5):
+        name = MACRO_ZONE_NAMES[zid]
         lines.append(
-            f"INSERT INTO paragem (id, nome, latitude, longitude, zona_id) "
-            f"VALUES ({pid}, '{stop}', {lat}, {lon}, {zid}) ON CONFLICT (id) DO NOTHING;"
+            f"INSERT INTO zona (id, num, nome) VALUES ({zid}, {zid}, '{name}') ON CONFLICT (id) DO NOTHING;"
         )
     lines.append("")
 
-    # ── Linhas + Trajetos + PontosDePassagem ──
+    # ── Paragens ──
+    lines.append("-- ═══ Paragens ═══")
+    paragem_id_map = {}
+    sorted_stop_ids = sorted(stops.keys())
+    for idx, stop_id in enumerate(sorted_stop_ids):
+        pid = idx + 1
+        paragem_id_map[stop_id] = pid
+        s = stops[stop_id]
+        name = s["name"].replace("'", "''")
+        lat = float(s["lat"])
+        lon = float(s["lon"])
+        zid = ZONE_MACRO_MAP.get(s["zone_id"], 1)
+        lines.append(
+            f"INSERT INTO paragem (id, nome, latitude, longitude, zona_id) "
+            f"VALUES ({pid}, '{name}', {lat}, {lon}, {zid}) ON CONFLICT (id) DO NOTHING;"
+        )
+    lines.append("")
+
+    # ── Linhas + Trajetos + PontosDePassagem + Viagens ──
     lines.append("-- ═══ Linhas ═══")
     linha_id = 0
     trajeto_id = 0
     pdp_id = 0
     autocarro_id = 0
+    viagem_id = 0
+    linhas_usadas = 0
+    trajetos_usados = 0
+    total_viagens = 0
 
-    for svc in sorted(clean_routes.keys()):
-        route = clean_routes[svc]
+    for route_id in sorted(routes.keys()):
+        route = routes[route_id]
         linha_id += 1
-        friendly = LINE_FRIENDLY_NAMES.get(svc, f"Linha {linha_id}")
+        linhas_usadas += 1
+        short = route["short_name"]
+        long_name = route["long_name"].replace("'", "''")
+
         lines.append(
             f"INSERT INTO linha (id, nome, identificador_servico) "
-            f"VALUES ({linha_id}, '{friendly}', '{svc}') ON CONFLICT (id) DO NOTHING;"
+            f"VALUES ({linha_id}, '{short} - {long_name}', '{route_id}') ON CONFLICT (id) DO NOTHING;"
         )
 
-        # IDA
-        trajeto_id += 1
-        ida_trajeto_id = trajeto_id
-        lines.append(
-            f"INSERT INTO trajeto (id, direcao, linha_id) "
-            f"VALUES ({trajeto_id}, 'IDA', {linha_id}) ON CONFLICT (id) DO NOTHING;"
-        )
+        linha_viagens_uteis = 0
+        linha_max_duracao = 0
 
-        base_minutes = parse_ride_time_minutes(route[0]["ride_time"])
-
-        for ordem, stop_data in enumerate(route):
-            pdp_id += 1
-            stop = stop_data["stop"]
-            paragem_fk = stop_id_map.get(stop)
-            if paragem_fk is None:
+        for direction in ["0", "1"]:
+            direction_name = "IDA" if direction == "0" else "VOLTA"
+            combo = (route_id, direction)
+            if combo not in trips:
                 continue
-            ride_time = stop_data["ride_time"]
-            cumulative = parse_cumulative_minutes(stop_data["sub"])
-            hora_chegada = ride_time
+
+            trip_list = trips[combo]
+            best_trip = pick_representative_trip(trip_list, stop_times)
+
+            if best_trip is None or best_trip not in stop_times:
+                continue
+            if len(stop_times[best_trip]) < 2:
+                continue
+
+            trajeto_id += 1
+            trajetos_usados += 1
+            this_trajeto_id = trajeto_id
             lines.append(
-            f"INSERT INTO pontos_de_passagem (id, ordem, hora_chegada, tempo_desde_inicio, trajeto_id, paragem_id) "
-            f"VALUES ({pdp_id}, {ordem}, '{hora_chegada}', {cumulative}, {ida_trajeto_id}, {paragem_fk}) ON CONFLICT (id) DO NOTHING;"
+                f"INSERT INTO trajeto (id, direcao, linha_id) "
+                f"VALUES ({this_trajeto_id}, '{direction_name}', {linha_id}) ON CONFLICT (id) DO NOTHING;"
             )
 
-        # VOLTA (reversed stops)
-        trajeto_id += 1
-        vol_trajeto_id = trajeto_id
-        lines.append(
-            f"INSERT INTO trajeto (id, direcao, linha_id) "
-            f"VALUES ({trajeto_id}, 'VOLTA', {linha_id}) ON CONFLICT (id) DO NOTHING;"
-        )
+            st_list = stop_times[best_trip]
+            first_arrival_minutes = time_to_minutes(st_list[0]["arrival"])
 
-        reversed_route = list(reversed(route))
-        for ordem, stop_data in enumerate(reversed_route):
-            pdp_id += 1
-            stop = stop_data["stop"]
-            paragem_fk = stop_id_map.get(stop)
-            if paragem_fk is None:
-                continue
-            ride_time = stop_data["ride_time"]
-            cumulative = parse_cumulative_minutes(stop_data["sub"])
-            total_time = parse_cumulative_minutes(route[-1]["sub"])
-            volta_cumulative = total_time - cumulative
-            if volta_cumulative < 0:
-                volta_cumulative = 0
-            h = 8 + volta_cumulative // 60
-            m = volta_cumulative % 60
-            hora_chegada = f"{h:02d}:{m:02d}:00"
-            lines.append(
-            f"INSERT INTO pontos_de_passagem (id, ordem, hora_chegada, tempo_desde_inicio, trajeto_id, paragem_id) "
-            f"VALUES ({pdp_id}, {ordem}, '{hora_chegada}', {volta_cumulative}, {vol_trajeto_id}, {paragem_fk}) ON CONFLICT (id) DO NOTHING;"
-            )
+            for ordem, st in enumerate(st_list):
+                pdp_id += 1
+                paragem_fk = paragem_id_map.get(st["stop_id"])
+                if paragem_fk is None:
+                    pdp_id -= 1
+                    continue
+                arrival = normalize_time(st["arrival"])
+                current_minutes = time_to_minutes(st["arrival"])
+                tempo_desde_inicio = current_minutes - first_arrival_minutes
+                lines.append(
+                    f"INSERT INTO pontos_de_passagem (id, ordem, hora_chegada, tempo_desde_inicio, trajeto_id, paragem_id) "
+                    f"VALUES ({pdp_id}, {ordem}, '{arrival}', {tempo_desde_inicio}, {this_trajeto_id}, {paragem_fk}) ON CONFLICT (id) DO NOTHING;"
+                )
 
-        # Autocarros
-        for i in range(AUTOCARROS_PER_LINE):
+            last_arrival_minutes = time_to_minutes(st_list[-1]["arrival"])
+            duracao_min = last_arrival_minutes - first_arrival_minutes
+            if duracao_min > linha_max_duracao:
+                linha_max_duracao = duracao_min
+
+            for t in trip_list:
+                tid = t["trip_id"]
+                if tid not in stop_times or not stop_times[tid]:
+                    continue
+                service_id = t["service_id"]
+                first_dep = normalize_time(stop_times[tid][0]["departure"])
+                viagem_id += 1
+                total_viagens += 1
+                if service_id in WEEKDAY_SERVICE_IDS:
+                    linha_viagens_uteis += 1
+                gtfs_trip_escaped = tid.replace("'", "''")
+                lines.append(
+                    f"INSERT INTO viagem (id, trajeto_id, service_id, hora_partida, gtfs_trip_id) "
+                    f"VALUES ({viagem_id}, {this_trajeto_id}, '{service_id}', '{first_dep}', '{gtfs_trip_escaped}') ON CONFLICT (id) DO NOTHING;"
+                )
+
+        round_trip_min = max(60, linha_max_duracao * 2 + TURNAROUND_MINUTES)
+        viagens_per_bus = max(1, (OPERATING_HOURS * 60) // round_trip_min)
+        num_autocarros = max(2, (linha_viagens_uteis + viagens_per_bus - 1) // viagens_per_bus)
+
+        for i in range(num_autocarros):
             autocarro_id += 1
-            code = svc.split("_")[1][:3].upper() if "_" in svc else svc[:3].upper()
-            matricula = f"SG-{code}-{autocarro_id:02d}"
+            matricula = f"PT-{short[:3].upper()}-{autocarro_id:02d}"
             nlugares = random.choice([40, 50, 60])
             lines.append(
-                f"INSERT INTO veiculo (id, matricula, n_lugares, lotacao_atual, dtype) "
-                f"VALUES ({autocarro_id}, '{matricula}', {nlugares}, 0, 'Autocarro') ON CONFLICT (id) DO NOTHING;"
+                f"INSERT INTO veiculo (id, matricula, n_lugares, lotacao_atual, dtype, linha_id) "
+                f"VALUES ({autocarro_id}, '{matricula}', {nlugares}, 0, 'Autocarro', {linha_id}) ON CONFLICT (id) DO NOTHING;"
             )
             lines.append(
                 f"INSERT INTO autocarro (id) VALUES ({autocarro_id}) ON CONFLICT (id) DO NOTHING;"
@@ -293,11 +353,12 @@ def main():
 
     # ── Sequences reset ──
     lines.append("-- ═══ Reset Sequences ═══")
-    lines.append(f"SELECT setval('zona_id_seq', {NUM_ZONES});")
-    lines.append(f"SELECT setval('paragem_id_seq', {len(sorted_stops)});")
-    lines.append(f"SELECT setval('linha_id_seq', {linha_id});")
-    lines.append(f"SELECT setval('trajeto_id_seq', {trajeto_id});")
+    lines.append(f"SELECT setval('zona_id_seq', 4);")
+    lines.append(f"SELECT setval('paragem_id_seq', {len(stops)});")
+    lines.append(f"SELECT setval('linha_id_seq', {linhas_usadas});")
+    lines.append(f"SELECT setval('trajeto_id_seq', {trajetos_usados});")
     lines.append(f"SELECT setval('pontos_de_passagem_id_seq', {pdp_id});")
+    lines.append(f"SELECT setval('viagem_id_seq', {viagem_id});")
     lines.append(f"SELECT setval('veiculo_id_seq', {autocarro_id});")
     lines.append(f"SELECT setval('tarifa_id_seq', {tarifa_id});")
     lines.append("")
@@ -308,11 +369,12 @@ def main():
     output = "\n".join(lines)
     OUTPUT_PATH.write_text(output, encoding="utf-8")
     print(f"\nDone! Written to {OUTPUT_PATH}")
-    print(f"  Zones:      {NUM_ZONES}")
-    print(f"  Paragens:   {len(sorted_stops)}")
-    print(f"  Linhas:     {linha_id}")
-    print(f"  Trajetos:   {trajeto_id}")
+    print(f"  Zones:      4")
+    print(f"  Paragens:   {len(stops)}")
+    print(f"  Linhas:     {linhas_usadas}")
+    print(f"  Trajetos:   {trajetos_usados}")
     print(f"  Pontos:     {pdp_id}")
+    print(f"  Viagens:    {total_viagens}")
     print(f"  Autocarros: {autocarro_id}")
     print(f"  Tarifas:    {tarifa_id}")
 

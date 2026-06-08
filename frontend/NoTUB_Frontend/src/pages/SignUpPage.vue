@@ -17,7 +17,7 @@
           <input v-model="form.nif" type="text" placeholder="NIF" class="field__input" maxlength="9" autocomplete="off" @input="validarNif" />
         </div>
         <div class="field">
-          <input v-model="form.dataNascimento" type="date" placeholder="Data de nascimento" class="field__input" autocomplete="bday" />
+          <input v-model="form.dataNascimento" type="date" placeholder="Data de nascimento" class="field__input" autocomplete="bday" :max="maxDate" />
         </div>
         <div class="field">
           <input v-model="form.password" type="password" placeholder="Palavra-passe" class="field__input" autocomplete="new-password" required />
@@ -78,6 +78,24 @@ const termsOpen = ref(false)
 const termsSection = ref('terms')
 const termsTitle = ref('Termos e Condições')
 
+const maxDate = new Date().toISOString().split('T')[0]
+
+function validateNif(nif) {
+  if (!nif || nif.length === 0) return true
+  if (nif.length !== 9) return false
+  if (!/^\d+$/.test(nif)) return false
+  const firstDigit = parseInt(nif[0])
+  if (firstDigit < 1 || firstDigit > 9) return false
+  const checkMult = [9, 8, 7, 6, 5, 4, 3, 2]
+  let sum = 0
+  for (let i = 0; i < 8; i++) {
+    sum += parseInt(nif[i]) * checkMult[i]
+  }
+  const remainder = sum % 11
+  const expectedCheck = remainder < 2 ? 0 : 11 - remainder
+  return parseInt(nif[8]) === expectedCheck
+}
+
 function showTerms() {
   termsSection.value = 'terms'
   termsTitle.value = 'Termos e Condições'
@@ -132,8 +150,25 @@ async function handleRegister() {
   const ultimoNome = nameParts.slice(1).join(' ') || ''
 
   if (form.nif && form.nif.length !== 9) {
-    error.value = 'O NIF deve conter exatamente 9 dígitos.'
+    error.value = 'O NIF deve conter exatamente 9 digitos.'
     return
+  }
+
+  if (form.nif && !validateNif(form.nif)) {
+    error.value = 'NIF invalido.'
+    return
+  }
+
+  if (form.dataNascimento) {
+    const dob = new Date(form.dataNascimento)
+    if (dob > new Date()) {
+      error.value = 'A data de nascimento nao pode ser futura.'
+      return
+    }
+    if (dob < new Date('1900-01-01')) {
+      error.value = 'A data de nascimento deve ser posterior a 1900-01-01.'
+      return
+    }
   }
 
   loading.value = true
@@ -148,8 +183,7 @@ async function handleRegister() {
       password: form.password
     })
     success.value = 'Conta criada com sucesso!'
-    // Redirecionar para a página inicial imediatamente
-    router.push({ name: 'home' })
+    await router.replace({ name: 'home' })
   } catch (e) {
     error.value = e.message || 'Erro ao criar conta.'
   } finally {

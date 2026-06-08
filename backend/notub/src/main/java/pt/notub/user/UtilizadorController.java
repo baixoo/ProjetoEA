@@ -7,7 +7,6 @@ import jakarta.validation.Valid;
 import pt.notub.common.mapper.UserMapper;
 import pt.notub.models.Utilizador;
 import pt.notub.security.AuthenticatedUser;
-import pt.notub.user.UtilizadorService;
 import pt.notub.user.dto.UserDTO;
 
 import java.util.List;

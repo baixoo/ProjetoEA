@@ -25,6 +25,7 @@ import pt.notub.security.AuthenticatedUser;
 import pt.notub.notification.PublicadorEventosEmail;
 import pt.notub.user.UtilizadorService;
 import pt.notub.user.dto.UserDTO;
+import pt.notub.validation.NifValidator;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -76,19 +77,43 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody RegisterRequest registerRequest) {
+        if (registerRequest.getEmail() == null || registerRequest.getEmail().isBlank()) {
+            return ResponseEntity.badRequest().body("Erro: Email e obrigatorio!");
+        }
         if (utilizadorRepository.existsByEmail(registerRequest.getEmail())) {
             return ResponseEntity.badRequest().body("Erro: Email ja em uso!");
         }
-        if (registerRequest.getNif() != null && !registerRequest.getNif().isEmpty()
-                && utilizadorRepository.existsByNif(registerRequest.getNif())) {
-            return ResponseEntity.badRequest().body("Erro: NIF ja em uso!");
+        if (registerRequest.getPrimeiroNome() == null || !registerRequest.getPrimeiroNome().matches("^[a-zA-ZÀ-ÿ]+$")) {
+            return ResponseEntity.badRequest().body("Erro: Primeiro nome invalido! Deve conter apenas letras.");
         }
+        if (registerRequest.getUltimoNome() == null || !registerRequest.getUltimoNome().matches("^[a-zA-ZÀ-ÿ\\s]+$")) {
+            return ResponseEntity.badRequest().body("Erro: Ultimo nome invalido! Deve conter apenas letras e espacos.");
+        }
+        String nif = registerRequest.getNif();
+        if (nif != null && !nif.isEmpty()) {
+            if (!NifValidator.isValid(nif)) {
+                return ResponseEntity.badRequest().body("Erro: NIF invalido!");
+            }
+            if (utilizadorRepository.existsByNif(nif)) {
+                return ResponseEntity.badRequest().body("Erro: NIF ja em uso!");
+            }
+        }
+        if (registerRequest.getDataNascimento() != null && !registerRequest.getDataNascimento().isEmpty()) {
+            LocalDate dataNascimento = LocalDate.parse(registerRequest.getDataNascimento());
+            if (dataNascimento.isAfter(LocalDate.now())) {
+                return ResponseEntity.badRequest().body("Erro: A data de nascimento nao pode ser futura!");
+            }
+            if (dataNascimento.isBefore(LocalDate.of(1900, 1, 1))) {
+                return ResponseEntity.badRequest().body("Erro: A data de nascimento deve ser posterior a 1900-01-01!");
+            }
+        }
+
         Utilizador utilizador = new Utilizador();
         utilizador.setEmail(registerRequest.getEmail());
         utilizador.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
         utilizador.setPrimeiroNome(registerRequest.getPrimeiroNome());
         utilizador.setUltimoNome(registerRequest.getUltimoNome());
-        utilizador.setNif(registerRequest.getNif());
+        utilizador.setNif(nif != null && nif.isEmpty() ? null : nif);
         if (registerRequest.getDataNascimento() != null && !registerRequest.getDataNascimento().isEmpty()) {
             LocalDate dataNascimento = LocalDate.parse(registerRequest.getDataNascimento());
             utilizador.setDataNascimento(dataNascimento);
@@ -100,8 +125,7 @@ public class AuthController {
         publicadorEventosEmail.publicarUtilizadorCriado(
                 utilizador.getId(), utilizador.getEmail(),
                 utilizador.getPrimeiroNome(), utilizador.getUltimoNome());
-        
-        // Gerar token JWT automaticamente após registro
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(registerRequest.getEmail(), registerRequest.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);

@@ -26,6 +26,7 @@
             <q-icon name="directions_bus" size="28px" class="vehicle-icon" />
             <div class="vehicle-info">
               <span class="vehicle-plate">{{ v.matricula }}</span>
+              <span class="vehicle-line">{{ v.linhaNome }}</span>
               <span class="vehicle-seats">{{ v.lotacaoAtual }}/{{ v.nLugares }} lugares</span>
             </div>
             <q-icon name="chevron_right" size="24px" class="vehicle-arrow" />
@@ -45,18 +46,20 @@
         <!-- Trip Control Panel -->
         <div v-if="!driverStore.activeViagemVeiculo" class="trip-control-card">
           <h3 class="trip-control-title">Iniciar Viagem</h3>
-          <p class="trip-control-desc">Selecione a rota e prima iniciar para comecar a receber validacoes.</p>
+          <p class="trip-control-desc">Selecione a direcao e prima iniciar.</p>
 
-          <q-select
-            v-model="selectedTrajetoId"
-            :options="trajetoOptions"
-            label="Rota (Linha - Direcao)"
-            outlined
-            dense
-            emit-value
-            map-options
-            class="q-mb-md"
-          />
+          <div class="direction-buttons">
+            <button
+              v-for="t in driverStore.trajetos"
+              :key="t.id"
+              class="direction-btn"
+              :class="{ 'direction-btn--selected': selectedTrajetoId === t.id }"
+              @click="selectedTrajetoId = t.id"
+            >
+              <span class="direction-label">{{ t.direcao === 'IDA' ? 'Ida' : 'Volta' }}</span>
+              <span class="direction-route">{{ t.primeiraParagem }} → {{ t.ultimaParagem }}</span>
+            </button>
+          </div>
 
           <button
             class="btn-start-trip"
@@ -77,7 +80,7 @@
               <span class="active-trip-label">Viagem Ativa</span>
             </div>
             <span class="active-trip-route">
-              {{ activeTripLinha }} - {{ activeTripDirecao }}
+              {{ activeTripLinha }} - {{ activeTripDirecao === 'IDA' ? 'Ida' : 'Volta' }}
             </span>
           </div>
 
@@ -167,22 +170,18 @@ const validadasCount = computed(() => driverStore.notifications.filter(n => n.va
 const recusadasCount = computed(() => driverStore.notifications.filter(n => !n.valido).length)
 
 function selecionarVeiculo(veiculoId) {
+  const v = driverStore.vehicles.find(v => v.id === veiculoId)
   driverStore.connectWebSocket(veiculoId)
   driverStore.fetchActiveTrips(veiculoId)
-  driverStore.fetchTrajetos()
+  if (v?.linhaId) {
+    driverStore.fetchTrajetos(v.linhaId)
+  }
 }
 
 function trocarBus() {
   driverStore.disconnect()
   selectedTrajetoId.value = null
 }
-
-const trajetoOptions = computed(() => {
-  return (driverStore.trajetos || []).map(t => ({
-    label: `${t.linha} - ${t.direcao}`,
-    value: t.id
-  }))
-})
 
 const activeTripLinha = computed(() => {
   return driverStore.activeViagemVeiculo?.trajeto?.linha?.nome || ''
@@ -289,6 +288,12 @@ function formatTime(timestamp) {
   color: #64748b;
 }
 
+.vehicle-line {
+  font-size: 12px;
+  color: #0369a1;
+  font-weight: 600;
+}
+
 .vehicle-arrow {
   color: #94a3b8;
 }
@@ -327,6 +332,47 @@ function formatTime(timestamp) {
   font-size: 12px;
   color: #64748b;
   margin: 0 0 12px;
+}
+
+.direction-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.direction-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 10px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.direction-btn:hover {
+  border-color: #028e5c;
+}
+
+.direction-btn--selected {
+  border-color: #028e5c;
+  background: #e6f7f0;
+}
+
+.direction-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0b1a16;
+}
+
+.direction-route {
+  font-size: 11px;
+  color: #64748b;
+  text-align: center;
 }
 
 .btn-start-trip {

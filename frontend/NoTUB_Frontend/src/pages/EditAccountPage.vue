@@ -113,16 +113,16 @@
         </div>
         <form v-if="showForm" class="account-form" @submit.prevent="handleSave">
           <div class="field">
-            <input v-model="form.email" type="email" placeholder="Email" class="field__input" required />
+            <input v-model="form.email" type="email" placeholder="Email" class="field__input field__input--readonly" readonly disabled />
           </div>
           <div class="field">
-            <input v-model="form.nome" type="text" placeholder="Nome" class="field__input" required />
+            <input v-model="form.nome" type="text" placeholder="Nome" class="field__input" required @input="validarNome" />
           </div>
           <div class="field">
-            <input v-model="form.nif" type="text" placeholder="NIF" class="field__input" maxlength="9" />
+            <input v-model="form.nif" type="text" placeholder="NIF" class="field__input" maxlength="9" @input="validarNif" />
           </div>
           <div class="field">
-            <input v-model="form.dataNascimento" type="date" placeholder="Data de nascimento" class="field__input" />
+            <input v-model="form.dataNascimento" type="date" placeholder="Data de nascimento" class="field__input" :max="maxDate" />
           </div>
           <div v-if="authStore.user?.authMethod === 'CREDENTIALS'" class="field">
             <input v-model="form.password" type="password" placeholder="Palavra-passe" class="field__input" />
@@ -179,6 +179,39 @@ const error = ref('')
 const success = ref('')
 const loading = ref(false)
 const showForm = ref(false)
+
+const maxDate = new Date().toISOString().split('T')[0]
+
+function validarNif(event) {
+  let valor = event.target.value
+  valor = valor.replace(/\D/g, '')
+  form.nif = valor
+}
+
+function validarNome(event) {
+  let valor = event.target.value
+  valor = valor.replace(/[^a-zA-ZÀ-ÿ\s]/g, '')
+  if (valor.startsWith(' ')) {
+    valor = valor.trimStart()
+  }
+  form.nome = valor
+}
+
+function validateNif(nif) {
+  if (!nif || nif.length === 0) return true
+  if (nif.length !== 9) return false
+  if (!/^\d+$/.test(nif)) return false
+  const firstDigit = parseInt(nif[0])
+  if (firstDigit < 1 || firstDigit > 9) return false
+  const checkMult = [9, 8, 7, 6, 5, 4, 3, 2]
+  let sum = 0
+  for (let i = 0; i < 8; i++) {
+    sum += parseInt(nif[i]) * checkMult[i]
+  }
+  const remainder = sum % 11
+  const expectedCheck = remainder < 2 ? 0 : 11 - remainder
+  return parseInt(nif[8]) === expectedCheck
+}
 
 // Points & history state
 const points = computed(() => authStore.user?.nrPontos ?? 0)
@@ -314,20 +347,60 @@ async function handleSave() {
   const primeiroNome = nameParts[0] || ''
   const ultimoNome = nameParts.slice(1).join(' ') || ''
 
+  if (!primeiroNome || !/^[a-zA-ZÀ-ÿ]+$/.test(primeiroNome)) {
+    error.value = 'O primeiro nome deve conter apenas letras.'
+    loading.value = false
+    return
+  }
+  if (ultimoNome && !/^[a-zA-ZÀ-ÿ\s]+$/.test(ultimoNome)) {
+    error.value = 'O ultimo nome deve conter apenas letras e espacos.'
+    loading.value = false
+    return
+  }
+
+  if (form.nif && !validateNif(form.nif)) {
+    error.value = 'NIF invalido.'
+    loading.value = false
+    return
+  }
+
+  if (form.dataNascimento) {
+    const dob = new Date(form.dataNascimento)
+    if (dob > new Date()) {
+      error.value = 'A data de nascimento nao pode ser futura.'
+      loading.value = false
+      return
+    }
+    if (dob < new Date('1900-01-01')) {
+      error.value = 'A data de nascimento deve ser posterior a 1900-01-01.'
+      loading.value = false
+      return
+    }
+  }
+
   try {
     await authStore.updateProfile({
-      email: form.email,
       primeiroNome,
       ultimoNome,
       nif: form.nif || null,
       dataNascimento: form.dataNascimento || null
     })
     success.value = 'Perfil atualizado com sucesso!'
+    syncFormFromStore()
   } catch (e) {
     error.value = e.message || 'Erro ao atualizar perfil'
   } finally {
     loading.value = false
   }
+}
+
+function syncFormFromStore() {
+  if (!authStore.user) return
+  const u = authStore.user
+  form.email = u.email || ''
+  form.nome = [u.primeiroNome, u.ultimoNome].filter(Boolean).join(' ')
+  form.nif = u.nif || ''
+  form.dataNascimento = u.dataNascimento || ''
 }
 
 function handleLogout() {
@@ -718,6 +791,12 @@ function formatDate(dateStr) {
 
 .field__input:focus {
   border-color: #1876d2;
+}
+
+.field__input--readonly {
+  background: #f5f5f5;
+  color: #9e9e9e;
+  cursor: not-allowed;
 }
 
 .error-message {

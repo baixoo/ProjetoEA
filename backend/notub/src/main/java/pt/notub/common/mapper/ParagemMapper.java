@@ -18,6 +18,10 @@ public final class ParagemMapper {
         dto.setId(p.getId());
         dto.setNome(p.getNome());
         dto.setLocalizacao(toPointDTO(p.getLocalizacao()));
+        if (p.getZona() != null) {
+            dto.setZonaNum(p.getZona().getNum());
+            dto.setZonaNome(p.getZona().getNome());
+        }
         return dto;
     }
 

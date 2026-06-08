@@ -18,6 +18,10 @@ public abstract class Veiculo {
     @Embedded
     private Point localizacaoAtual;
 
+    @ManyToOne
+    @JoinColumn(name = "linha_id")
+    private Linha linha;
+
     public Veiculo() {}
 
     // Getters and Setters
@@ -31,4 +35,6 @@ public abstract class Veiculo {
     public void setLotacaoAtual(int lotacaoAtual) { this.lotacaoAtual = lotacaoAtual; }
     public Point getLocalizacaoAtual() { return localizacaoAtual; }
     public void setLocalizacaoAtual(Point localizacaoAtual) { this.localizacaoAtual = localizacaoAtual; }
+    public Linha getLinha() { return linha; }
+    public void setLinha(Linha linha) { this.linha = linha; }
 }

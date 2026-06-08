@@ -10,6 +10,8 @@ public class VeiculoDTO {
     private int lotacaoAtual;
     private PointDTO localizacaoAtual;
     private String tipo;
+    private Long linhaId;
+    private String linhaNome;
 
     public VeiculoDTO() {}
 
@@ -25,4 +27,8 @@ public class VeiculoDTO {
     public void setLocalizacaoAtual(PointDTO localizacaoAtual) { this.localizacaoAtual = localizacaoAtual; }
     public String getTipo() { return tipo; }
     public void setTipo(String tipo) { this.tipo = tipo; }
+    public Long getLinhaId() { return linhaId; }
+    public void setLinhaId(Long linhaId) { this.linhaId = linhaId; }
+    public String getLinhaNome() { return linhaNome; }
+    public void setLinhaNome(String linhaNome) { this.linhaNome = linhaNome; }
 }

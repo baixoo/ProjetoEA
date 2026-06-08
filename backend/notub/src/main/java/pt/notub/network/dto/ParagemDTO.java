@@ -5,6 +5,8 @@ public class ParagemDTO {
     private Long id;
     private String nome;
     private PointDTO localizacao;
+    private Integer zonaNum;
+    private String zonaNome;
 
     public ParagemDTO() {}
 
@@ -14,4 +16,8 @@ public class ParagemDTO {
     public void setNome(String nome) { this.nome = nome; }
     public PointDTO getLocalizacao() { return localizacao; }
     public void setLocalizacao(PointDTO localizacao) { this.localizacao = localizacao; }
+    public Integer getZonaNum() { return zonaNum; }
+    public void setZonaNum(Integer zonaNum) { this.zonaNum = zonaNum; }
+    public String getZonaNome() { return zonaNome; }
+    public void setZonaNome(String zonaNome) { this.zonaNome = zonaNome; }
 }

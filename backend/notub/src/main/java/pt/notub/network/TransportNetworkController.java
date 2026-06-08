@@ -3,17 +3,19 @@ package pt.notub.network;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pt.notub.common.mapper.*;
-import pt.notub.network.dto.RotaDTO;
-import pt.notub.models.*;
 import pt.notub.network.dto.*;
-import pt.notub.network.RoutePlanningService;
-import pt.notub.network.TransportNetworkService;
+import pt.notub.models.*;
 
+import java.time.DayOfWeek;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/network")
 public class TransportNetworkController {
+
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
     private final TransportNetworkService networkService;
     private final RoutePlanningService routePlanningService;
@@ -73,13 +75,46 @@ public class TransportNetworkController {
     }
 
     @GetMapping("/route")
-    public ResponseEntity<RotaDTO> planearRota(
+    public ResponseEntity<List<RotaDTO>> planearRota(
             @RequestParam Long from,
-            @RequestParam Long to) {
-        RotaDTO rota = routePlanningService.planearRota(from, to);
-        if (rota == null) {
+            @RequestParam Long to,
+            @RequestParam(required = false) String time,
+            @RequestParam(required = false) String day) {
+
+        LocalTime queryTime = time != null ? LocalTime.parse(time, TIME_FMT) : LocalTime.now();
+        DayOfWeek dayOfWeek = day != null ? DayOfWeek.valueOf(day.toUpperCase()) : java.time.LocalDate.now().getDayOfWeek();
+
+        List<RotaDTO> rotas = routePlanningService.planearRota(from, to, queryTime, dayOfWeek);
+        if (rotas.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(rota);
+        return ResponseEntity.ok(rotas);
+    }
+
+    @GetMapping("/trajetos/{trajetoId}/proximos-passes")
+    public ResponseEntity<List<ProximoPasseDTO>> getProximosPasses(
+            @PathVariable Long trajetoId,
+            @RequestParam Long paragemId,
+            @RequestParam(required = false) String time,
+            @RequestParam(required = false) String day) {
+
+        LocalTime queryTime = time != null ? LocalTime.parse(time, TIME_FMT) : LocalTime.now();
+        DayOfWeek dayOfWeek = day != null ? DayOfWeek.valueOf(day.toUpperCase()) : java.time.LocalDate.now().getDayOfWeek();
+
+        return ResponseEntity.ok(routePlanningService.findProximosPasses(trajetoId, paragemId, queryTime, dayOfWeek));
+    }
+
+    @GetMapping("/linhas/{linhaId}/horarios")
+    public ResponseEntity<List<HorarioDTO>> getHorarios(
+            @PathVariable Long linhaId,
+            @RequestParam(defaultValue = "UTEIS") String serviceId) {
+        return ResponseEntity.ok(routePlanningService.findHorarios(linhaId, serviceId));
+    }
+
+    @GetMapping("/linhas/{linhaId}/horarios-paragens")
+    public ResponseEntity<List<HorarioParagemDTO>> getHorariosPorParagem(
+            @PathVariable Long linhaId,
+            @RequestParam(defaultValue = "UTEIS") String serviceId) {
+        return ResponseEntity.ok(routePlanningService.findHorariosPorParagem(linhaId, serviceId));
     }
 }

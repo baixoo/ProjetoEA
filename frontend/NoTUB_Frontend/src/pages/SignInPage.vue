@@ -102,7 +102,7 @@ async function handleLogin() {
   loading.value = true
   try {
     await authStore.login(email.value, password.value)
-    router.push('/home')
+    await router.replace({ name: 'home' })
   } catch (e) {
     error.value = e.message || 'Erro ao iniciar sessao'
   } finally {

@@ -50,6 +50,23 @@ export const useDriverStore = defineStore('driver', () => {
     }
   }
 
+  async function fetchTrajetos(linhaId) {
+    if (!authStore.token) return
+    try {
+      const url = linhaId
+        ? `/api/driver/trajetos?linhaId=${linhaId}`
+        : '/api/driver/trajetos'
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${authStore.token}` }
+      })
+      if (!response.ok) throw new Error('Falha ao obter trajetos')
+      trajetos.value = await response.json()
+    } catch (e) {
+      error.value = e.message
+      console.error(e)
+    }
+  }
+
   function connectWebSocket(veiculoId) {
     disconnectWebSocket()
     selectedVehicleId.value = veiculoId
@@ -100,20 +117,7 @@ export const useDriverStore = defineStore('driver', () => {
     notifications.value = []
     activeTrips.value = []
     activeViagemVeiculo.value = null
-  }
-
-  async function fetchTrajetos() {
-    if (!authStore.token) return
-    try {
-      const response = await fetch('/api/driver/trajetos', {
-        headers: { Authorization: `Bearer ${authStore.token}` }
-      })
-      if (!response.ok) throw new Error('Falha ao obter trajetos')
-      trajetos.value = await response.json()
-    } catch (e) {
-      error.value = e.message
-      console.error(e)
-    }
+    trajetos.value = []
   }
 
   async function startViagem(veiculoId, trajetoId) {

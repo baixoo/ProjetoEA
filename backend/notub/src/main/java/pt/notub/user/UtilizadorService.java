@@ -5,6 +5,7 @@ import pt.notub.exception.RecursoNaoEncontradoException;
 import pt.notub.models.TipoUtilizador;
 import pt.notub.models.Utilizador;
 import pt.notub.repositories.UtilizadorRepository;
+import pt.notub.validation.NifValidator;
 
 import java.time.LocalDate;
 import java.time.Period;
@@ -45,9 +46,25 @@ public class UtilizadorService {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
 
-        if (updated.getPrimeiroNome() != null) utilizador.setPrimeiroNome(updated.getPrimeiroNome());
-        if (updated.getUltimoNome() != null) utilizador.setUltimoNome(updated.getUltimoNome());
+        if (updated.getPrimeiroNome() != null) {
+            if (!updated.getPrimeiroNome().matches("^[a-zA-ZÀ-ÿ]+$")) {
+                throw new IllegalArgumentException("O primeiro nome deve conter apenas letras");
+            }
+            utilizador.setPrimeiroNome(updated.getPrimeiroNome());
+        }
+        if (updated.getUltimoNome() != null) {
+            if (!updated.getUltimoNome().matches("^[a-zA-ZÀ-ÿ\\s]*$")) {
+                throw new IllegalArgumentException("O ultimo nome deve conter apenas letras e espacos");
+            }
+            utilizador.setUltimoNome(updated.getUltimoNome());
+        }
         if (updated.getDataNascimento() != null) {
+            if (updated.getDataNascimento().isAfter(LocalDate.now())) {
+                throw new IllegalArgumentException("A data de nascimento nao pode ser futura");
+            }
+            if (updated.getDataNascimento().isBefore(LocalDate.of(1900, 1, 1))) {
+                throw new IllegalArgumentException("A data de nascimento deve ser posterior a 1900-01-01");
+            }
             utilizador.setDataNascimento(updated.getDataNascimento());
             utilizador.setTipoUtilizador(calcularTipoUtilizador(updated.getDataNascimento()));
         }
@@ -57,6 +74,9 @@ public class UtilizadorService {
             novoNif = null;
         }
         if (novoNif != null) {
+            if (!NifValidator.isValid(novoNif)) {
+                throw new IllegalArgumentException("NIF invalido");
+            }
             String nifAtual = utilizador.getNif();
             if (!novoNif.equals(nifAtual) && utilizadorRepository.existsByNif(novoNif)) {
                 throw new IllegalArgumentException("NIF ja em uso!");

@@ -20,6 +20,10 @@ public final class VeiculoMapper {
         dto.setLotacaoAtual(v.getLotacaoAtual());
         dto.setLocalizacaoAtual(toPointDTO(v.getLocalizacaoAtual()));
         dto.setTipo(v.getClass().getSimpleName());
+        if (v.getLinha() != null) {
+            dto.setLinhaId(v.getLinha().getId());
+            dto.setLinhaNome(v.getLinha().getNome());
+        }
         return dto;
     }
 
