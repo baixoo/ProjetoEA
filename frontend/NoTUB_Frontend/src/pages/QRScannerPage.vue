@@ -120,28 +120,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Guia Card -->
-        <!-- <div class="info-card guide-card">
-          <div class="card-header">
-            <q-icon name="help_outline" size="20px" class="card-icon" />
-            <span class="card-title">Como Validar?</span>
-          </div>
-          <div class="guide-steps">
-            <div class="step-item">
-              <div class="step-num">1</div>
-              <p class="step-text">Aponte a câmara para o código QR do veículo.</p>
-            </div>
-            <div class="step-item">
-              <div class="step-num">2</div>
-              <p class="step-text">Selecione o bilhete ou passe a utilizar no ecrã.</p>
-            </div>
-            <div class="step-item">
-              <div class="step-num">3</div>
-              <p class="step-text">Confirme e boa viagem!</p>
-            </div>
-          </div>
-        </div> -->
       </div> 
     </div> 
 
@@ -445,7 +423,7 @@ async function detectNearestStop() {
       scanLocked.value = false
       startScanner()
       return
-}
+    }
 
     if (!resp.ok) {
       fallbackStop()
@@ -470,16 +448,6 @@ function fallbackStop() {
   boardingOpen.value = true
 }
 
-// function haversineKm(lat1, lng1, lat2, lng2) {
-//   const R = 6371
-//   const toRad = (deg) => deg * Math.PI / 180
-//   const dLat = toRad(lat2 - lat1)
-//   const dLng = toRad(lng2 - lng1)
-//   const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-//   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-// }
-
-// Expose simulation helper globally for tests/automation
 if (typeof window !== 'undefined') {
   window.simulateQRScan = (text) => {
     handleScannedCode(text)

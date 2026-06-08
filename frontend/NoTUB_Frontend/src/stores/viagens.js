@@ -147,6 +147,24 @@ export const useViagensStore = defineStore('viagens', () => {
     }
   }
 
+  async function fetchZonasVeiculo(viagemVeiculoId, paragemId) {
+
+    const authStore_local = useAuthStore()
+    const tokenAtual = authStore_local.token
+
+    if (!tokenAtual) throw new Error('Não autenticado')
+    try {
+      const response = await fetch(`/api/viagens/veiculo/${viagemVeiculoId}/${paragemId}/zona_min_max`, {
+        headers: { Authorization: `Bearer ${tokenAtual}` }
+      })
+      if (!response.ok) throw new Error('Falha ao obter zonas do trajeto')
+      return await response.json() 
+    } catch (e) {
+      console.error(e)
+      throw e
+    }
+  }
+
   return {
     activeTrip,
     stops,
@@ -160,6 +178,7 @@ export const useViagensStore = defineStore('viagens', () => {
     fetchZones,
     startTrip,
     endTrip,
-    validateTicket
+    validateTicket,
+    fetchZonasVeiculo
   }
 })

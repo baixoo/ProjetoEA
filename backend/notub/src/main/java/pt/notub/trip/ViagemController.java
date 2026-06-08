@@ -132,4 +132,39 @@ public class ViagemController {
 
         return ResponseEntity.ok(Map.of("paragemId", maisProximo.getParagem().getId()));
     }
+
+    // Função que me vai dar a zona maxima e mínima de uma determinada viagem
+    @GetMapping("/veiculo/{viagemVeiculoId}/{paragemId}/zona_min_max")
+    public ResponseEntity<?> getZonaMinMax(@PathVariable Long viagemVeiculoId, @PathVariable Long paragemId) {
+        Optional<ViagemVeiculo> viagemOpt = viagemService.getViagemVeiculoById(viagemVeiculoId);
+        
+        if (viagemOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        ViagemVeiculo viagem = viagemOpt.get();
+
+        List<PontosDePassagem> pontos = viagem.getTrajeto()
+            .getPontosDePassagem()
+            .stream()
+            .filter(p -> p.getParagem() != null)
+            .toList();
+
+        if (pontos.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        int zonaMin = pontos.stream()
+            .mapToInt(p -> p.getParagem().getZona().getNum())
+            .min()
+            .orElse(0);
+
+        int zonaMax = pontos.stream()
+            .mapToInt(p -> p.getParagem().getZona().getNum())
+            .max()
+            .orElse(0);
+
+        return ResponseEntity.ok(Map.of("zonaMin", zonaMin, "zonaMax", zonaMax));
+    }
+    
 }

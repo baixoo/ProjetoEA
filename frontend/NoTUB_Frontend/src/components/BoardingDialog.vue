@@ -33,9 +33,16 @@
             </div>
           </div>
 
+          <div v-if="zonaMin !== null" class="zone-range">
+            <q-icon name="map" size="14px" color="green-8" />
+            <span>Zonas {{ zonaMin }}
+              <span v-if="zonaMax !== zonaMin"> — {{ zonaMax }}</span>
+            </span>
+          </div>
+
           <div class="route-preview-rail">
             <template v-for="(item, index) in routePreviewItems" :key="item.key">
-              <div v-if="item.type === 'ellipsis'" class="route-stop-ellipsis">- - -&gt;</div>
+              <div v-if="item.type === 'ellipsis'" class="route-connector route-stop-ellipsis"></div>
               <div v-else class="route-stop" :class="{
                 'route-stop--first': item.kind === 'first',
                 'route-stop--current': item.kind === 'current',
@@ -121,217 +128,192 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useTicketsStore } from 'src/stores/tickets'
-import { useViagensStore } from 'src/stores/viagens'
-import { useAuthStore } from 'src/stores/auth'
+  import { ref, computed, watch, onMounted } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { useTicketsStore } from 'src/stores/tickets'
+  import { useViagensStore } from 'src/stores/viagens'
 
-const useAuthStore_inst = useAuthStore()
+  const props = defineProps({
+    modelValue: { type: Boolean, required: true },
+    busNumber: { type: String, default: '' },
+    viagemVeiculoId: { type: [Number, String], default: null },
+    paragemEntradaId: { type: [Number, String], default: null }
+  })
 
-const props = defineProps({
-  modelValue: { type: Boolean, required: true },
-  busNumber: { type: String, default: '' },
-  viagemVeiculoId: { type: [Number, String], default: null },
-  paragemEntradaId: { type: [Number, String], default: null }
-})
+  const emit = defineEmits(['update:modelValue', 'tripStarted'])
+  const router = useRouter()
+  const ticketsStore = useTicketsStore()
+  const viagensStore = useViagensStore()
 
-const emit = defineEmits(['update:modelValue', 'tripStarted'])
-const router = useRouter()
-const ticketsStore = useTicketsStore()
-const viagensStore = useViagensStore()
+  const isOpen = ref(props.modelValue)
+  const loading = ref(false)
+  const submitting = ref(false)
+  const errorMsg = ref('')
+  const selectedType = ref(null)
+  const ticketQty = ref(1)
+  const showRoutePreview = ref(true)
 
-const isOpen = ref(props.modelValue)
-const loading = ref(false)
-const submitting = ref(false)
-const errorMsg = ref('')
-const selectedType = ref(null)
-const ticketQty = ref(1)
-const showRoutePreview = ref(true)
+  const zonaMin = ref(null)
+  const zonaMax = ref(null)
 
-const linhaNome = computed(() => {
-  const vt = (viagensStore.vehicleTrips || []).find(v => v.id == props.viagemVeiculoId)
-  return vt?.trajeto?.linha?.nome || ''
-})
+  const linhaNome = computed(() => {
+    const vt = (viagensStore.vehicleTrips || []).find(v => v.id == props.viagemVeiculoId)
+    return vt?.trajeto?.linha?.nome || ''
+  })
 
-const stopName = computed(() => {
-  if (!props.paragemEntradaId) return ''
-  const stop = (viagensStore.stops || []).find(s => s.id == props.paragemEntradaId)
-  return stop?.nome || ''
-})
+  const stopName = computed(() => {
+    if (!props.paragemEntradaId) return ''
+    const stop = (viagensStore.stops || []).find(s => s.id == props.paragemEntradaId)
+    return stop?.nome || ''
+  })
 
-const selectedTrip = computed(() => {
-  return (viagensStore.vehicleTrips || []).find(v => v.id == props.viagemVeiculoId) || null
-})
+  const selectedTrip = computed(() => {
+    return (viagensStore.vehicleTrips || []).find(v => v.id == props.viagemVeiculoId) || null
+  })
 
-const routePreviewLineLabel = computed(() => {
-  return selectedTrip.value?.trajeto?.linha?.nome || ''
-})
+  const routePreviewLineLabel = computed(() => {
+    return selectedTrip.value?.trajeto?.linha?.nome || ''
+  })
 
-const routePreviewItems = computed(() => {
-  const pontos = [...(selectedTrip.value?.trajeto?.pontosDePassagem || [])]
-    .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
-    .map(ponto => ({ id: ponto.paragem?.id ?? null, name: ponto.paragem?.nome || 'Paragem' }))
-    .filter(stop => stop.id !== null)
+  const routePreviewItems = computed(() => {
+    const pontos = [...(selectedTrip.value?.trajeto?.pontosDePassagem || [])]
+      .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+      .map(ponto => ({ id: ponto.paragem?.id ?? null, name: ponto.paragem?.nome || 'Paragem' }))
+      .filter(stop => stop.id !== null)
 
-  if (!pontos.length) {
-    return stopName.value
-      ? [{ key: 'current-fallback', type: 'stop', kind: 'current', name: stopName.value }]
-      : []
-  }
-
-  const currentIndex = pontos.findIndex(s => Number(s.id) === Number(props.paragemEntradaId))
-  const cur = currentIndex >= 0 ? currentIndex : 0
-  const last = pontos[pontos.length - 1]
-
-  const items = []
-  const pushStop = (stop, kind) => items.push({ key: `${kind}-${stop.id}`, type: 'stop', kind, name: stop.name })
-  const pushEllipsis = (key) => items.push({ key, type: 'ellipsis' })
-
-  pushStop(pontos[cur], 'current')
-
-  let added = 0
-  for (let i = cur + 1; i < pontos.length - 1 && added < 2; i++) {
-    pushStop(pontos[i], 'middle')
-    added++
-  }
-
-  const lastShownIndex = cur + 1 + added - 1
-  if (lastShownIndex < pontos.length - 2) {
-    pushEllipsis('ellipsis-right')
-  }
-
-  // Última paragem sempre (se não for a atual)
-  if (last.id !== pontos[cur].id) {
-    pushStop(last, 'last')
-  }
-
-  return items
-})
-
-watch(() => props.modelValue, (val) => {
-  if (val) {
-    console.log('BoardingDialog abriu. Props:', {
-      viagemVeiculoId: props.viagemVeiculoId,
-      paragemEntradaId: props.paragemEntradaId,
-      busNumber: props.busNumber
-    })
-    console.log('selectedTrip encontrado:', selectedTrip.value)
-    console.log('routePreviewItems:', routePreviewItems.value)
-  }
-  isOpen.value = val
-  if (val) {
-    showRoutePreview.value = true
-    loadTitulos()
-  }
-})
-
-watch(isOpen, (val) => emit('update:modelValue', val))
-
-async function loadTitulos() {
-  loading.value = true
-  errorMsg.value = ''
-  selectedType.value = null
-  ticketQty.value = 1
-  try {
-    await Promise.all([ticketsStore.fetchMyTickets(), ticketsStore.fetchMyPass()])
-  } catch {
-    errorMsg.value = 'Erro ao carregar titulos.'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => { if (isOpen.value) loadTitulos() })
-
-const activePass = computed(() => ticketsStore.activePass)
-const hasActivePass = computed(() => !!activePass.value)
-const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
-const unusedTicketsCount = computed(() => unusedTickets.value.length)
-
-function closeDialog() {
-  isOpen.value = false
-}
-
-async function confirmSelection() {
-  submitting.value = true
-  errorMsg.value = ''
-  try {
-    if (!hasActivePass.value && unusedTicketsCount.value === 0) {
-      errorMsg.value = 'Nao tem bilhetes nem passe ativos disponiveis.'
-      return
+    if (!pontos.length) {
+      return stopName.value
+        ? [{ key: 'current-fallback', type: 'stop', kind: 'current', name: stopName.value }]
+        : []
     }
 
-    if (!selectedType.value) {
-      errorMsg.value = 'Selecione um bilhete ou passe para continuar.'
-      return
+    const currentIndex = pontos.findIndex(s => Number(s.id) === Number(props.paragemEntradaId))
+    const cur = currentIndex >= 0 ? currentIndex : 0
+    const last = pontos[pontos.length - 1]
+
+    const items = []
+    const pushStop = (stop, kind) => items.push({ key: `${kind}-${stop.id}`, type: 'stop', kind, name: stop.name })
+    const pushEllipsis = (key) => items.push({ key, type: 'ellipsis' })
+
+    pushStop(pontos[cur], 'current')
+
+    let added = 0
+    for (let i = cur + 1; i < pontos.length - 1 && added < 2; i++) {
+      pushStop(pontos[i], 'middle')
+      added++
     }
 
-    if (props.paragemEntradaId) {
-      try {
-        const pos = await new Promise((resolve) => {
-          if (!navigator.geolocation) {
-            resolve(null)
-            return
-          }
-          navigator.geolocation.getCurrentPosition(
-            p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-            () => resolve(null),
-            { timeout: 5000 }
-          )
-        })
-
-        if (pos) {
-          const geoResp = await fetch('/api/geo/verificar', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${useAuthStore_inst.token}`
-            },
-            body: JSON.stringify({
-              paragemId: props.paragemEntradaId,
-              latitude: pos.lat,
-              longitude: pos.lng
-            })
-          })
-          if (geoResp.ok) {
-            const geoData = await geoResp.json()
-            if (!geoData.proximo) {
-              errorMsg.value = 'Nao esta proximo da paragem selecionada. A verificacao geografica falhou.'
-              submitting.value = false
-              return
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Geo verification skipped:', e)
-      }
+    const lastShownIndex = cur + 1 + added - 1
+    if (lastShownIndex < pontos.length - 2) {
+      pushEllipsis('ellipsis-right')
     }
 
-    if (selectedType.value === 'passe') {
-      await viagensStore.startTrip(activePass.value.id, props.paragemEntradaId, props.viagemVeiculoId)
-    } else if (selectedType.value === 'bilhete') {
-      for (let i = 0; i < ticketQty.value; i++) {
-        const ticket = unusedTickets.value[i]
-        if (!ticket) break
-        await viagensStore.startTrip(ticket.id, props.paragemEntradaId, props.viagemVeiculoId)
-      }
+    if (last.id !== pontos[cur].id) {
+      pushStop(last, 'last')
     }
-    emit('tripStarted', { message: 'Viagem iniciada com sucesso!' })
+
+    return items
+  })
+
+  const activePass = computed(() => ticketsStore.activePass)
+  const hasActivePass = computed(() => !!activePass.value)
+  const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
+  const unusedTicketsCount = computed(() => unusedTickets.value.length)
+
+  async function loadTitulos() {
+    loading.value = true
+    errorMsg.value = ''
+    selectedType.value = null
+    ticketQty.value = 1
+    try {
+      await Promise.all([ticketsStore.fetchMyTickets(), ticketsStore.fetchMyPass()])
+    } catch {
+      errorMsg.value = 'Erro ao carregar titulos.'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loadZonas() {
+    if (!props.viagemVeiculoId) return
+    try {
+      const data = await viagensStore.fetchZonasVeiculo(props.viagemVeiculoId)
+      zonaMin.value = data.zonaMin
+      zonaMax.value = data.zonaMax
+    } catch (e) {
+      console.warn('Erro ao carregar zonas no ecrã:', e)
+      zonaMin.value = null
+      zonaMax.value = null
+    }
+  }
+
+  function closeDialog() {
     isOpen.value = false
-    router.push('/traveling')
-  } catch (e) {
-    errorMsg.value = e.message || 'Erro ao iniciar viagem.'
-  } finally {
-    submitting.value = false
   }
-}
 
-function goToShop() {
-  isOpen.value = false
-  router.push('/tickets')
-}
-</script>
+  async function confirmSelection() {
+    submitting.value = true
+    errorMsg.value = ''
+    try {
+      if (!hasActivePass.value && unusedTicketsCount.value === 0) {
+        errorMsg.value = 'Nao tem bilhetes nem passe ativos disponiveis.'
+        return
+      }
+
+      if (!selectedType.value) {
+        errorMsg.value = 'Selecione um bilhete ou passe para continuar.'
+        return
+      }
+
+      if (selectedType.value === 'passe') {
+        await viagensStore.startTrip(activePass.value.id, props.paragemEntradaId, props.viagemVeiculoId)
+      } else if (selectedType.value === 'bilhete') {
+        for (let i = 0; i < ticketQty.value; i++) {
+          const ticket = unusedTickets.value[i]
+          if (!ticket) break
+          await viagensStore.startTrip(ticket.id, props.paragemEntradaId, props.viagemVeiculoId)
+        }
+      }
+      emit('tripStarted', { message: 'Viagem iniciada com sucesso!' })
+      isOpen.value = false
+      router.push('/traveling')
+    } catch (e) {
+      errorMsg.value = e.message || 'Erro ao iniciar viagem.'
+    } finally {
+      submitting.value = false
+    }
+  }
+
+  function goToShop() {
+    isOpen.value = false
+    router.push('/tickets')
+  }
+
+  watch(() => props.modelValue, (val) => {
+    isOpen.value = val
+
+    if (val) {
+      console.log('BoardingDialog abriu. Props:', {
+        viagemVeiculoId: props.viagemVeiculoId,
+        paragemEntradaId: props.paragemEntradaId,
+        busNumber: props.busNumber
+      })
+      
+      showRoutePreview.value = true
+      loadTitulos()
+      loadZonas() 
+    }
+  })
+
+  watch(isOpen, (val) => emit('update:modelValue', val))
+
+  onMounted(() => { 
+    if (isOpen.value) {
+      loadTitulos()
+      loadZonas()
+    }
+  })
+  </script>
 
 <script>
 export default { name: 'BoardingDialog' }
@@ -663,15 +645,12 @@ export default { name: 'BoardingDialog' }
   color: #028e5c;
 }
 
-.route-stop-ellipsis {
-  font-size: 13px;
-  color: #028e5c;
-  flex-shrink: 0;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 6px;
+.route-connector.route-stop-ellipsis {
+  background: transparent; 
+  
+  background-image: linear-gradient(to right, #028e5c 60%, transparent 40%);
+  background-size: 10px 10px;
+  background-repeat: repeat-x;
 }
 
 .route-preview-actions {
@@ -681,5 +660,15 @@ export default { name: 'BoardingDialog' }
   margin-top: 4px;
   border-top: 1px solid #f0f0f0;
   padding-top: 12px;
+}
+
+.zone-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #028e5c;
+  margin-bottom: 10px;
 }
 </style>
