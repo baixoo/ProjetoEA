@@ -126,7 +126,7 @@ const selectedStop = ref(null)
 
 const firstName = computed(() => {
   if (authStore.user?.primeiroNome) return authStore.user.primeiroNome
-  return 'Rui'
+  return ''
 })
 
 const activePassName = computed(() => {
@@ -229,7 +229,7 @@ function triggerBoarding() {
   justify-content: center;
   min-height: 100vh;
   padding: calc(var(--header-h, 42px) + 24px) var(--page-pad, 20px) calc(var(--tabbar-h, 78px) + 16px);
-  background: #f0f0f0;
+  background: #f8f9fa;
 }
 
 .home-content {

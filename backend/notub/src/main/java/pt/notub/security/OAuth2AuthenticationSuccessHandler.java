@@ -77,14 +77,6 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             String token = jwtUtils.generateTokenFromUsername(email);
             logger.info("JWT token generated for {} (length: {})", email, token.length());
 
-            jakarta.servlet.http.HttpSession session = request.getSession(false);
-            if (session != null) {
-                logger.info("Invalidating OAuth2 session: {}", session.getId());
-                session.invalidate();
-            } else {
-                logger.warn("No HTTP session found to invalidate");
-            }
-
             String redirectUrl = frontendUrl + "/oauth2/redirect?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
             logger.info("Redirecting to frontend: {}/oauth2/redirect?token=...", frontendUrl);
             getRedirectStrategy().sendRedirect(request, response, redirectUrl);

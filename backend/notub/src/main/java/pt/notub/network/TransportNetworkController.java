@@ -4,7 +4,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pt.notub.common.mapper.*;
 import pt.notub.network.dto.*;
-import pt.notub.models.*;
 
 import java.time.DayOfWeek;
 import java.time.LocalTime;
@@ -91,7 +90,7 @@ public class TransportNetworkController {
         return ResponseEntity.ok(rotas);
     }
 
-    @GetMapping("/trajetos/{trajetoId}/proximos-passes")
+    @GetMapping({"/trajetos/{trajetoId}/proximos-passes", "/trajetos/{trajetoId}/proximas-passagens"})
     public ResponseEntity<List<ProximoPasseDTO>> getProximosPasses(
             @PathVariable Long trajetoId,
             @RequestParam Long paragemId,
@@ -102,6 +101,22 @@ public class TransportNetworkController {
         DayOfWeek dayOfWeek = day != null ? DayOfWeek.valueOf(day.toUpperCase()) : java.time.LocalDate.now().getDayOfWeek();
 
         return ResponseEntity.ok(routePlanningService.findProximosPasses(trajetoId, paragemId, queryTime, dayOfWeek));
+    }
+
+    @GetMapping({"/paragens/{paragemId}/proximos-passes", "/paragens/{paragemId}/proximas-passagens"})
+    public ResponseEntity<ParagemProximasPassagensDTO> getProximasPassagensPorParagem(
+            @PathVariable Long paragemId,
+            @RequestParam(required = false) String time,
+            @RequestParam(required = false) String day) {
+
+        LocalTime queryTime = time != null ? LocalTime.parse(time, TIME_FMT) : LocalTime.now();
+        DayOfWeek dayOfWeek = day != null ? DayOfWeek.valueOf(day.toUpperCase()) : java.time.LocalDate.now().getDayOfWeek();
+
+        ParagemProximasPassagensDTO response = routePlanningService.findProximasPassagensPorParagem(paragemId, queryTime, dayOfWeek);
+        if (response == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/linhas/{linhaId}/horarios")

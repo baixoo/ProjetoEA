@@ -22,21 +22,73 @@ public class RoutePlanningService {
     private static final Logger log = LoggerFactory.getLogger(RoutePlanningService.class);
 
     private static final int TRANSFER_BUFFER_MINUTES = 2;
-    private static final double WALKING_SPEED_KMH = 3.0;
+    private static final double WALKING_SPEED_KMH = 4.0;
     private static final double MAX_WALKING_DISTANCE_KM = 1.0;
-    private static final int MAX_WAIT_MINUTES = 180;
+    private static final int MAX_WAIT_MINUTES = 65;
     private static final int MAX_RESULTS = 3;
-    private static final int MAX_TRANSFERS = 2;
-    private static final int MAX_STATES = 2000;
-    private static final double MAX_BUS_SPEED_KMH = 40.0;
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
-    private static final double NEARBY_RADIUS_KM = 0.5;
     private static final int MAX_NEARBY = 5;
 
-    private record State(long paragemId, long trajetoId) {}
-
     private record WalkEdge(long toId, int minutes) {}
+
+    private enum LegType {
+        SOURCE,
+        WALK,
+        RIDE
+    }
+
+    private static final class Label {
+        private final Long stopId;
+        private final int arrivalMinutes;
+        private final int rideCount;
+        private final Set<Integer> zoneNums;
+        private final Label previous;
+        private final LegType legType;
+        private final Long trajetoId;
+        private final int departureMinutes;
+        private final int boardIndex;
+        private final int alightIndex;
+        private final int walkMinutes;
+
+        private Label(Long stopId,
+                      int arrivalMinutes,
+                      int rideCount,
+                      Set<Integer> zoneNums,
+                      Label previous,
+                      LegType legType,
+                      Long trajetoId,
+                      int departureMinutes,
+                      int boardIndex,
+                      int alightIndex,
+                      int walkMinutes) {
+            this.stopId = stopId;
+            this.arrivalMinutes = arrivalMinutes;
+            this.rideCount = rideCount;
+            this.zoneNums = immutableZones(zoneNums);
+            this.previous = previous;
+            this.legType = legType;
+            this.trajetoId = trajetoId;
+            this.departureMinutes = departureMinutes;
+            this.boardIndex = boardIndex;
+            this.alightIndex = alightIndex;
+            this.walkMinutes = walkMinutes;
+        }
+    }
+
+    private static final class BoardingCandidate {
+        private final Label boardLabel;
+        private final int boardIndex;
+        private final int depAbsolute;
+        private final int departureAtBoard;
+
+        private BoardingCandidate(Label boardLabel, int boardIndex, int depAbsolute, int departureAtBoard) {
+            this.boardLabel = boardLabel;
+            this.boardIndex = boardIndex;
+            this.depAbsolute = depAbsolute;
+            this.departureAtBoard = departureAtBoard;
+        }
+    }
 
     private final PontosDePassagemRepository pontosRepo;
     private final TrajetoRepository trajetoRepo;
@@ -49,11 +101,13 @@ public class RoutePlanningService {
     private Map<Long, List<PontosDePassagem>> trajetoPontosMap;
     private Map<Long, String> destinoFinalMap;
     private Map<Long, Map<Long, Integer>> trajetoOffsetMap;
+    private Map<Long, Map<Long, Integer>> trajetoStopIndexMap;
     private Map<Long, List<PontosDePassagem>> paragemToPontos;
+    private Map<Long, Set<Long>> paragemToTrajetoIds;
     private Map<Long, Long> pontoToTrajeto;
     private Map<String, Map<Long, List<Viagem>>> viagensByServiceAndTrajeto;
-    private Set<String> transferNamesSet;
     private Map<Long, List<WalkEdge>> nearbyStopsMap;
+    private Map<Integer, String> zoneNameByNum;
 
     public RoutePlanningService(PontosDePassagemRepository pontosRepo,
                                 TrajetoRepository trajetoRepo,
@@ -79,11 +133,15 @@ public class RoutePlanningService {
 
         paragemCache = new HashMap<>();
         nomeToIds = new HashMap<>();
+        zoneNameByNum = new TreeMap<>();
         for (PontosDePassagem p : allPontos) {
             if (p.getParagem() != null) {
-                paragemCache.putIfAbsent(p.getParagem().getId(), p.getParagem());
-                nomeToIds.computeIfAbsent(p.getParagem().getNome(), k -> new HashSet<>())
-                        .add(p.getParagem().getId());
+                Paragem paragem = p.getParagem();
+                paragemCache.putIfAbsent(paragem.getId(), paragem);
+                nomeToIds.computeIfAbsent(paragem.getNome(), k -> new HashSet<>()).add(paragem.getId());
+                if (paragem.getZona() != null) {
+                    zoneNameByNum.putIfAbsent(paragem.getZona().getNum(), paragem.getZona().getNome());
+                }
             }
         }
 
@@ -104,21 +162,32 @@ public class RoutePlanningService {
         }
 
         trajetoOffsetMap = new HashMap<>();
+        trajetoStopIndexMap = new HashMap<>();
         paragemToPontos = new HashMap<>();
+        paragemToTrajetoIds = new HashMap<>();
         pontoToTrajeto = new HashMap<>();
         for (var entry : trajetoPontosMap.entrySet()) {
             Long trajetoId = entry.getKey();
             Map<Long, Integer> offsets = new HashMap<>();
-            for (PontosDePassagem p : entry.getValue()) {
-                offsets.put(p.getParagem().getId(), p.getTempoDesdeInicio());
-                paragemToPontos.computeIfAbsent(p.getParagem().getId(), k -> new ArrayList<>()).add(p);
+            Map<Long, Integer> stopIndices = new HashMap<>();
+            List<PontosDePassagem> pontos = entry.getValue();
+            for (int i = 0; i < pontos.size(); i++) {
+                PontosDePassagem p = pontos.get(i);
+                if (p.getParagem() == null) continue;
+                Long stopId = p.getParagem().getId();
+                offsets.put(stopId, p.getTempoDesdeInicio());
+                stopIndices.putIfAbsent(stopId, i);
+                paragemToPontos.computeIfAbsent(stopId, k -> new ArrayList<>()).add(p);
+                paragemToTrajetoIds.computeIfAbsent(stopId, k -> new HashSet<>()).add(trajetoId);
                 pontoToTrajeto.put(p.getId(), trajetoId);
             }
             trajetoOffsetMap.put(trajetoId, offsets);
+            trajetoStopIndexMap.put(trajetoId, stopIndices);
         }
 
         viagensByServiceAndTrajeto = new HashMap<>();
         for (Viagem v : allViagens) {
+            if (v.getTrajeto() == null || v.getHoraPartida() == null || v.getServiceId() == null) continue;
             viagensByServiceAndTrajeto
                     .computeIfAbsent(v.getServiceId(), k -> new HashMap<>())
                     .computeIfAbsent(v.getTrajeto().getId(), k -> new ArrayList<>())
@@ -127,23 +196,6 @@ public class RoutePlanningService {
         for (var outer : viagensByServiceAndTrajeto.values()) {
             for (var list : outer.values()) {
                 list.sort(Comparator.comparing(Viagem::getHoraPartida));
-            }
-        }
-
-        transferNamesSet = new HashSet<>();
-        for (Map.Entry<String, Set<Long>> entry : nomeToIds.entrySet()) {
-            String nomeParagem = entry.getKey();
-            Set<Long> idsDoGrupo = entry.getValue();
-
-            Set<Long> trajetosNoGrupo = new HashSet<>();
-            for (Long id : idsDoGrupo) {
-                for (PontosDePassagem p : paragemToPontos.getOrDefault(id, List.of())) {
-                    Long tid = pontoToTrajeto.get(p.getId());
-                    if (tid != null) trajetosNoGrupo.add(tid);
-                }
-            }
-            if (trajetosNoGrupo.size() >= 2) {
-                transferNamesSet.add(nomeParagem);
             }
         }
 
@@ -157,10 +209,10 @@ public class RoutePlanningService {
                 if (p2.getId().equals(p1.getId()) || p2.getLocalizacao() == null) continue;
                 double dlat = p2.getLocalizacao().getLatitude() - p1.getLocalizacao().getLatitude();
                 double dlon = p2.getLocalizacao().getLongitude() - p1.getLocalizacao().getLongitude();
-                if (Math.abs(dlat) > 0.01 || Math.abs(dlon) > 0.02) continue;
+                if (Math.abs(dlat) > 0.02 || Math.abs(dlon) > 0.03) continue;
                 double dist = haversineKm(p1.getLocalizacao().getLatitude(), p1.getLocalizacao().getLongitude(),
                         p2.getLocalizacao().getLatitude(), p2.getLocalizacao().getLongitude());
-                if (dist <= NEARBY_RADIUS_KM) {
+                if (dist <= MAX_WALKING_DISTANCE_KM) {
                     int walkMin = Math.max(1, (int) Math.round(dist / WALKING_SPEED_KMH * 60));
                     edges.add(new WalkEdge(p2.getId(), walkMin));
                 }
@@ -172,7 +224,7 @@ public class RoutePlanningService {
                 edgeCount += edges.size();
             }
         }
-        log.info("Built {} walk edges for {} paragens (radius={}km)", edgeCount, nearbyStopsMap.size(), NEARBY_RADIUS_KM);
+        log.info("Built {} walk edges for {} paragens", edgeCount, nearbyStopsMap.size());
 
         initialized = true;
         log.info("RoutePlanningService cache initialized in {}ms. {} paragens, {} trajetos, {} viagens grouped into {} services",
@@ -193,426 +245,391 @@ public class RoutePlanningService {
         String serviceId = resolveServiceId(dayOfWeek);
         int queryMinutes = toMinutes(queryTime);
 
-        Map<Long, List<Viagem>> viagensByTrajeto = viagensByServiceAndTrajeto.getOrDefault(serviceId, Map.of());
-
-        log.info("Planning route from={} to={} time={} day={} serviceId={} viagens={}",
-                origemId, destinoId, queryTime, dayOfWeek, serviceId, viagensByTrajeto.size());
+        log.info("Planning route from={} to={} time={} day={} serviceId={}",
+                origemId, destinoId, queryTime, dayOfWeek, serviceId);
 
         Set<Long> origemIds = expandByName(origemId);
         Set<Long> destinoIds = expandByName(destinoId);
 
-        log.debug("Expanded: origemIds={} destinoIds={}", origemIds, destinoIds);
+        List<RotaDTO> results = new ArrayList<>(findRaptorRoutes(origemIds, destinoIds, serviceId, queryMinutes));
 
-        List<RotaDTO> results = new ArrayList<>();
-        Set<String> seenRouteKeys = new HashSet<>();
-
-        Paragem origParagem = paragemCache.get(origemId);
-        Paragem destParagem = paragemCache.get(destinoId);
-        double walkDistKm = walkDistanceKm(origParagem, destParagem);
-        if (walkDistKm > 0 && walkDistKm <= MAX_WALKING_DISTANCE_KM) {
-            int walkMin = estimateWalkingMinutes(origParagem, destParagem);
-            RotaDTO walkRoute = buildWalkingRoute(origParagem, destParagem, walkMin, queryMinutes);
-            if (walkRoute != null) {
+        RotaDTO walkRoute = buildDirectWalkCandidate(origemId, destinoId, queryMinutes);
+        if (walkRoute != null) {
+            boolean transitWinsOrTies = results.stream().anyMatch(r -> r.getTotalMinutos() <= walkRoute.getTotalMinutos()
+                    && r.getNrZonas() <= walkRoute.getNrZonas());
+            if (!transitWinsOrTies) {
                 results.add(walkRoute);
-                seenRouteKeys.add("walk");
             }
         }
 
-        for (Long oid : origemIds) {
-            for (Long did : destinoIds) {
-                if (oid.equals(did)) continue;
-
-                Paragem oP = paragemCache.get(oid);
-                Paragem dP = paragemCache.get(did);
-                if (oP != null && dP != null && walkDistanceKm(oP, dP) <= MAX_WALKING_DISTANCE_KM
-                        && oP.getNome().equals(dP.getNome())) {
-                    continue;
-                }
-
-                long t0 = System.currentTimeMillis();
-                List<RotaDTO> direct = findDirectRoutes(oid, did, queryMinutes, viagensByTrajeto);
-                long directMs = System.currentTimeMillis() - t0;
-
-                for (RotaDTO r : direct) {
-                    if (seenRouteKeys.add(buildRouteKey(r))) results.add(r);
-                }
-
-                log.debug("Pair oid={} did={}: direct={} in {}ms, total={}", oid, did, direct.size(), directMs, results.size());
-
-                if (results.size() < MAX_RESULTS) {
-                    t0 = System.currentTimeMillis();
-                    List<RotaDTO> transfers = findTransferRoutes(oid, did, queryMinutes, viagensByTrajeto);
-                    long transferMs = System.currentTimeMillis() - t0;
-
-                    for (RotaDTO r : transfers) {
-                        if (seenRouteKeys.add(buildRouteKey(r))) results.add(r);
-                    }
-
-                    log.debug("Pair oid={} did={}: transfers={} in {}ms, total={}", oid, did, transfers.size(), transferMs, results.size());
-                }
-
-                if (results.size() >= MAX_RESULTS * 2) break;
-            }
-            if (results.size() >= MAX_RESULTS * 2) break;
-        }
-
-        results.sort(Comparator
-                .comparingInt(RotaDTO::getTrocas)
-                .thenComparingInt(RotaDTO::getTotalMinutos));
+        results = dedupeRoutes(results);
+        results.sort(routeComparator());
 
         List<RotaDTO> finalResults = results.stream().limit(MAX_RESULTS).collect(Collectors.toList());
         log.info("Route planning complete: {} results in {}ms", finalResults.size(), System.currentTimeMillis() - start);
         return finalResults;
     }
 
-    private List<RotaDTO> findDirectRoutes(Long origemId, Long destinoId, int queryMinutes,
-                                           Map<Long, List<Viagem>> viagensByTrajeto) {
-        List<RotaDTO> directRoutes = new ArrayList<>();
+    private List<RotaDTO> findRaptorRoutes(Set<Long> origemIds, Set<Long> destinoIds, String serviceId, int queryMinutes) {
+        Map<Long, List<Viagem>> viagensByTrajeto = viagensByServiceAndTrajeto.getOrDefault(serviceId, Map.of());
+        Map<Long, List<Label>> bestLabelsByStop = new HashMap<>();
+        Map<Long, List<Label>> previousRound = new HashMap<>();
+        Set<Long> markedStops = new HashSet<>();
 
-        for (Map.Entry<Long, List<PontosDePassagem>> entry : trajetoPontosMap.entrySet()) {
-            Long trajetoId = entry.getKey();
-            List<PontosDePassagem> pontos = entry.getValue();
-
-            int origemIdx = -1, destinoIdx = -1;
-            for (int i = 0; i < pontos.size(); i++) {
-                Long pid = pontos.get(i).getParagem().getId();
-                if (pid.equals(origemId)) origemIdx = i;
-                if (pid.equals(destinoId)) destinoIdx = i;
+        for (Long origemId : origemIds) {
+            if (!paragemCache.containsKey(origemId)) continue;
+            Label source = new Label(origemId, queryMinutes, 0, zonesWithStop(Set.of(), origemId),
+                    null, LegType.SOURCE, null, -1, -1, -1, 0);
+            if (addParetoLabel(previousRound, bestLabelsByStop, source)) {
+                markedStops.add(origemId);
             }
-
-            if (origemIdx < 0 || destinoIdx <= origemIdx) continue;
-
-            int offsetOrigin = pontos.get(origemIdx).getTempoDesdeInicio();
-            int offsetDest = pontos.get(destinoIdx).getTempoDesdeInicio();
-
-            int minDepTOD = ((queryMinutes - offsetOrigin) % 1440 + 1440) % 1440;
-            LocalTime minDepTime = LocalTime.of(minDepTOD / 60, minDepTOD % 60);
-
-            Viagem nextDep = findNextDeparture(trajetoId, minDepTime, viagensByTrajeto);
-            if (nextDep == null) continue;
-
-            int depTOD = toMinutes(nextDep.getHoraPartida());
-            int depAbsolute = depTOD;
-            while (depAbsolute < queryMinutes - offsetOrigin) depAbsolute += 1440;
-
-            int depAtOrigin = depAbsolute + offsetOrigin;
-            int arrAtDest = depAbsolute + offsetDest;
-            int wait = depAtOrigin - queryMinutes;
-
-            if (wait > MAX_WAIT_MINUTES) continue;
-            if (wait < 0) continue;
-
-            Trajeto trajeto = trajetoCache.get(trajetoId);
-            RotaDTO.SegmentoDTO seg = buildSegmentDTO(trajetoId, trajeto, pontos, origemIdx, destinoIdx);
-            int duracao = offsetDest - offsetOrigin;
-            seg.setDuracaoMinutos(Math.max(1, duracao));
-            seg.setEsperaMinutos(wait);
-            seg.setHoraPartida(minutesToTime(depAtOrigin));
-            seg.setHoraChegada(minutesToTime(arrAtDest));
-
-            RotaDTO rota = assembleRota(List.of(seg), true);
-            rota.setTotalMinutos(arrAtDest - queryMinutes);
-            directRoutes.add(rota);
         }
 
-        directRoutes.sort(Comparator.comparingInt(RotaDTO::getTotalMinutos));
-        return directRoutes.stream().limit(MAX_RESULTS).collect(Collectors.toList());
+        if (markedStops.isEmpty()) {
+            return List.of();
+        }
+
+        markedStops.addAll(relaxFootpaths(markedStops, previousRound, bestLabelsByStop));
+
+        while (!markedStops.isEmpty()) {
+            Map<Long, Integer> routesToScan = buildRoutesToScan(markedStops);
+            if (routesToScan.isEmpty()) break;
+
+            Map<Long, List<Label>> currentRound = copyLabelMap(previousRound);
+            Set<Long> transitMarked = new HashSet<>();
+
+            for (Map.Entry<Long, Integer> entry : routesToScan.entrySet()) {
+                Long trajetoId = entry.getKey();
+                List<Viagem> viagens = viagensByTrajeto.getOrDefault(trajetoId, List.of());
+                scanRoute(trajetoId, entry.getValue(), viagens, previousRound, currentRound, bestLabelsByStop, transitMarked);
+            }
+
+            if (transitMarked.isEmpty()) break;
+
+            Set<Long> nextMarked = new HashSet<>(transitMarked);
+            nextMarked.addAll(relaxFootpaths(transitMarked, currentRound, bestLabelsByStop));
+
+            previousRound = currentRound;
+            markedStops = nextMarked;
+        }
+
+        List<Label> destinationLabels = collectDestinationLabels(destinoIds, bestLabelsByStop);
+        return destinationLabels.stream()
+                .map(label -> buildRouteFromLabel(label, queryMinutes))
+                .filter(Objects::nonNull)
+                .collect(Collectors.collectingAndThen(Collectors.toList(), routes -> {
+                    List<RotaDTO> deduped = dedupeRoutes(routes);
+                    deduped.sort(routeComparator());
+                    return deduped.stream().limit(MAX_RESULTS).collect(Collectors.toList());
+                }));
     }
 
-    private List<RotaDTO> findTransferRoutes(Long origemId, Long destinoId, int queryMinutes,
-                                             Map<Long, List<Viagem>> viagensByTrajeto) {
-
-        Paragem destParagem = paragemCache.get(destinoId);
-        Paragem origParagem = paragemCache.get(origemId);
-        double maxDistanceKm = 15.0;
-        if (destParagem != null && origParagem != null
-                && destParagem.getLocalizacao() != null && origParagem.getLocalizacao() != null) {
-            double origDestDist = haversineKm(
-                    origParagem.getLocalizacao().getLatitude(), origParagem.getLocalizacao().getLongitude(),
-                    destParagem.getLocalizacao().getLatitude(), destParagem.getLocalizacao().getLongitude());
-            maxDistanceKm = Math.max(origDestDist * 2.5, 10.0);
-        }
-
-        Map<State, Integer> bestCost = new HashMap<>();
-        Map<State, State> cameFrom = new HashMap<>();
-        Map<State, Integer> stateTrajetoDep = new HashMap<>();
-        Map<State, Integer> stateTransfersMap = new HashMap<>();
-
-        PriorityQueue<Object[]> queue = new PriorityQueue<>(Comparator.comparingInt(a -> (int) a[2]));
-
-        int initH = heuristicMinutes(origemId, destinoId);
-
-        List<PontosDePassagem> originPontos = paragemToPontos.getOrDefault(origemId, List.of());
-        for (PontosDePassagem p : originPontos) {
-            Long tid = pontoToTrajeto.get(p.getId());
-            if (tid == null) continue;
-
-            Integer offset = trajetoOffsetMap.getOrDefault(tid, Map.of()).get(origemId);
-            if (offset == null) continue;
-
-            int minDepTOD = ((queryMinutes - offset) % 1440 + 1440) % 1440;
-            LocalTime minDepTime = LocalTime.of(minDepTOD / 60, minDepTOD % 60);
-
-            Viagem nextDep = findNextDeparture(tid, minDepTime, viagensByTrajeto);
-            if (nextDep == null) continue;
-
-            int depTOD = toMinutes(nextDep.getHoraPartida());
-            int depAbsolute = depTOD;
-            while (depAbsolute < queryMinutes - offset) depAbsolute += 1440;
-
-            int costAtOrigin = depAbsolute + offset;
-            int wait = costAtOrigin - queryMinutes;
-            if (wait > MAX_WAIT_MINUTES || wait < 0) continue;
-
-            State s = new State(origemId, tid);
-            if (costAtOrigin < bestCost.getOrDefault(s, Integer.MAX_VALUE)) {
-                int fScore = costAtOrigin + initH;
-                bestCost.put(s, costAtOrigin);
-                cameFrom.put(s, null);
-                stateTrajetoDep.put(s, depAbsolute);
-                stateTransfersMap.put(s, 0);
-                queue.add(new Object[]{origemId, tid, fScore, costAtOrigin, 0});
+    private Map<Long, Integer> buildRoutesToScan(Set<Long> markedStops) {
+        Map<Long, Integer> routesToScan = new HashMap<>();
+        for (Long stopId : markedStops) {
+            for (Long trajetoId : paragemToTrajetoIds.getOrDefault(stopId, Set.of())) {
+                Integer stopIndex = trajetoStopIndexMap.getOrDefault(trajetoId, Map.of()).get(stopId);
+                if (stopIndex != null) {
+                    routesToScan.merge(trajetoId, stopIndex, Math::min);
+                }
             }
         }
+        return routesToScan;
+    }
 
-        State destState = null;
-        int explored = 0;
+    private void scanRoute(Long trajetoId,
+                           int startIndex,
+                           List<Viagem> viagens,
+                           Map<Long, List<Label>> previousRound,
+                           Map<Long, List<Label>> currentRound,
+                           Map<Long, List<Label>> bestLabelsByStop,
+                           Set<Long> markedStops) {
+        List<PontosDePassagem> pontos = trajetoPontosMap.get(trajetoId);
+        if (pontos == null || pontos.isEmpty() || viagens.isEmpty() || startIndex >= pontos.size()) return;
 
-        while (!queue.isEmpty()) {
-            Object[] current = queue.poll();
-            long currentParagemId = (long) current[0];
-            long currentTrajetoId = (long) current[1];
-            int currentGScore = (int) current[3];
-            int currentTransfers = (int) current[4];
-            explored++;
+        List<BoardingCandidate> onboard = new ArrayList<>();
+        Map<Long, Integer> offsets = trajetoOffsetMap.getOrDefault(trajetoId, Map.of());
 
-            if (explored > MAX_STATES) {
-                log.warn("Transfer search exceeded {} states, aborting, queue={}", MAX_STATES, queue.size());
-                break;
+        for (int i = startIndex; i < pontos.size(); i++) {
+            PontosDePassagem ponto = pontos.get(i);
+            if (ponto.getParagem() == null) continue;
+            Long stopId = ponto.getParagem().getId();
+            Integer stopOffset = offsets.get(stopId);
+            if (stopOffset == null) continue;
+
+            for (BoardingCandidate candidate : onboard) {
+                if (i <= candidate.boardIndex) continue;
+                int arrival = candidate.depAbsolute + stopOffset;
+                Label rideLabel = new Label(
+                        stopId,
+                        arrival,
+                        candidate.boardLabel.rideCount + 1,
+                        zonesWithRouteSegment(candidate.boardLabel.zoneNums, pontos, candidate.boardIndex, i),
+                        candidate.boardLabel,
+                        LegType.RIDE,
+                        trajetoId,
+                        candidate.departureAtBoard,
+                        candidate.boardIndex,
+                        i,
+                        0
+                );
+                if (addParetoLabel(currentRound, bestLabelsByStop, rideLabel)) {
+                    markedStops.add(stopId);
+                }
             }
 
-            State cs = new State(currentParagemId, currentTrajetoId);
-            if (currentGScore > bestCost.getOrDefault(cs, Integer.MAX_VALUE)) continue;
-
-            if (destState != null && currentGScore > bestCost.getOrDefault(destState, Integer.MAX_VALUE)) {
-                break;
-            }
-
-            if (currentParagemId == destinoId) {
-                if (destState == null || currentGScore < bestCost.getOrDefault(destState, Integer.MAX_VALUE)) {
-                    bestCost.put(cs, currentGScore);
-                    destState = cs;
-                }
-                continue;
-            }
-
-            List<PontosDePassagem> trajetoPontos = trajetoPontosMap.get(currentTrajetoId);
-            if (trajetoPontos == null) continue;
-
-            int currentIdx = -1;
-            for (int i = 0; i < trajetoPontos.size(); i++) {
-                if (trajetoPontos.get(i).getParagem().getId().equals(currentParagemId)) {
-                    currentIdx = i;
-                    break;
+            List<Label> boardLabels = previousRound.getOrDefault(stopId, List.of());
+            for (Label boardLabel : boardLabels) {
+                BoardingCandidate candidate = findBoardingCandidate(viagens, stopOffset, boardLabel, i);
+                if (candidate != null && onboard.stream().noneMatch(existing -> sameBoardingCandidate(existing, candidate))) {
+                    onboard.add(candidate);
                 }
             }
-            if (currentIdx < 0) continue;
+        }
+    }
 
-            int depAbsolute = stateTrajetoDep.getOrDefault(cs, currentGScore - trajetoOffsetMap.getOrDefault(currentTrajetoId, Map.of()).getOrDefault(currentParagemId, 0));
+    private BoardingCandidate findBoardingCandidate(List<Viagem> viagens, int stopOffset, Label boardLabel, int boardIndex) {
+        int boardReady = boardLabel.arrivalMinutes + (boardLabel.rideCount > 0 ? TRANSFER_BUFFER_MINUTES : 0);
+        int minDepTOD = Math.floorMod(boardReady - stopOffset, 1440);
+        LocalTime minDepTime = LocalTime.of(minDepTOD / 60, minDepTOD % 60);
 
-            for (int i = currentIdx + 1; i < trajetoPontos.size(); i++) {
-                PontosDePassagem next = trajetoPontos.get(i);
-                long nextParagemId = next.getParagem().getId();
-                Paragem nextParagem = paragemCache.get(nextParagemId);
-                if (nextParagem == null) continue;
+        Viagem trip = findNextDeparture(viagens, minDepTime);
+        if (trip == null) return null;
 
-                boolean isTransferStop = transferNamesSet.contains(nextParagem.getNome());
-                boolean isDestination = nextParagemId == destinoId;
+        int depAbsolute = toMinutes(trip.getHoraPartida());
+        while (depAbsolute < boardReady - stopOffset) depAbsolute += 1440;
 
-                if (!isTransferStop && !isDestination) continue;
+        int departureAtBoard = depAbsolute + stopOffset;
+        if (departureAtBoard < boardReady || departureAtBoard - boardReady > MAX_WAIT_MINUTES) return null;
 
-                int nextOffset = next.getTempoDesdeInicio();
-                int nextGScore = depAbsolute + nextOffset;
+        return new BoardingCandidate(boardLabel, boardIndex, depAbsolute, departureAtBoard);
+    }
 
-                if (destParagem != null && destParagem.getLocalizacao() != null) {
-                    if (nextParagem.getLocalizacao() != null) {
-                        double distToDest = haversineKm(
-                                nextParagem.getLocalizacao().getLatitude(), nextParagem.getLocalizacao().getLongitude(),
-                                destParagem.getLocalizacao().getLatitude(), destParagem.getLocalizacao().getLongitude());
-                        if (distToDest > maxDistanceKm) continue;
-                    }
-                }
+    private boolean sameBoardingCandidate(BoardingCandidate a, BoardingCandidate b) {
+        return a.boardIndex == b.boardIndex
+                && a.depAbsolute == b.depAbsolute
+                && a.boardLabel.stopId.equals(b.boardLabel.stopId)
+                && a.boardLabel.arrivalMinutes == b.boardLabel.arrivalMinutes
+                && a.boardLabel.rideCount == b.boardLabel.rideCount
+                && a.boardLabel.zoneNums.equals(b.boardLabel.zoneNums);
+    }
 
-                int nextH = heuristicMinutes(nextParagemId, destinoId);
+    private Map<Long, List<Label>> copyLabelMap(Map<Long, List<Label>> source) {
+        Map<Long, List<Label>> copy = new HashMap<>();
+        for (Map.Entry<Long, List<Label>> entry : source.entrySet()) {
+            copy.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+        }
+        return copy;
+    }
 
-                State ns = new State(nextParagemId, currentTrajetoId);
-                if (nextGScore < bestCost.getOrDefault(ns, Integer.MAX_VALUE)) {
-                    bestCost.put(ns, nextGScore);
-                    cameFrom.put(ns, cs);
-                    stateTrajetoDep.put(ns, depAbsolute);
-                    stateTransfersMap.put(ns, currentTransfers);
-                    queue.add(new Object[]{nextParagemId, currentTrajetoId, nextGScore + nextH, nextGScore, currentTransfers});
-                }
+    private Set<Long> relaxFootpaths(Set<Long> sourceStops,
+                                     Map<Long, List<Label>> roundLabels,
+                                     Map<Long, List<Label>> bestLabelsByStop) {
+        Set<Long> markedStops = new HashSet<>();
 
-                if (isDestination) continue;
-                if (nextGScore > currentGScore + MAX_WAIT_MINUTES) continue;
-                if (currentTransfers >= MAX_TRANSFERS) continue;
-
-                Set<Long> candidateIds = new HashSet<>();
-                candidateIds.add(nextParagemId);
-                candidateIds.addAll(nomeToIds.getOrDefault(nextParagem.getNome(), Set.of()));
-
-                for (Long walkToId : candidateIds) {
-                    for (PontosDePassagem transferPonto : paragemToPontos.getOrDefault(walkToId, List.of())) {
-                        Long transferTrajetoId = pontoToTrajeto.get(transferPonto.getId());
-                        if (transferTrajetoId == null || transferTrajetoId.equals(currentTrajetoId)) continue;
-
-                        Integer transferOffset = trajetoOffsetMap.getOrDefault(transferTrajetoId, Map.of()).get(walkToId);
-                        if (transferOffset == null) continue;
-
-                        int walkBetweenPoles = walkToId.equals(nextParagemId) ? 0 : 1;
-                        int arrAtTransfer = nextGScore + TRANSFER_BUFFER_MINUTES + walkBetweenPoles;
-
-                        int minDepTOD2 = ((arrAtTransfer - transferOffset) % 1440 + 1440) % 1440;
-                        LocalTime minDepTime2 = LocalTime.of(minDepTOD2 / 60, minDepTOD2 % 60);
-
-                        Viagem nextDep2 = findNextDeparture(transferTrajetoId, minDepTime2, viagensByTrajeto);
-                        if (nextDep2 == null) continue;
-
-                        int depTOD2 = toMinutes(nextDep2.getHoraPartida());
-                        int depAbsolute2 = depTOD2;
-                        while (depAbsolute2 < arrAtTransfer - transferOffset) depAbsolute2 += 1440;
-
-                        int costAfterTransfer = depAbsolute2 + transferOffset;
-                        int waitAtTransfer = costAfterTransfer - arrAtTransfer;
-                        if (waitAtTransfer > MAX_WAIT_MINUTES || waitAtTransfer < 0) continue;
-
-                        int transferH = heuristicMinutes(walkToId, destinoId);
-                        int newTransfers = currentTransfers + 1;
-                        State ts = new State(walkToId, transferTrajetoId);
-
-                        if (costAfterTransfer < bestCost.getOrDefault(ts, Integer.MAX_VALUE)) {
-                            bestCost.put(ts, costAfterTransfer);
-                            cameFrom.put(ts, ns);
-                            stateTrajetoDep.put(ts, depAbsolute2);
-                            stateTransfersMap.put(ts, newTransfers);
-                            queue.add(new Object[]{walkToId, transferTrajetoId, costAfterTransfer + transferH, costAfterTransfer, newTransfers});
-                        }
-                    }
-                }
-
-                List<WalkEdge> nearby = nearbyStopsMap.getOrDefault(nextParagemId, List.of());
-                for (WalkEdge we : nearby) {
-                    if (nomeToIds.getOrDefault(nextParagem.getNome(), Set.of()).contains(we.toId())) continue;
-
-                    int arrAtWalk = nextGScore + we.minutes();
-
-                    Paragem walkTarget = paragemCache.get(we.toId());
-                    if (walkTarget != null && destParagem != null && destParagem.getLocalizacao() != null && walkTarget.getLocalizacao() != null) {
-                        double distWalkToDest = haversineKm(
-                                walkTarget.getLocalizacao().getLatitude(), walkTarget.getLocalizacao().getLongitude(),
-                                destParagem.getLocalizacao().getLatitude(), destParagem.getLocalizacao().getLongitude());
-                        if (distWalkToDest > maxDistanceKm) continue;
-                    }
-
-                    for (PontosDePassagem walkPonto : paragemToPontos.getOrDefault(we.toId(), List.of())) {
-                        Long walkTrajetoId = pontoToTrajeto.get(walkPonto.getId());
-                        if (walkTrajetoId == null || walkTrajetoId.equals(currentTrajetoId)) continue;
-
-                        Integer walkOffset = trajetoOffsetMap.getOrDefault(walkTrajetoId, Map.of()).get(we.toId());
-                        if (walkOffset == null) continue;
-
-                        int walkArrWithBuffer = arrAtWalk + TRANSFER_BUFFER_MINUTES;
-                        int minDepTOD3 = ((walkArrWithBuffer - walkOffset) % 1440 + 1440) % 1440;
-                        LocalTime minDepTime3 = LocalTime.of(minDepTOD3 / 60, minDepTOD3 % 60);
-
-                        Viagem nextDep3 = findNextDeparture(walkTrajetoId, minDepTime3, viagensByTrajeto);
-                        if (nextDep3 == null) continue;
-
-                        int depTOD3 = toMinutes(nextDep3.getHoraPartida());
-                        int depAbsolute3 = depTOD3;
-                        while (depAbsolute3 < walkArrWithBuffer - walkOffset) depAbsolute3 += 1440;
-
-                        int costAfterWalk = depAbsolute3 + walkOffset;
-                        int waitAfterWalk = costAfterWalk - walkArrWithBuffer;
-                        if (waitAfterWalk > MAX_WAIT_MINUTES || waitAfterWalk < 0) continue;
-
-                        int walkH = heuristicMinutes(we.toId(), destinoId);
-                        int walkTransfers = currentTransfers + 1;
-                        State ws = new State(we.toId(), walkTrajetoId);
-
-                        if (costAfterWalk < bestCost.getOrDefault(ws, Integer.MAX_VALUE)) {
-                            bestCost.put(ws, costAfterWalk);
-                            cameFrom.put(ws, ns);
-                            stateTrajetoDep.put(ws, depAbsolute3);
-                            stateTransfersMap.put(ws, walkTransfers);
-                            queue.add(new Object[]{we.toId(), walkTrajetoId, costAfterWalk + walkH, costAfterWalk, walkTransfers});
-                        }
+        for (Long fromStopId : sourceStops) {
+            List<Label> labels = new ArrayList<>(roundLabels.getOrDefault(fromStopId, List.of()));
+            for (Label fromLabel : labels) {
+                for (WalkEdge edge : getWalkEdges(fromStopId)) {
+                    int arrival = fromLabel.arrivalMinutes + edge.minutes();
+                    Label walkLabel = new Label(
+                            edge.toId(),
+                            arrival,
+                            fromLabel.rideCount,
+                            zonesWithStop(fromLabel.zoneNums, edge.toId()),
+                            fromLabel,
+                            LegType.WALK,
+                            null,
+                            -1,
+                            -1,
+                            -1,
+                            edge.minutes()
+                    );
+                    if (addParetoLabel(roundLabels, bestLabelsByStop, walkLabel)) {
+                        markedStops.add(edge.toId());
                     }
                 }
             }
         }
 
-        log.debug("Transfer search explored {} states, destState={}", explored, destState != null);
+        return markedStops;
+    }
 
-        if (destState == null) return List.of();
-
-        List<State> path = new ArrayList<>();
-        State cur = destState;
-        while (cur != null) {
-            path.add(0, cur);
-            cur = cameFrom.get(cur);
+    private boolean addParetoLabel(Map<Long, List<Label>> roundLabels,
+                                   Map<Long, List<Label>> bestLabelsByStop,
+                                   Label candidate) {
+        List<Label> globalLabels = bestLabelsByStop.computeIfAbsent(candidate.stopId, k -> new ArrayList<>());
+        for (Label existing : globalLabels) {
+            if (dominates(existing, candidate) || sameParetoState(existing, candidate)) {
+                return false;
+            }
         }
+
+        globalLabels.removeIf(existing -> dominates(candidate, existing));
+        globalLabels.add(candidate);
+
+        List<Label> currentRoundLabels = roundLabels.computeIfAbsent(candidate.stopId, k -> new ArrayList<>());
+        currentRoundLabels.removeIf(existing -> dominates(candidate, existing) || sameParetoState(existing, candidate));
+        currentRoundLabels.add(candidate);
+        return true;
+    }
+
+    private boolean dominates(Label a, Label b) {
+        return a.arrivalMinutes <= b.arrivalMinutes
+                && a.rideCount <= b.rideCount
+                && a.zoneNums.size() <= b.zoneNums.size()
+                && (a.arrivalMinutes < b.arrivalMinutes
+                || a.rideCount < b.rideCount
+                || a.zoneNums.size() < b.zoneNums.size());
+    }
+
+    private boolean sameParetoState(Label a, Label b) {
+        return a.arrivalMinutes == b.arrivalMinutes
+                && a.rideCount == b.rideCount
+                && a.zoneNums.equals(b.zoneNums);
+    }
+
+    private List<Label> collectDestinationLabels(Set<Long> destinoIds, Map<Long, List<Label>> bestLabelsByStop) {
+        List<Label> labels = new ArrayList<>();
+        for (Long destinoId : destinoIds) {
+            for (Label label : bestLabelsByStop.getOrDefault(destinoId, List.of())) {
+                if (label.rideCount > 0) labels.add(label);
+            }
+        }
+
+        List<Label> pareto = new ArrayList<>();
+        for (Label label : labels) {
+            boolean dominated = pareto.stream().anyMatch(existing -> dominates(existing, label) || sameParetoState(existing, label));
+            if (dominated) continue;
+            pareto.removeIf(existing -> dominates(label, existing));
+            pareto.add(label);
+        }
+        pareto.sort(Comparator
+                .comparingInt((Label l) -> Math.max(0, l.rideCount - 1))
+                .thenComparingInt(l -> l.arrivalMinutes)
+                .thenComparingInt(l -> l.zoneNums.size()));
+        return pareto;
+    }
+
+    private RotaDTO buildRouteFromLabel(Label destinationLabel, int queryMinutes) {
+        List<Label> chain = new ArrayList<>();
+        Label current = destinationLabel;
+        while (current != null && current.legType != LegType.SOURCE) {
+            chain.add(0, current);
+            current = current.previous;
+        }
+
+        if (chain.isEmpty()) return null;
 
         List<RotaDTO.SegmentoDTO> segmentos = new ArrayList<>();
-        int segStart = 0;
-        long currentTrajetoId = path.get(0).trajetoId();
+        for (Label label : chain) {
+            RotaDTO.SegmentoDTO segment = switch (label.legType) {
+                case WALK -> buildWalkSegment(label.previous, label);
+                case RIDE -> buildRideSegment(label.previous, label);
+                case SOURCE -> null;
+            };
+            if (segment != null) segmentos.add(segment);
+        }
 
-        for (int i = 1; i < path.size(); i++) {
-            long nextTrajetoId = path.get(i).trajetoId();
-            boolean isLast = (i == path.size() - 1);
-            boolean trajetoChanged = nextTrajetoId != currentTrajetoId;
+        if (segmentos.isEmpty()) return null;
 
-            if (trajetoChanged || isLast) {
-                int endIdx = isLast && !trajetoChanged ? i : i - 1;
+        RotaDTO rota = assembleRota(segmentos, false);
+        rota.setCaminho(segmentos.size() == 1 && "A pe".equals(segmentos.get(0).getLinhaNome()));
+        boolean hasWalkLeg = segmentos.stream().anyMatch(seg -> "A pe".equals(seg.getLinhaNome()));
+        long rideSegments = segmentos.stream().filter(seg -> !"A pe".equals(seg.getLinhaNome())).count();
+        rota.setDireta(rideSegments == 1 && !hasWalkLeg);
+        rota.setTotalMinutos(Math.max(0, destinationLabel.arrivalMinutes - queryMinutes));
+        rota.setZonas(toZonaResumoDtos(destinationLabel.zoneNums));
+        rota.setNrZonas(destinationLabel.zoneNums.size());
+        return rota;
+    }
 
-                RotaDTO.SegmentoDTO seg = buildSegmentFromPath(currentTrajetoId, path, segStart, endIdx, stateTrajetoDep, queryMinutes);
+    private RotaDTO.SegmentoDTO buildRideSegment(Label boardLabel, Label rideLabel) {
+        if (boardLabel == null || rideLabel.trajetoId == null) return null;
+        List<PontosDePassagem> pontos = trajetoPontosMap.get(rideLabel.trajetoId);
+        if (pontos == null || rideLabel.boardIndex < 0 || rideLabel.alightIndex < rideLabel.boardIndex || rideLabel.alightIndex >= pontos.size()) {
+            return null;
+        }
 
-                if (trajetoChanged && endIdx + 1 < path.size()) {
-                    long transferFromId = path.get(endIdx).paragemId();
-                    long transferToId = path.get(endIdx + 1).paragemId();
-                    int walkMin = estimateWalkingMinutes(paragemCache.get(transferFromId), paragemCache.get(transferToId));
-                    seg.setTempoCaminhadaMinutos(walkMin);
+        RotaDTO.SegmentoDTO seg = buildSegmentDTO(rideLabel.trajetoId, trajetoCache.get(rideLabel.trajetoId), pontos,
+                rideLabel.boardIndex, rideLabel.alightIndex);
+        seg.setHoraPartida(minutesToTime(rideLabel.departureMinutes));
+        seg.setHoraChegada(minutesToTime(rideLabel.arrivalMinutes));
+        seg.setDuracaoMinutos(Math.max(1, rideLabel.arrivalMinutes - rideLabel.departureMinutes));
+        seg.setEsperaMinutos(Math.max(0, rideLabel.departureMinutes - boardLabel.arrivalMinutes));
+        Set<Integer> segmentZones = zonesWithRouteSegment(Set.of(), pontos, rideLabel.boardIndex, rideLabel.alightIndex);
+        seg.setZonas(toZonaResumoDtos(segmentZones));
+        seg.setNrZonas(segmentZones.size());
+        return seg;
+    }
 
-                    Paragem fromP = paragemCache.get(transferFromId);
-                    Paragem toP = paragemCache.get(transferToId);
-                    if (fromP != null && toP != null && !fromP.getNome().equals(toP.getNome()) && walkMin > 0) {
-                        RotaDTO.SegmentoDTO walkSeg = new RotaDTO.SegmentoDTO();
-                        walkSeg.setLinhaNome("A pe");
-                        walkSeg.setOrigem(toParagemDTO(fromP));
-                        walkSeg.setDestino(toParagemDTO(toP));
-                        walkSeg.setParagens(List.of(toParagemDTO(fromP), toParagemDTO(toP)));
-                        walkSeg.setDuracaoMinutos(walkMin);
-                        walkSeg.setTempoCaminhadaMinutos(walkMin);
-                        walkSeg.setHoraPartida(seg.getHoraChegada());
-                        walkSeg.setHoraChegada(minutesToTime(toMinutes(LocalTime.parse(seg.getHoraChegada())) + walkMin));
-                        segmentos.add(seg);
-                        segmentos.add(walkSeg);
-                        segStart = i;
-                        currentTrajetoId = nextTrajetoId;
-                        continue;
-                    }
-                }
+    private RotaDTO.SegmentoDTO buildWalkSegment(Label fromLabel, Label walkLabel) {
+        if (fromLabel == null || walkLabel == null) return null;
 
-                segmentos.add(seg);
-                segStart = i;
-                currentTrajetoId = nextTrajetoId;
+        Paragem from = paragemCache.get(fromLabel.stopId);
+        Paragem to = paragemCache.get(walkLabel.stopId);
+        if (from == null || to == null) return null;
+
+        RotaDTO.SegmentoDTO seg = new RotaDTO.SegmentoDTO();
+        seg.setLinhaNome("A pe");
+        seg.setOrigem(toParagemDTO(from));
+        seg.setDestino(toParagemDTO(to));
+        seg.setParagens(List.of(toParagemDTO(from), toParagemDTO(to)));
+        seg.setDuracaoMinutos(Math.max(0, walkLabel.arrivalMinutes - fromLabel.arrivalMinutes));
+        seg.setTempoCaminhadaMinutos(Math.max(0, walkLabel.walkMinutes));
+        seg.setHoraPartida(minutesToTime(fromLabel.arrivalMinutes));
+        seg.setHoraChegada(minutesToTime(walkLabel.arrivalMinutes));
+        Set<Integer> segmentZones = zonesWithStop(zonesWithStop(Set.of(), fromLabel.stopId), walkLabel.stopId);
+        seg.setZonas(toZonaResumoDtos(segmentZones));
+        seg.setNrZonas(segmentZones.size());
+        return seg;
+    }
+
+    private RotaDTO assembleRota(List<RotaDTO.SegmentoDTO> segmentos, boolean direta) {
+        int totalRide = segmentos.stream()
+                .filter(s -> !"A pe".equals(s.getLinhaNome()))
+                .mapToInt(RotaDTO.SegmentoDTO::getDuracaoMinutos)
+                .sum();
+        int totalWalk = segmentos.stream().mapToInt(RotaDTO.SegmentoDTO::getTempoCaminhadaMinutos).sum();
+        int totalWait = segmentos.stream().mapToInt(RotaDTO.SegmentoDTO::getEsperaMinutos).sum();
+
+        long rideSegments = segmentos.stream()
+                .filter(s -> !"A pe".equals(s.getLinhaNome()))
+                .count();
+        int trocas = Math.max(0, (int) rideSegments - 1);
+
+        Set<Integer> routeZones = new TreeSet<>();
+        for (RotaDTO.SegmentoDTO segmento : segmentos) {
+            if (segmento.getZonas() == null) continue;
+            for (ZonaResumoDTO zona : segmento.getZonas()) {
+                routeZones.add(zona.getNum());
             }
         }
 
-        RotaDTO rota = assembleRota(segmentos, false);
-        rota.setTotalMinutos(bestCost.getOrDefault(destState, 0) - queryMinutes);
-        return List.of(rota);
+        RotaDTO rota = new RotaDTO();
+        rota.setTotalMinutos(totalRide + totalWalk + totalWait);
+        rota.setTrocas(trocas);
+        rota.setTotalCaminhadaMinutos(totalWalk);
+        rota.setDireta(direta);
+        rota.setSegmentos(segmentos);
+        rota.setZonas(toZonaResumoDtos(routeZones));
+        rota.setNrZonas(routeZones.size());
+
+        if (!segmentos.isEmpty()) {
+            rota.setHoraPartida(segmentos.get(0).getHoraPartida());
+            rota.setHoraChegada(segmentos.get(segmentos.size() - 1).getHoraChegada());
+        }
+
+        return rota;
+    }
+
+    private RotaDTO buildDirectWalkCandidate(Long origemId, Long destinoId, int queryMinutes) {
+        Paragem from = paragemCache.get(origemId);
+        Paragem to = paragemCache.get(destinoId);
+        double walkDistKm = walkDistanceKm(from, to);
+        if (walkDistKm <= 0 || walkDistKm > MAX_WALKING_DISTANCE_KM) return null;
+        int walkMin = estimateWalkingMinutes(from, to);
+        return buildWalkingRoute(from, to, walkMin, queryMinutes);
     }
 
     public List<ProximoPasseDTO> findProximosPasses(Long trajetoId, Long paragemId, LocalTime queryTime, DayOfWeek dayOfWeek) {
@@ -640,6 +657,55 @@ public class RoutePlanningService {
         }
 
         result.sort(Comparator.comparingInt(ProximoPasseDTO::getEsperaMinutos));
+        return result;
+    }
+
+    public ParagemProximasPassagensDTO findProximasPassagensPorParagem(Long paragemId, LocalTime queryTime, DayOfWeek dayOfWeek) {
+        ensureInitialized();
+
+        Paragem paragem = paragemCache.get(paragemId);
+        if (paragem == null) {
+            return null;
+        }
+
+        Map<Long, List<PontosDePassagem>> pontosByTrajeto = new HashMap<>();
+        for (PontosDePassagem ponto : paragemToPontos.getOrDefault(paragemId, List.of())) {
+            Long trajetoId = pontoToTrajeto.get(ponto.getId());
+            if (trajetoId != null) {
+                pontosByTrajeto.computeIfAbsent(trajetoId, k -> new ArrayList<>()).add(ponto);
+            }
+        }
+
+        Map<Long, ParagemProximasPassagensDTO.LinhaProximasPassagensDTO> linhasById = new TreeMap<>();
+        for (Long trajetoId : pontosByTrajeto.keySet()) {
+            Trajeto trajeto = trajetoCache.get(trajetoId);
+            if (trajeto == null || trajeto.getLinha() == null) {
+                continue;
+            }
+
+            ParagemProximasPassagensDTO.TrajetoProximasPassagensDTO trajetoDTO = new ParagemProximasPassagensDTO.TrajetoProximasPassagensDTO();
+            trajetoDTO.setTrajetoId(trajetoId);
+            trajetoDTO.setDirecao(trajeto.getDirecao() != null ? trajeto.getDirecao().name() : "");
+            trajetoDTO.setDestinoFinal(destinoFinalMap.getOrDefault(trajetoId, ""));
+            trajetoDTO.setProximosPasses(findProximosPasses(trajetoId, paragemId, queryTime, dayOfWeek));
+
+            ParagemProximasPassagensDTO.LinhaProximasPassagensDTO linhaDTO = linhasById.computeIfAbsent(
+                    trajeto.getLinha().getId(),
+                    id -> {
+                        ParagemProximasPassagensDTO.LinhaProximasPassagensDTO dto = new ParagemProximasPassagensDTO.LinhaProximasPassagensDTO();
+                        dto.setLinhaId(trajeto.getLinha().getId());
+                        dto.setLinhaNome(trajeto.getLinha().getNome());
+                        dto.setTrajetos(new ArrayList<>());
+                        return dto;
+                    }
+            );
+            linhaDTO.getTrajetos().add(trajetoDTO);
+        }
+
+        ParagemProximasPassagensDTO result = new ParagemProximasPassagensDTO();
+        result.setParagemId(paragemId);
+        result.setParagemNome(paragem.getNome());
+        result.setLinhas(new ArrayList<>(linhasById.values()));
         return result;
     }
 
@@ -714,26 +780,25 @@ public class RoutePlanningService {
         return result;
     }
 
-    private Viagem findNextDeparture(Long trajetoId, LocalTime afterTime, Map<Long, List<Viagem>> viagensByTrajeto) {
-        List<Viagem> list = viagensByTrajeto.get(trajetoId);
-        if (list == null || list.isEmpty()) return null;
+    private Viagem findNextDeparture(List<Viagem> viagens, LocalTime afterTime) {
+        if (viagens == null || viagens.isEmpty()) return null;
 
-        int lo = 0, hi = list.size();
+        int lo = 0, hi = viagens.size();
         while (lo < hi) {
             int mid = (lo + hi) / 2;
-            if (list.get(mid).getHoraPartida().isBefore(afterTime)) {
+            if (viagens.get(mid).getHoraPartida().isBefore(afterTime)) {
                 lo = mid + 1;
             } else {
                 hi = mid;
             }
         }
 
-        if (lo < list.size()) return list.get(lo);
-        return list.get(0);
+        if (lo < viagens.size()) return viagens.get(lo);
+        return viagens.get(0);
     }
 
     private RotaDTO.SegmentoDTO buildSegmentDTO(Long trajetoId, Trajeto trajeto, List<PontosDePassagem> pontos,
-                                                 int origemIdx, int destinoIdx) {
+                                                int origemIdx, int destinoIdx) {
         RotaDTO.SegmentoDTO seg = new RotaDTO.SegmentoDTO();
         seg.setTrajetoId(trajetoId);
 
@@ -761,100 +826,6 @@ public class RoutePlanningService {
         return seg;
     }
 
-    private RotaDTO.SegmentoDTO buildSegmentFromPath(Long trajetoId, List<State> path, int segStart, int endIdx,
-                                                      Map<State, Integer> stateTrajetoDep,
-                                                      int queryMinutes) {
-        RotaDTO.SegmentoDTO seg = new RotaDTO.SegmentoDTO();
-        seg.setTrajetoId(trajetoId);
-        Trajeto trajeto = trajetoCache.get(trajetoId);
-        if (trajeto != null) {
-            seg.setLinhaNome(trajeto.getLinha() != null ? trajeto.getLinha().getNome() : "Linha");
-            seg.setDirecao(trajeto.getDirecao() != null ? trajeto.getDirecao().name() : "");
-        }
-        seg.setDestinoFinal(destinoFinalMap.getOrDefault(trajetoId, ""));
-
-        long segOriginId = path.get(segStart).paragemId();
-        long segDestId = path.get(endIdx).paragemId();
-
-        Paragem origemP = paragemCache.get(segOriginId);
-        Paragem destinoP = paragemCache.get(segDestId);
-        if (origemP != null) seg.setOrigem(toParagemDTO(origemP));
-        if (destinoP != null) seg.setDestino(toParagemDTO(destinoP));
-
-        List<PontosDePassagem> trajetoPontos = trajetoPontosMap.get(trajetoId);
-        List<RotaDTO.ParagemDTO> paragens = new ArrayList<>();
-        if (trajetoPontos != null) {
-            int pStart = -1, pEnd = -1;
-            for (int i = 0; i < trajetoPontos.size(); i++) {
-                long pid = trajetoPontos.get(i).getParagem().getId();
-                if (pid == segOriginId && pStart < 0) pStart = i;
-                if (pid == segDestId) pEnd = i;
-            }
-            if (pStart >= 0 && pEnd >= 0 && pEnd >= pStart) {
-                for (int i = pStart; i <= pEnd; i++) {
-                    Paragem p = paragemCache.get(trajetoPontos.get(i).getParagem().getId());
-                    if (p != null) paragens.add(toParagemDTO(p));
-                }
-            }
-        }
-        if (paragens.isEmpty()) {
-            for (int j = segStart; j <= endIdx; j++) {
-                Paragem p = paragemCache.get(path.get(j).paragemId());
-                if (p != null) paragens.add(toParagemDTO(p));
-            }
-        }
-        seg.setParagens(paragens);
-
-        Map<Long, Integer> offsets = trajetoOffsetMap.get(trajetoId);
-        int startTime = offsets != null ? offsets.getOrDefault(segOriginId, 0) : 0;
-        int endTime = offsets != null ? offsets.getOrDefault(segDestId, 0) : 0;
-        seg.setDuracaoMinutos(Math.max(1, endTime - startTime));
-
-        State originState = path.get(segStart);
-        Integer depAbs = stateTrajetoDep.get(originState);
-        if (depAbs != null) {
-            int depAtOrigin = depAbs + startTime;
-            int arrAtDest = depAbs + endTime;
-            int wait = depAtOrigin - queryMinutes;
-            if (segStart > 0) {
-                State prevEndState = path.get(segStart - 1);
-                Integer prevDepAbs = stateTrajetoDep.get(prevEndState);
-                if (prevDepAbs != null) {
-                    Map<Long, Integer> prevOffsets = trajetoOffsetMap.get(prevEndState.trajetoId());
-                    int prevOffset = prevOffsets != null ? prevOffsets.getOrDefault(prevEndState.paragemId(), 0) : 0;
-                    int prevCost = prevDepAbs + prevOffset;
-                    wait = depAtOrigin - prevCost - (seg.getTempoCaminhadaMinutos() > 0 ? seg.getTempoCaminhadaMinutos() : 0);
-                }
-            }
-            seg.setEsperaMinutos(Math.max(0, wait));
-            seg.setHoraPartida(minutesToTime(depAtOrigin));
-            seg.setHoraChegada(minutesToTime(arrAtDest));
-        }
-
-        return seg;
-    }
-
-    private RotaDTO assembleRota(List<RotaDTO.SegmentoDTO> segmentos, boolean direta) {
-        int totalBus = segmentos.stream().mapToInt(RotaDTO.SegmentoDTO::getDuracaoMinutos).sum();
-        int totalWalk = segmentos.stream().mapToInt(RotaDTO.SegmentoDTO::getTempoCaminhadaMinutos).sum();
-        int totalWait = segmentos.stream().mapToInt(RotaDTO.SegmentoDTO::getEsperaMinutos).sum();
-        int trocas = Math.max(0, segmentos.size() - 1);
-
-        RotaDTO rota = new RotaDTO();
-        rota.setTotalMinutos(totalBus + totalWalk + totalWait);
-        rota.setTrocas(trocas);
-        rota.setTotalCaminhadaMinutos(totalWalk);
-        rota.setDireta(direta);
-        rota.setSegmentos(segmentos);
-
-        if (!segmentos.isEmpty()) {
-            rota.setHoraPartida(segmentos.get(0).getHoraPartida());
-            rota.setHoraChegada(segmentos.get(segmentos.size() - 1).getHoraChegada());
-        }
-
-        return rota;
-    }
-
     private Set<Long> expandByName(Long paragemId) {
         Set<Long> ids = new HashSet<>();
         ids.add(paragemId);
@@ -863,6 +834,63 @@ public class RoutePlanningService {
             ids.addAll(nomeToIds.get(p.getNome()));
         }
         return ids;
+    }
+
+    private List<WalkEdge> getWalkEdges(Long stopId) {
+        Map<Long, Integer> bestWalk = new HashMap<>();
+        for (WalkEdge edge : nearbyStopsMap.getOrDefault(stopId, List.of())) {
+            bestWalk.merge(edge.toId(), edge.minutes(), Math::min);
+        }
+
+        Paragem stop = paragemCache.get(stopId);
+        if (stop != null) {
+            for (Long sameNameId : nomeToIds.getOrDefault(stop.getNome(), Set.of())) {
+                if (!sameNameId.equals(stopId)) {
+                    bestWalk.merge(sameNameId, 0, Math::min);
+                }
+            }
+        }
+
+        return bestWalk.entrySet().stream()
+                .map(entry -> new WalkEdge(entry.getKey(), entry.getValue()))
+                .sorted(Comparator.comparingInt(WalkEdge::minutes))
+                .collect(Collectors.toList());
+    }
+
+    private Set<Integer> zonesWithRouteSegment(Set<Integer> baseZones, List<PontosDePassagem> pontos, int startIdx, int endIdx) {
+        Set<Integer> zones = new TreeSet<>(baseZones);
+        for (int i = Math.max(0, startIdx); i <= endIdx && i < pontos.size(); i++) {
+            if (pontos.get(i).getParagem() != null) {
+                addStopZone(zones, pontos.get(i).getParagem().getId());
+            }
+        }
+        return immutableZones(zones);
+    }
+
+    private Set<Integer> zonesWithStop(Set<Integer> baseZones, Long stopId) {
+        Set<Integer> zones = new TreeSet<>(baseZones);
+        addStopZone(zones, stopId);
+        return immutableZones(zones);
+    }
+
+    private void addStopZone(Set<Integer> zones, Long stopId) {
+        Paragem stop = paragemCache.get(stopId);
+        if (stop != null && stop.getZona() != null) {
+            zones.add(stop.getZona().getNum());
+            zoneNameByNum.putIfAbsent(stop.getZona().getNum(), stop.getZona().getNome());
+        }
+    }
+
+    private static Set<Integer> immutableZones(Set<Integer> zones) {
+        return Collections.unmodifiableSet(new TreeSet<>(zones));
+    }
+
+    private List<ZonaResumoDTO> toZonaResumoDtos(Set<Integer> zoneNums) {
+        if (zoneNums == null || zoneNums.isEmpty()) return List.of();
+        return zoneNums.stream()
+                .sorted()
+                .map(num -> new ZonaResumoDTO(num, zoneNameByNum.getOrDefault(num, "Zona " + num)))
+                .collect(Collectors.toList());
     }
 
     private String resolveServiceId(DayOfWeek dayOfWeek) {
@@ -878,8 +906,9 @@ public class RoutePlanningService {
     }
 
     private String minutesToTime(int totalMinutes) {
-        int h = (totalMinutes / 60) % 24;
-        int m = totalMinutes % 60;
+        int minutesInDay = Math.floorMod(totalMinutes, 1440);
+        int h = minutesInDay / 60;
+        int m = minutesInDay % 60;
         return String.format("%02d:%02d", h, m);
     }
 
@@ -894,16 +923,6 @@ public class RoutePlanningService {
         return Math.max(1, (int) Math.round(distanceKm / WALKING_SPEED_KMH * 60));
     }
 
-    private int heuristicMinutes(long paragemId, long destinoId) {
-        Paragem from = paragemCache.get(paragemId);
-        Paragem to = paragemCache.get(destinoId);
-        if (from == null || to == null || from.getLocalizacao() == null || to.getLocalizacao() == null) return 0;
-        double km = haversineKm(
-                from.getLocalizacao().getLatitude(), from.getLocalizacao().getLongitude(),
-                to.getLocalizacao().getLatitude(), to.getLocalizacao().getLongitude());
-        return (int) Math.round(km / MAX_BUS_SPEED_KMH * 60);
-    }
-
     private double haversineKm(double lat1, double lon1, double lat2, double lon2) {
         double R = 6371.0;
         double dLat = Math.toRadians(lat2 - lat1);
@@ -915,20 +934,6 @@ public class RoutePlanningService {
         return R * c;
     }
 
-    private String buildRouteKey(RotaDTO rota) {
-        if (rota.getSegmentos() == null) return "empty";
-        return rota.getSegmentos().stream()
-                .map(s -> s.getLinhaNome() + ":" + s.getDirecao())
-                .collect(Collectors.joining("|"));
-    }
-
-    private RotaDTO.ParagemDTO toParagemDTO(Paragem p) {
-        if (p == null) return null;
-        Double lat = p.getLocalizacao() != null ? p.getLocalizacao().getLatitude() : null;
-        Double lon = p.getLocalizacao() != null ? p.getLocalizacao().getLongitude() : null;
-        return new RotaDTO.ParagemDTO(p.getId(), p.getNome(), lat, lon);
-    }
-
     private double walkDistanceKm(Paragem from, Paragem to) {
         if (from == null || to == null) return Double.MAX_VALUE;
         if (from.getLocalizacao() == null || to.getLocalizacao() == null) return Double.MAX_VALUE;
@@ -936,6 +941,13 @@ public class RoutePlanningService {
         return haversineKm(
                 from.getLocalizacao().getLatitude(), from.getLocalizacao().getLongitude(),
                 to.getLocalizacao().getLatitude(), to.getLocalizacao().getLongitude());
+    }
+
+    private RotaDTO.ParagemDTO toParagemDTO(Paragem p) {
+        if (p == null) return null;
+        Double lat = p.getLocalizacao() != null ? p.getLocalizacao().getLatitude() : null;
+        Double lon = p.getLocalizacao() != null ? p.getLocalizacao().getLongitude() : null;
+        return new RotaDTO.ParagemDTO(p.getId(), p.getNome(), lat, lon);
     }
 
     private RotaDTO buildWalkingRoute(Paragem from, Paragem to, int walkMin, int queryMinutes) {
@@ -950,6 +962,9 @@ public class RoutePlanningService {
         seg.setTempoCaminhadaMinutos(walkMin);
         seg.setHoraPartida(minutesToTime(queryMinutes));
         seg.setHoraChegada(minutesToTime(queryMinutes + walkMin));
+        Set<Integer> segmentZones = zonesWithStop(zonesWithStop(Set.of(), from.getId()), to.getId());
+        seg.setZonas(toZonaResumoDtos(segmentZones));
+        seg.setNrZonas(segmentZones.size());
 
         RotaDTO rota = new RotaDTO();
         rota.setTotalMinutos(walkMin);
@@ -960,6 +975,41 @@ public class RoutePlanningService {
         rota.setSegmentos(List.of(seg));
         rota.setHoraPartida(minutesToTime(queryMinutes));
         rota.setHoraChegada(minutesToTime(queryMinutes + walkMin));
+        rota.setZonas(toZonaResumoDtos(segmentZones));
+        rota.setNrZonas(segmentZones.size());
         return rota;
+    }
+
+    private List<RotaDTO> dedupeRoutes(List<RotaDTO> routes) {
+        Map<String, RotaDTO> bestByKey = new LinkedHashMap<>();
+        for (RotaDTO route : routes) {
+            String key = buildRouteKey(route);
+            RotaDTO existing = bestByKey.get(key);
+            if (existing == null || routeComparator().compare(route, existing) < 0) {
+                bestByKey.put(key, route);
+            }
+        }
+        return new ArrayList<>(bestByKey.values());
+    }
+
+    private String buildRouteKey(RotaDTO rota) {
+        if (rota.getSegmentos() == null) return "empty";
+        return rota.getSegmentos().stream()
+                .map(s -> {
+                    String o = s.getOrigem() != null ? String.valueOf(s.getOrigem().getId()) : "?";
+                    String d = s.getDestino() != null ? String.valueOf(s.getDestino().getId()) : "?";
+                    String zones = s.getZonas() == null ? "" : s.getZonas().stream()
+                            .map(z -> String.valueOf(z.getNum()))
+                            .collect(Collectors.joining(","));
+                    return s.getLinhaNome() + ":" + s.getDirecao() + ":" + o + ":" + d + ":" + s.getHoraPartida() + ":" + s.getHoraChegada() + ":" + zones;
+                })
+                .collect(Collectors.joining("|"));
+    }
+
+    private Comparator<RotaDTO> routeComparator() {
+        return Comparator
+                .comparingInt(RotaDTO::getTrocas)
+                .thenComparingInt(RotaDTO::getTotalMinutos)
+                .thenComparingInt(RotaDTO::getNrZonas);
     }
 }

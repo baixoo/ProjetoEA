@@ -10,6 +10,8 @@ public class RotaDTO {
     private boolean caminho;
     private String horaPartida;
     private String horaChegada;
+    private List<ZonaResumoDTO> zonas;
+    private int nrZonas;
     private List<SegmentoDTO> segmentos;
 
     public RotaDTO() {}
@@ -28,6 +30,10 @@ public class RotaDTO {
     public void setHoraPartida(String horaPartida) { this.horaPartida = horaPartida; }
     public String getHoraChegada() { return horaChegada; }
     public void setHoraChegada(String horaChegada) { this.horaChegada = horaChegada; }
+    public List<ZonaResumoDTO> getZonas() { return zonas; }
+    public void setZonas(List<ZonaResumoDTO> zonas) { this.zonas = zonas; }
+    public int getNrZonas() { return nrZonas; }
+    public void setNrZonas(int nrZonas) { this.nrZonas = nrZonas; }
     public List<SegmentoDTO> getSegmentos() { return segmentos; }
     public void setSegmentos(List<SegmentoDTO> segmentos) { this.segmentos = segmentos; }
 
@@ -63,6 +69,8 @@ public class RotaDTO {
         private int esperaMinutos;
         private String horaPartida;
         private String horaChegada;
+        private List<ZonaResumoDTO> zonas;
+        private int nrZonas;
 
         public SegmentoDTO() {}
         public Long getTrajetoId() { return trajetoId; }
@@ -89,5 +97,9 @@ public class RotaDTO {
         public void setHoraPartida(String horaPartida) { this.horaPartida = horaPartida; }
         public String getHoraChegada() { return horaChegada; }
         public void setHoraChegada(String horaChegada) { this.horaChegada = horaChegada; }
+        public List<ZonaResumoDTO> getZonas() { return zonas; }
+        public void setZonas(List<ZonaResumoDTO> zonas) { this.zonas = zonas; }
+        public int getNrZonas() { return nrZonas; }
+        public void setNrZonas(int nrZonas) { this.nrZonas = nrZonas; }
     }
 }

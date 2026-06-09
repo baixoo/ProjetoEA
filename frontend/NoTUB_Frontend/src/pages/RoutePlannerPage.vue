@@ -86,7 +86,12 @@
 
         <button class="btn-timetables" @click="router.push('/routes/timetables')">
           <q-icon name="schedule" size="18px" class="q-mr-sm" />
-          <span>Consultar Horarios</span>
+          <span>Horarios por Linha</span>
+        </button>
+
+        <button class="btn-timetables btn-stop-schedule" @click="router.push('/routes/stop-schedule')">
+          <q-icon name="directions_bus" size="18px" class="q-mr-sm" />
+          <span>Proximo Autocarro</span>
         </button>
       </div>
 
@@ -114,10 +119,14 @@
               <span class="time-arrival">{{ rota.horaChegada }}</span>
             </div>
             <div class="route-option-meta">
-              <span>{{ rota.totalMinutos }} min</span>
+              <span>{{ formatMinutes(rota.totalMinutos) }}</span>
               <span v-if="rota.totalCaminhadaMinutos > 0" class="meta-walk">
                 <q-icon name="directions_walk" size="14px" />
-                ~{{ rota.totalCaminhadaMinutos }} min
+                ~{{ formatMinutesCompact(rota.totalCaminhadaMinutos) }}
+              </span>
+              <span v-if="rota.nrZonas > 0 && formatZones(rota.zonas)" class="meta-zones">
+                <q-icon name="map" size="14px" />
+                Zonas: {{ formatZones(rota.zonas) }} ({{ rota.nrZonas }})
               </span>
             </div>
           </div>
@@ -133,6 +142,10 @@
                       <q-icon :name="seg.linhaNome === 'A pe' ? 'directions_walk' : 'directions_bus'" size="14px" />
                       <span>{{ seg.linhaNome }}</span>
                     </div>
+                    <div v-if="seg.nrZonas > 0 && formatZones(seg.zonas)" class="segment-zones">
+                      <q-icon name="map" size="12px" />
+                      <span>{{ formatZones(seg.zonas) }}</span>
+                    </div>
                     <div v-if="seg.destinoFinal" class="direction-dest">
                       <q-icon name="arrow_forward" size="12px" />
                       <span>{{ seg.destinoFinal }}</span>
@@ -140,7 +153,7 @@
                   </div>
                   <div class="segment-time-info">
                     <span class="seg-departure">{{ seg.horaPartida }}</span>
-                    <span class="seg-duration">{{ seg.duracaoMinutos }} min</span>
+                    <span class="seg-duration">{{ formatMinutes(seg.duracaoMinutos) }}</span>
                     <span class="seg-arrival">{{ seg.horaChegada }}</span>
                     <q-icon
                       :name="expandedSegments[idx] ? 'expand_less' : 'expand_more'"
@@ -153,7 +166,7 @@
 
                 <div v-if="seg.esperaMinutos > 0" class="wait-info">
                   <q-icon name="schedule" size="14px" />
-                  <span>Proximo autocarro em {{ seg.esperaMinutos }} min</span>
+                  <span>Proximo autocarro em {{ formatMinutes(seg.esperaMinutos) }}</span>
                 </div>
 
                 <div v-if="expandedSegments[idx]" class="segment-stops">
@@ -166,12 +179,12 @@
                   </div>
                 </div>
 
-                <div v-else class="segment-collapsed" @click="toggleSegment(idx)">
+                <div v-else class="segment-collapsed" @click="seg.linhaNome !== 'A pe' && toggleSegment(idx)">
                   <div class="collapsed-stops">
                     <span class="collapsed-origin">{{ seg.paragens?.[0]?.nome }}</span>
                     <q-icon name="arrow_forward" size="14px" color="grey-5" />
                     <span class="collapsed-dest">{{ seg.paragens?.[seg.paragens.length - 1]?.nome }}</span>
-                    <span class="collapsed-count">{{ seg.paragens?.length }} paragens</span>
+                    <span v-if="seg.linhaNome !== 'A pe'" class="collapsed-count">{{ seg.paragens?.length }} paragens</span>
                   </div>
                 </div>
 
@@ -184,7 +197,7 @@
                 <div v-if="proximosPasses[idx]?.length" class="proximos-list">
                   <div v-for="(pp, ppIdx) in proximosPasses[idx]" :key="ppIdx" class="proximo-item">
                     <span class="proximo-hora">{{ pp.hora }}</span>
-                    <span class="proximo-espera">{{ pp.esperaMinutos === 0 ? 'agora' : `em ${pp.esperaMinutos} min` }}</span>
+                    <span class="proximo-espera">{{ pp.esperaMinutos === 0 ? 'agora' : `em ${formatMinutes(pp.esperaMinutos)}` }}</span>
                   </div>
                 </div>
               </div>
@@ -192,15 +205,25 @@
               <div v-if="idx < (rotas[selectedRoute]?.segmentos || []).length - 1" class="transfer-indicator">
                 <template v-if="rotas[selectedRoute].segmentos[idx + 1]?.linhaNome === 'A pe'">
                   <q-icon name="directions_walk" size="16px" />
-                  <span>A pe ~{{ rotas[selectedRoute].segmentos[idx + 1].duracaoMinutos }} min</span>
+                  <span>A pe ~{{ formatMinutesCompact(rotas[selectedRoute].segmentos[idx + 1].duracaoMinutos) }}</span>
                 </template>
                 <template v-else-if="seg.tempoCaminhadaMinutos > 0">
                   <q-icon name="directions_walk" size="16px" />
-                  <span>Troca (~{{ seg.tempoCaminhadaMinutos }} min a pe)</span>
+                  <div class="transfer-indicator-text">
+                    <span>Troca (~{{ formatMinutesCompact(seg.tempoCaminhadaMinutos) }} a pe)</span>
+                    <span v-if="rotas[selectedRoute].segmentos[idx + 1]?.esperaMinutos > 0" class="transfer-wait">
+                      Espere {{ formatMinutes(rotas[selectedRoute].segmentos[idx + 1].esperaMinutos) }} pelo autocarro
+                    </span>
+                  </div>
                 </template>
                 <template v-else>
                   <q-icon name="swap_horiz" size="16px" />
-                  <span>Troca de linha</span>
+                  <div class="transfer-indicator-text">
+                    <span>Troca de linha</span>
+                    <span v-if="rotas[selectedRoute].segmentos[idx + 1]?.esperaMinutos > 0" class="transfer-wait">
+                      Espere {{ formatMinutes(rotas[selectedRoute].segmentos[idx + 1].esperaMinutos) }} pelo autocarro
+                    </span>
+                  </div>
                 </template>
               </div>
             </template>
@@ -245,6 +268,75 @@ let allStopOptions = []
 
 function toggleSegment(idx) {
   expandedSegments[idx] = !expandedSegments[idx]
+}
+
+function formatMinutesCompact(minutes) {
+  if (!Number.isFinite(minutes) || minutes <= 0) return '0 min'
+  if (minutes < 60) return `${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return `${hours}h${String(mins).padStart(2, '0')}m`
+}
+
+function formatMinutes(minutes) {
+  return formatMinutesCompact(minutes)
+}
+
+function zoneSignature(zonas) {
+  if (!Array.isArray(zonas)) return ''
+  return zonas
+    .filter(zona => Number.isFinite(Number(zona?.num)))
+    .map(zona => `${zona.num}:${zona.nome || ''}`)
+    .join(',')
+}
+
+function formatZones(zonas) {
+  if (!Array.isArray(zonas)) return ''
+  return zonas
+    .filter(zona => Number.isFinite(Number(zona?.num)))
+    .map(zona => `Z${zona.num}`)
+    .join(', ')
+}
+
+function buildVisibleRouteKey(rota) {
+  const segmentos = (rota.segmentos || [])
+    .map(seg => [
+      seg.linhaNome || '',
+      seg.direcao || '',
+      seg.destinoFinal || '',
+      seg.origem?.nome || '',
+      seg.destino?.nome || '',
+      seg.horaPartida || '',
+      seg.horaChegada || '',
+      seg.nrZonas ?? 0,
+      zoneSignature(seg.zonas)
+    ].join('|'))
+    .join('||')
+
+  return [
+    rota.caminho ? 'walk' : 'transit',
+    rota.direta ? 'direct' : 'transfer',
+    rota.trocas ?? 0,
+    rota.nrZonas ?? 0,
+    zoneSignature(rota.zonas),
+    rota.horaPartida || '',
+    rota.horaChegada || '',
+    segmentos
+  ].join('###')
+}
+
+function dedupeRoutes(routes) {
+  const bestByKey = new Map()
+
+  for (const rota of routes || []) {
+    const key = buildVisibleRouteKey(rota)
+    const current = bestByKey.get(key)
+    if (!current || (rota.totalMinutos ?? Number.MAX_SAFE_INTEGER) < (current.totalMinutos ?? Number.MAX_SAFE_INTEGER)) {
+      bestByKey.set(key, rota)
+    }
+  }
+
+  return [...bestByKey.values()]
 }
 
 function getCurrentTimeParam() {
@@ -355,7 +447,7 @@ async function searchRoute() {
       return
     }
     if (!response.ok) throw new Error('Erro ao procurar rota')
-    rotas.value = await response.json()
+    rotas.value = dedupeRoutes(await response.json())
   } catch (e) {
     error.value = e.message
   } finally {
@@ -375,7 +467,7 @@ async function loadProximosPasses(seg, idx) {
     const time = getCurrentTimeParam()
     const day = getCurrentDayParam()
     const paragemId = seg.origem?.id
-    const response = await fetch(`/api/network/trajetos/${tId}/proximos-passes?paragemId=${paragemId}&time=${time}&day=${day}`, {
+    const response = await fetch(`/api/network/trajetos/${tId}/proximas-passagens?paragemId=${paragemId}&time=${time}&day=${day}`, {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
     if (response.ok) {
@@ -683,6 +775,8 @@ async function loadProximosPasses(seg, idx) {
   font-size: 13px;
   font-weight: 600;
   color: #64748b;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .meta-walk {
@@ -690,6 +784,13 @@ async function loadProximosPasses(seg, idx) {
   align-items: center;
   gap: 3px;
   color: #028e5c;
+}
+
+.meta-zones {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #475569;
 }
 
 .selected-route-detail {
@@ -736,6 +837,18 @@ async function loadProximosPasses(seg, idx) {
   font-size: 12px;
   font-weight: 700;
   color: #0369a1;
+}
+
+.segment-zones {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  border-radius: 20px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .direction-dest {
@@ -938,6 +1051,19 @@ async function loadProximosPasses(seg, idx) {
   color: #64748b;
   font-size: 12px;
   font-weight: 600;
+  text-align: center;
+}
+
+.transfer-indicator-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.transfer-wait {
+  font-size: 11px;
+  color: #0369a1;
 }
 
 .no-route {

@@ -84,7 +84,8 @@ const routes = [
     component: () => import('layouts/MainLayout.vue'),
     children: [
       { path: '', name: 'routes', component: () => import('pages/RoutePlannerPage.vue'), meta: { activeTab: 'home' } },
-      { path: 'timetables', name: 'timetables', component: () => import('pages/LineTimetablePage.vue'), meta: { activeTab: 'home' } }
+      { path: 'timetables', name: 'timetables', component: () => import('pages/LineTimetablePage.vue'), meta: { activeTab: 'home' } },
+      { path: 'stop-schedule', name: 'stop-schedule', component: () => import('pages/StopSchedulePage.vue'), meta: { activeTab: 'home' } }
     ],
     meta: { requiresAuth: true }
   },

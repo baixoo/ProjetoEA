@@ -47,28 +47,20 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('token', newToken)
   }
 
-  let fetchUserPromise = null
-
   async function fetchUser() {
     if (!token.value) return
-    if (fetchUserPromise) return fetchUserPromise
-    fetchUserPromise = (async () => {
-      try {
-        const response = await fetch('/api/auth/me', {
-          headers: { Authorization: `Bearer ${token.value}` }
-        })
-        if (response.ok) {
-          user.value = await response.json()
-        } else if (response.status === 401) {
-          logout()
-        }
-      } catch {
-        // network error — keep token, retry on next navigation
-      } finally {
-        fetchUserPromise = null
+    try {
+      const response = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token.value}` }
+      })
+      if (response.ok) {
+        user.value = await response.json()
+      } else {
+        logout()
       }
-    })()
-    return fetchUserPromise
+    } catch {
+      logout()
+    }
   }
 
   async function updateProfile(profileData) {

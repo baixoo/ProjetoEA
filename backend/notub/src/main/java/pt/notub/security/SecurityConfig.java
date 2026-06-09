@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.http.HttpMethod;
@@ -41,6 +42,12 @@ public class SecurityConfig {
     @Autowired
     private OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
 
+    @Autowired
+    private StatelessOAuth2AuthorizationRequestRepository statelessAuthRequestRepository;
+
+    @Autowired
+    private ClientRegistrationRepository clientRegistrationRepository;
+
     @Value("${FRONTEND_URL}")
     private String frontendUrl;
 
@@ -67,13 +74,21 @@ public class SecurityConfig {
     }
 
     @Bean
+    public StatelessOAuth2AuthorizationRequestResolver statelessOAuth2AuthorizationRequestResolver() {
+        return new StatelessOAuth2AuthorizationRequestResolver(clientRegistrationRepository, statelessAuthRequestRepository);
+    }
+
+    @Bean
     @Order(1)
     public SecurityFilterChain oauth2ClientFilterChain(HttpSecurity http) throws Exception {
         http.securityMatcher("/oauth2/**", "/login/oauth2/**")
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.NEVER))
             .oauth2Login(oauth2 -> oauth2
+                .authorizationEndpoint(endpoint -> endpoint
+                    .authorizationRequestResolver(statelessOAuth2AuthorizationRequestResolver())
+                    .authorizationRequestRepository(statelessAuthRequestRepository))
                 .successHandler(oAuth2AuthenticationSuccessHandler)
                 .failureHandler(oAuth2AuthenticationFailureHandler)
             );
