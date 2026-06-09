@@ -63,64 +63,134 @@
         </div>
 
         <template v-else>
-          <q-btn flat dense icon="arrow_back" label="Voltar à câmara" class="back-camera-btn" @click="closeDialog" />
           <p v-if="errorMsg" class="error-text">{{ errorMsg }}</p>
 
-          <button
-            v-if="hasActivePass"
-            class="option-card"
-            :class="{ 'option-card--selected': selectedType === 'passe' }"
-            @click="selectedType = 'passe'"
-            :disabled="submitting"
-          >
-            <div class="option-icon-container bg-pass">
-              <q-icon name="credit_card" class="option-icon" />
-            </div>
-            <div class="option-details">
-              <span class="option-title">Usar Passe Ativo</span>
-              <span class="option-subtitle">Zona: {{ activePass?.zona?.num || '-' }}</span>
-            </div>
-            <q-icon v-if="selectedType === 'passe'" name="check_circle" class="selected-icon" />
-          </button>
+          <div v-if="!travelModeSelected" class="travel-mode-selection">
+            <p class="section-title">Como deseja viajar hoje?</p>
+            
+            <div class="mode-cards-grid">
+              <button 
+                class="mode-card" 
+                :class="{ 'mode-card--selected': tempTravelMode === 'individual' }"
+                @click="tempTravelMode = 'individual'"
+              >
+                <q-icon name="person" size="28px" class="mode-icon" />
+                <span class="mode-title">VIAGEM INDIVIDUAL</span>
+                <!-- <span class="mode-desc"></span> -->
+              </button>
 
-          <button
-            v-if="unusedTicketsCount > 0"
-            class="option-card"
-            :class="{ 'option-card--selected': selectedType === 'bilhete' }"
-            @click="selectedType = 'bilhete'"
-            :disabled="submitting"
-          >
-            <div class="option-icon-container bg-ticket">
-              <q-icon name="confirmation_number" class="option-icon" />
+              <button 
+                class="mode-card" 
+                :class="{ 'mode-card--selected': tempTravelMode === 'grupo' }"
+                @click="tempTravelMode = 'grupo'"
+              >
+                <q-icon name="groups" size="28px" class="mode-icon" />
+                <span class="mode-title">VIAGEM EM GRUPO</span>
+                <span class="mode-desc">  Apenas com Bilhetes.</span>
+              </button>
             </div>
-            <div class="option-details">
-              <span class="option-title">Usar Bilhete{{ ticketQty > 1 ? 's' : '' }}</span>
-              <span class="option-subtitle">Restam {{ unusedTicketsCount }} bilhetes</span>
-            </div>
-            <q-icon v-if="selectedType === 'bilhete'" name="check_circle" class="selected-icon" />
-          </button>
 
-          <div v-if="selectedType === 'bilhete' && unusedTicketsCount > 1" class="qty-row">
-            <span class="qty-label">Quantidade:</span>
-            <q-btn round flat dense icon="remove" size="sm" @click="ticketQty = Math.max(1, ticketQty - 1)" />
-            <span class="qty-value">{{ ticketQty }}</span>
-            <q-btn round flat dense icon="add" size="sm" @click="ticketQty = Math.min(unusedTicketsCount, ticketQty + 1)" />
+            <div v-if="tempTravelMode === 'grupo'" class="group-qty-box q-mt-md">
+              <span class="qty-label">Número de Pessoas:</span>
+              <div class="flex items-center gap-sm">
+                <q-btn round flat dense icon="remove" size="sm" @click="groupSize = Math.max(2, groupSize - 1)" />
+                <span class="qty-value">{{ groupSize }}</span>
+                <q-btn round flat dense icon="add" size="sm" @click="groupSize = groupSize + 1" />
+              </div>
+            </div>
+
+            <div class="row justify-between items-center q-mt-lg">
+              <q-btn flat color="grey-7" label="Voltar à câmara" icon="arrow_back" dense @click="closeDialog" />
+              <q-btn 
+                color="green-8" 
+                label="Continuar" 
+                :disabled="!tempTravelMode" 
+                @click="confirmTravelMode" 
+              />
+            </div>
           </div>
 
-          <div v-if="!hasActivePass && unusedTicketsCount === 0" class="no-tickets-warning">
-            <p class="warning-message">Nao tem bilhetes ou passes ativos disponiveis.</p>
-            <q-btn color="positive" label="Comprar na Loja" class="full-width q-mt-sm" @click="goToShop" />
-          </div>
+          <div v-else class="titles-selection-flow">
+            
+            <div class="mode-indicator mb-sm">
+              <q-icon :name="travelMode === 'grupo' ? 'groups' : 'person'" size="18px" />
+              <span>Modo: <strong>{{ travelMode === 'grupo' ? `Grupo (${groupSize} pessoas)` : 'Individual' }}</strong></span>
+              <q-btn flat dense round icon="edit" size="xs" color="grey-7" @click="travelModeSelected = false" />
+            </div>
 
-          <button
-            v-if="selectedType"
-            class="btn-start"
-            @click="confirmSelection"
-            :disabled="submitting"
-          >
-            <q-spinner v-if="submitting" size="18px" class="q-mr-sm" />
-            {{ submitting ? 'A iniciar...' : 'Confirmar Embarque' }}
-          </button>
+            <button
+              v-if="travelMode !== 'grupo'"
+              class="option-card"
+              :class="{ 
+                'option-card--selected': selectedType === 'passe',
+                'option-card--disabled': !hasActivePass 
+              }"
+              @click="hasActivePass ? selectedType = 'passe' : null"
+              :disabled="submitting || !hasActivePass"
+            >
+              <div class="option-icon-container bg-pass">
+                <q-icon name="credit_card" class="option-icon" />
+              </div>
+              <div class="option-details">
+                <span class="option-title">Usar Passe Ativo</span>
+                <span class="option-subtitle">
+                  {{ hasActivePass ? `Zona: ${activePass?.zona?.num || '-'}` : 'Nenhum passe ativo' }}
+                </span>
+              </div>
+              <q-icon v-if="selectedType === 'passe'" name="check_circle" class="selected-icon" />
+            </button>
+
+            <button
+              class="option-card"
+              :class="{ 
+                'option-card--selected': selectedType === 'bilhete',
+                'option-card--disabled': !isTicketOptionValid 
+              }"
+              @click="isTicketOptionValid ? selectedType = 'bilhete' : null"
+              :disabled="submitting || !isTicketOptionValid"
+            >
+              <div class="option-icon-container bg-ticket">
+                <q-icon name="confirmation_number" class="option-icon" />
+              </div>
+              <div class="option-details">
+                <span class="option-title">Usar Bilhetes</span>
+                <span class="option-subtitle">
+                  <template v-if="unusedTicketsCount === 0">Sem bilhetes disponíveis</template>
+                  <template v-else-if="travelMode === 'grupo' && unusedTicketsCount < groupSize">
+                    Insuficiente (Tem {{ unusedTicketsCount }} de {{ groupSize }} necessários)
+                  </template>
+                  <template v-else>Restam {{ unusedTicketsCount }} bilhetes</template>
+                </span>
+              </div>
+              <q-icon v-if="selectedType === 'bilhete'" name="check_circle" class="selected-icon" />
+            </button>
+
+            <div v-if="selectedType === 'bilhete' && travelMode === 'individual' && unusedTicketsCount > 1" class="qty-row q-mt-sm">
+              <span class="qty-label">Quantidade de Bilhetes:</span>
+              <q-btn round flat dense icon="remove" size="sm" @click="ticketQty = Math.max(1, ticketQty - 1)" />
+              <span class="qty-value">{{ ticketQty }}</span>
+              <q-btn round flat dense icon="add" size="sm" @click="ticketQty = Math.min(unusedTicketsCount, ticketQty + 1)" />
+            </div>
+
+            <div v-if="shouldShowShopWarning" class="no-tickets-warning q-mt-md">
+              <p class="warning-message">Não possui títulos suficientes para o modo selecionado.</p>
+              <p class="warning-question">Deseja ir à loja adquirir novos bilhetes?</p>
+              <button class="btn-shop q-mt-sm" @click="goToShop">
+                <q-icon name="shopping_bag" class="q-mr-xs" size="18px" />
+                Ir para a Loja
+              </button>
+            </div>
+
+            <button
+              v-if="selectedType"
+              class="btn-start q-mt-md"
+              @click="confirmSelection"
+              :disabled="submitting"
+            >
+              <q-spinner v-if="submitting" size="18px" class="q-mr-sm" />
+              {{ submitting ? 'A iniciar...' : 'Confirmar Embarque' }}
+            </button>
+          </div>
         </template>
       </div>
     </div>
@@ -155,6 +225,11 @@
 
   const zonaMin = ref(null)
   const zonaMax = ref(null)
+
+  const travelModeSelected = ref(false)
+  const tempTravelMode = ref(null) 
+  const travelMode = ref(null)   
+  const groupSize = ref(2)
 
   const linhaNome = computed(() => {
     const vt = (viagensStore.vehicleTrips || []).find(v => v.id == props.viagemVeiculoId)
@@ -215,16 +290,52 @@
     return items
   })
 
+  const isTicketOptionValid = computed(() => {
+    if (unusedTicketsCount.value === 0) return false
+    if (travelMode.value === 'grupo' && unusedTicketsCount.value < groupSize.value) return false
+    return true
+  })
+
+  const shouldShowShopWarning = computed(() => {
+    if (travelMode.value === 'individual') {
+      return !hasActivePass.value && unusedTicketsCount.value === 0
+    }
+    if (travelMode.value === 'grupo') {
+      return unusedTicketsCount.value < groupSize.value
+    }
+    return false
+  })
+
   const activePass = computed(() => ticketsStore.activePass)
   const hasActivePass = computed(() => !!activePass.value)
   const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
   const unusedTicketsCount = computed(() => unusedTickets.value.length)
+
+  function confirmTravelMode() {
+    travelMode.value = tempTravelMode.value
+    travelModeSelected.value = true
+    errorMsg.value = ''
+    selectedType.value = null
+    
+    if (travelMode.value === 'grupo') {
+      if (isTicketOptionValid.value) {
+        selectedType.value = 'bilhete'
+        ticketQty.value = groupSize.value 
+      }
+    } else {
+      ticketQty.value = 1
+    }
+  }
 
   async function loadTitulos() {
     loading.value = true
     errorMsg.value = ''
     selectedType.value = null
     ticketQty.value = 1
+    travelModeSelected.value = false
+    tempTravelMode.value = null
+    travelMode.value = null
+    groupSize.value = 2
     try {
       await Promise.all([ticketsStore.fetchMyTickets(), ticketsStore.fetchMyPass()])
     } catch {
@@ -232,12 +343,20 @@
     } finally {
       loading.value = false
     }
-  }
+  }  
 
   async function loadZonas() {
     if (!props.viagemVeiculoId) return
+
+    const trajetoId = selectedTrip.value?.trajeto?.id
+  
+    if (!trajetoId) {
+      console.warn('Aguardando que os dados da viagem carreguem para obter o trajetoId...')
+      return
+    }
+    
     try {
-      const data = await viagensStore.fetchZonasVeiculo(props.viagemVeiculoId)
+      const data = await viagensStore.fetchZonasVeiculo(props.viagemVeiculoId, props.paragemEntradaId)
       zonaMin.value = data.zonaMin
       zonaMax.value = data.zonaMax
     } catch (e) {
@@ -255,20 +374,16 @@
     submitting.value = true
     errorMsg.value = ''
     try {
-      if (!hasActivePass.value && unusedTicketsCount.value === 0) {
-        errorMsg.value = 'Nao tem bilhetes nem passe ativos disponiveis.'
-        return
-      }
-
-      if (!selectedType.value) {
-        errorMsg.value = 'Selecione um bilhete ou passe para continuar.'
-        return
-      }
-
       if (selectedType.value === 'passe') {
         await viagensStore.startTrip(activePass.value.id, props.paragemEntradaId, props.viagemVeiculoId)
       } else if (selectedType.value === 'bilhete') {
-        for (let i = 0; i < ticketQty.value; i++) {
+        if (travelMode.value === 'grupo' && unusedTicketsCount.value < groupSize.value) {
+          throw new Error('Não tem bilhetes suficientes para todo o grupo.')
+        }
+
+        const qtdAValidar = travelMode.value === 'grupo' ? groupSize.value : ticketQty.value
+
+        for (let i = 0; i < qtdAValidar; i++) {
           const ticket = unusedTickets.value[i]
           if (!ticket) break
           await viagensStore.startTrip(ticket.id, props.paragemEntradaId, props.viagemVeiculoId)
@@ -528,19 +643,51 @@ export default { name: 'BoardingDialog' }
 }
 
 .no-tickets-warning {
-  background: #fff;
-  border: 1px solid #d7d6d6;
-  border-radius: 10px;
+  background: #ffffff;
+  border: 1px dashed #d7d6d6;
+  border-radius: 12px;
   padding: 16px;
   text-align: center;
   width: 100%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
 }
 
 .warning-message {
   font-family: 'Inter', sans-serif;
   font-size: 14px;
-  color: #505050;
-  margin: 0;
+  color: #212529;
+  font-weight: 500;
+  margin: 0 0 4px 0;
+}
+
+.warning-question {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #6c757d;
+  margin: 0 0 12px 0;
+}
+
+/* Botão de Destaque para a Loja */
+.btn-shop {
+  width: 100%;
+  height: 42px;
+  border-radius: 10px;
+  border: none;
+  background: #028e5c; /* Mantém a cor principal verde do teu ecru */
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.btn-shop:hover {
+  background: #027a4f;
+  transform: translateY(-1px);
 }
 
 .route-preview-panel {
@@ -671,4 +818,94 @@ export default { name: 'BoardingDialog' }
   color: #028e5c;
   margin-bottom: 10px;
 }
+
+.section-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 12px;
+}
+
+.mode-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.mode-card {
+  background: #ffffff;
+  border: 2px solid #d7d6d6;
+  border-radius: 12px;
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.mode-card:hover {
+  border-color: #028e5c;
+}
+
+.mode-card--selected {
+  border-color: #028e5c;
+  background: #f4fbf7;
+  box-shadow: 0 4px 10px rgba(2, 142, 92, 0.08);
+}
+
+.mode-card .mode-icon {
+  color: #6c757d;
+  margin-bottom: 4px;
+}
+
+.mode-card--selected .mode-icon {
+  color: #028e5c;
+}
+
+.mode-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #121212;
+}
+
+.mode-desc {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 2px;
+}
+
+/* Caixa do Contador de Pessoas do Grupo */
+.group-qty-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+}
+
+/* Indicador de Modo Ativo no topo dos bilhetes */
+.mode-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #e9ecef;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #495057;
+  align-self: flex-start;
+  width: fit-content;
+  margin-bottom: 8px;
+}
+
+/* Classes utilitárias adicionadas */
+.gap-sm { gap: 8px; }
+.mb-sm { margin-bottom: 8px; }
 </style>

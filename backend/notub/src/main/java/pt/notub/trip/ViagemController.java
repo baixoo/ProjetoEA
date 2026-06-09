@@ -144,27 +144,45 @@ public class ViagemController {
 
         ViagemVeiculo viagem = viagemOpt.get();
 
-        List<PontosDePassagem> pontos = viagem.getTrajeto()
+        List<PontosDePassagem> todosOsPontos = viagem.getTrajeto()
             .getPontosDePassagem()
             .stream()
             .filter(p -> p.getParagem() != null)
+            .sorted(Comparator.comparingInt(PontosDePassagem::getOrdem))
             .toList();
 
-        if (pontos.isEmpty()) {
+        if (todosOsPontos.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
-        int zonaMin = pontos.stream()
-            .mapToInt(p -> p.getParagem().getZona().getNum())
-            .min()
-            .orElse(0);
+        int indiceParagemAtual = -1;
+        for (int i = 0; i < todosOsPontos.size(); i++) {
+            if (todosOsPontos.get(i).getParagem().getId().equals(paragemId)) {
+                indiceParagemAtual = i;
+                break;
+            }
+        }
 
-        int zonaMax = pontos.stream()
-            .mapToInt(p -> p.getParagem().getZona().getNum())
-            .max()
-            .orElse(0);
+        if (indiceParagemAtual == -1) {
+            return ResponseEntity.badRequest().body(Map.of("Error", "A paragem especificada não pertence ao trajeto desta viagem."));
+        }
+
+        List<PontosDePassagem> pontosRestantes = todosOsPontos.subList(indiceParagemAtual, todosOsPontos.size());
+        
+        int zonaMin = pontosRestantes.stream()
+        .mapToInt(p -> p.getParagem().getZona().getNum())
+        .min()
+        .orElse(0);
+        
+        int zonaMax = pontosRestantes.stream()
+        .mapToInt(p -> p.getParagem().getZona().getNum())
+        .max()
+        .orElse(0);
+
+        for (int i = indiceParagemAtual; i < todosOsPontos.size(); i++) {
+            System.out.println("Paragem: " + todosOsPontos.get(i).getParagem().getNome() + ", Zona: " + todosOsPontos.get(i).getParagem().getZona().getNum());
+        }
 
         return ResponseEntity.ok(Map.of("zonaMin", zonaMin, "zonaMax", zonaMax));
     }
-    
 }
