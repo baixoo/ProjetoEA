@@ -171,7 +171,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useViagensStore } from 'src/stores/viagens'
 
@@ -187,6 +187,11 @@ const exitError = ref('')
 const submitting = ref(false)
 
 const activeTrip = computed(() => viagensStore.activeTrip)
+
+watch(activeTrip, (newVal) => {
+  console.log('--- ESTRUTURA REAL DO ACTIVETRIP ---')
+  console.log(JSON.stringify(newVal, null, 2))
+}, { immediate: true })
 
 onMounted(async () => {
   // Load active trip

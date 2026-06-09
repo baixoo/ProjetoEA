@@ -21,6 +21,24 @@ public final class ViagemMapper {
         dto.setEstado(vu.getEstado());
         dto.setParagemEntrada(ParagemMapper.toDTO(vu.getParagemEntrada()));
         dto.setParagemSaida(ParagemMapper.toDTO(vu.getParagemSaida()));
+        dto.setViagemVeiculo(ViagemMapper.toVVDTO(vu.getViagemVeiculo()));
+        return dto;
+    }
+
+    public static ViagemVeiculoDTO toVVDTO(ViagemVeiculo vv) {
+        if (vv == null) return null;
+
+        ViagemVeiculoDTO dto = new ViagemVeiculoDTO();
+        
+        dto.setId(vv.getId());
+        dto.setTrajeto(TrajetoMapper.toDTO(vv.getTrajeto()));
+        dto.setVeiculo(VeiculoMapper.toDTO(vv.getVeiculo())); 
+        
+        dto.setData(vv.getData());
+        dto.setStartTime(vv.getStartTime());
+        dto.setFinishTime(vv.getFinishTime());
+        dto.setTripId(vv.getTripId());
+
         return dto;
     }
 
