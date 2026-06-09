@@ -21,7 +21,6 @@ export const useViagensStore = defineStore('viagens', () => {
       })
       if (!response.ok) throw new Error('Falha ao obter viagens')
       const list = await response.json()
-      // Active trip is the one where estado === 'ATIVA'
       const active = list.find(t => t.estado === 'ATIVA')
       activeTrip.value = active || null
       return active || null

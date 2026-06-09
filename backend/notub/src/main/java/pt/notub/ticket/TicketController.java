@@ -43,7 +43,11 @@ public class TicketController {
     @GetMapping({"/my-passe", "/meu-passe"})
     public ResponseEntity<PasseDTO> getMyPasse(@AuthenticatedUser Utilizador utilizador) {
         Passe passe = ticketService.getUserPasse(utilizador.getEmail());
-        if (passe == null) return ResponseEntity.notFound().build();
+        
+        if (passe == null) {
+            return ResponseEntity.ok(null); 
+        }
+        
         return ResponseEntity.ok(PasseMapper.toDTO(passe));
-    }
+}
 }
