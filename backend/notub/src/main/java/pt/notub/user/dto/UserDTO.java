@@ -1,8 +1,8 @@
 package pt.notub.user.dto;
 
-import pt.notub.models.AuthMethod;
-import pt.notub.models.TipoPapel;
-import pt.notub.models.TipoUtilizador;
+import pt.notub.user.entity.AuthMethod;
+import pt.notub.user.entity.TipoPapel;
+import pt.notub.user.entity.TipoUtilizador;
 import jakarta.persistence.Column;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;

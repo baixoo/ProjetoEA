@@ -1,6 +1,6 @@
 package pt.notub.ticket.dto;
 
-import pt.notub.models.ModalidadePasse;
+import pt.notub.tariff.entity.ModalidadePasse;
 
 public class BuyPasseRequest {
     private ModalidadePasse modalidade;

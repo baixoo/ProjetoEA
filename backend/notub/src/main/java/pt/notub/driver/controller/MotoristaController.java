@@ -1,0 +1,49 @@
+package pt.notub.driver.controller;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import pt.notub.driver.dto.DriverTrajetoDTO;
+import pt.notub.driver.dto.StartViagemRequest;
+import pt.notub.driver.service.DriverService;
+import pt.notub.trip.dto.ViagemVeiculoDTO;
+import pt.notub.vehicle.dto.VeiculoDTO;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/driver")
+public class MotoristaController {
+
+    private final DriverService driverService;
+
+    public MotoristaController(DriverService driverService) {
+        this.driverService = driverService;
+    }
+
+    @GetMapping({"/veiculos", "/vehicles"})
+    public ResponseEntity<List<VeiculoDTO>> getVeiculos() {
+        return ResponseEntity.ok(driverService.getVeiculosComLinha());
+    }
+
+    @GetMapping({"/veiculos/{veiculoId}/viagens", "/vehicles/{veiculoId}/trips"})
+    public ResponseEntity<List<ViagemVeiculoDTO>> getViagensAtivas(@PathVariable Long veiculoId) {
+        return ResponseEntity.ok(driverService.getViagensAtivas(veiculoId));
+    }
+
+    @GetMapping({"/trajetos", "/routes"})
+    public ResponseEntity<List<DriverTrajetoDTO>> getTrajetos(@RequestParam(required = false) Long linhaId) {
+        return ResponseEntity.ok(driverService.getTrajetos(linhaId));
+    }
+
+    @PostMapping({"/viagens/start", "/trips/start"})
+    public ResponseEntity<ViagemVeiculoDTO> startViagem(@RequestBody StartViagemRequest request) {
+        return ResponseEntity.ok(driverService.startViagem(request));
+    }
+
+    @DeleteMapping({"/viagens/{id}/end", "/trips/{id}/end"})
+    public ResponseEntity<?> endViagem(@PathVariable Long id) {
+        driverService.endViagem(id);
+        return ResponseEntity.ok(Map.of("mensagem", "Viagem terminada"));
+    }
+}

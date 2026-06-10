@@ -1,6 +1,6 @@
 package pt.notub.network.dto;
 
-import pt.notub.models.Direcao;
+import pt.notub.network.entity.Direcao;
 
 import java.util.List;
 

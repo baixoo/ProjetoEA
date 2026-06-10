@@ -1,6 +1,6 @@
 package pt.notub.trip.dto;
 
-import pt.notub.models.EstadoViagem;
+import pt.notub.trip.entity.EstadoViagem;
 import pt.notub.network.dto.ParagemDTO;
 
 import java.time.LocalDateTime;

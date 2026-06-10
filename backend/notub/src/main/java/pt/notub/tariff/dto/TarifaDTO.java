@@ -1,7 +1,7 @@
 package pt.notub.tariff.dto;
 
-import pt.notub.models.ModalidadePasse;
-import pt.notub.models.TipoUtilizador;
+import pt.notub.tariff.entity.ModalidadePasse;
+import pt.notub.user.entity.TipoUtilizador;
 
 public class TarifaDTO {
 

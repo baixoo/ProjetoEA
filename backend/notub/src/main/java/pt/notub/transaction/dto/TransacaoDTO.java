@@ -1,8 +1,8 @@
 package pt.notub.transaction.dto;
 
-import pt.notub.models.EstadoPagamento;
-import pt.notub.models.MetodoPagamento;
-import pt.notub.models.TipoProduto;
+import pt.notub.payment.entity.EstadoPagamento;
+import pt.notub.payment.entity.MetodoPagamento;
+import pt.notub.payment.entity.TipoProduto;
 
 import java.time.LocalDateTime;
 
