@@ -1,10 +1,13 @@
 package pt.notub.trip.service;
 
 import org.springframework.stereotype.Service;
+import pt.notub.common.exception.ConflitoException;
+import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
 import pt.notub.driver.dto.NotificacaoValidacaoDTO;
 import pt.notub.driver.service.NotificacaoValidacaoService;
 import pt.notub.network.entity.Paragem;
+import pt.notub.network.entity.PontosDePassagem;
 import pt.notub.network.entity.Trajeto;
 import pt.notub.network.repository.ParagemRepository;
 import pt.notub.network.repository.TrajetoRepository;
@@ -14,8 +17,10 @@ import pt.notub.ticket.entity.Passe;
 import pt.notub.ticket.entity.TituloTransporte;
 import pt.notub.ticket.repository.TituloTransporteRepository;
 import pt.notub.trip.dto.CreateViagemVeiculoRequest;
+import pt.notub.trip.dto.ParagemAtualDTO;
 import pt.notub.trip.dto.ViagemDTO;
 import pt.notub.trip.dto.ViagemVeiculoDTO;
+import pt.notub.trip.dto.ZonaMinMaxDTO;
 import pt.notub.trip.entity.EstadoViagem;
 import pt.notub.trip.entity.ViagemUtilizador;
 import pt.notub.trip.entity.ViagemVeiculo;
@@ -27,6 +32,10 @@ import pt.notub.vehicle.entity.Veiculo;
 import pt.notub.vehicle.repository.VeiculoRepository;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
+import java.util.IntSummaryStatistics;
 import java.util.List;
 
 @Service
@@ -175,6 +184,56 @@ public class ViagemService {
         return ViagemMapper.toVeiculoDTO(viagemVeiculoRepository.save(viagemVeiculo));
     }
 
+    public ParagemAtualDTO getParagemAtual(Long viagemVeiculoId) {
+        ViagemVeiculo viagem = findViagemVeiculo(viagemVeiculoId);
+        List<PontosDePassagem> pontos = getPontosComHoraEParagem(viagem);
+
+        if (pontos.isEmpty()) {
+            throw new RecursoNaoEncontradoException("Pontos de passagem nao encontrados");
+        }
+
+        LocalTime agora = LocalTime.now();
+        LocalTime inicio = pontos.get(0).getHoraChegada();
+        LocalTime fim = pontos.get(pontos.size() - 1).getHoraChegada();
+
+        if (agora.isBefore(inicio) || agora.isAfter(fim)) {
+            throw new ConflitoException("Viagem nao esta a decorrer neste momento");
+        }
+
+        PontosDePassagem maisProximo = pontos.stream()
+                .min(Comparator.comparingLong(p ->
+                        Math.abs(ChronoUnit.MINUTES.between(p.getHoraChegada(), agora))))
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Paragem atual nao encontrada"));
+
+        return new ParagemAtualDTO(maisProximo.getParagem().getId());
+    }
+
+    public ZonaMinMaxDTO getZonaMinMax(Long viagemVeiculoId, Long paragemId) {
+        ViagemVeiculo viagem = findViagemVeiculo(viagemVeiculoId);
+        List<PontosDePassagem> pontos = getPontosComParagem(viagem);
+
+        if (pontos.isEmpty()) {
+            throw new RecursoNaoEncontradoException("Pontos de passagem nao encontrados");
+        }
+
+        int indiceParagemAtual = findIndiceParagem(pontos, paragemId);
+
+        if (indiceParagemAtual == -1) {
+            throw new PedidoInvalidoException("A paragem especificada nao pertence ao trajeto desta viagem.");
+        }
+
+        IntSummaryStatistics zonas = pontos.subList(indiceParagemAtual, pontos.size()).stream()
+                .filter(p -> p.getParagem().getZona() != null)
+                .mapToInt(p -> p.getParagem().getZona().getNum())
+                .summaryStatistics();
+
+        if (zonas.getCount() == 0) {
+            throw new RecursoNaoEncontradoException("Zonas nao encontradas");
+        }
+
+        return new ZonaMinMaxDTO(zonas.getMin(), zonas.getMax());
+    }
+
     public void deleteViagemVeiculo(Long id) {
         viagemVeiculoRepository.deleteById(id);
     }
@@ -187,6 +246,32 @@ public class ViagemService {
     private ViagemVeiculo findViagemVeiculo(Long id) {
         return viagemVeiculoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("ViagemVeiculo nao encontrado"));
+    }
+
+    private List<PontosDePassagem> getPontosComHoraEParagem(ViagemVeiculo viagem) {
+        return getPontosComParagem(viagem).stream()
+                .filter(p -> p.getHoraChegada() != null)
+                .toList();
+    }
+
+    private List<PontosDePassagem> getPontosComParagem(ViagemVeiculo viagem) {
+        if (viagem.getTrajeto() == null || viagem.getTrajeto().getPontosDePassagem() == null) {
+            return List.of();
+        }
+
+        return viagem.getTrajeto().getPontosDePassagem().stream()
+                .filter(p -> p.getParagem() != null)
+                .sorted(Comparator.comparingInt(PontosDePassagem::getOrdem))
+                .toList();
+    }
+
+    private int findIndiceParagem(List<PontosDePassagem> pontos, Long paragemId) {
+        for (int i = 0; i < pontos.size(); i++) {
+            if (pontos.get(i).getParagem().getId().equals(paragemId)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private TituloTransporte findTitulo(Long tituloId) {
