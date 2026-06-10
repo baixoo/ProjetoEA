@@ -1,19 +1,16 @@
 package pt.notub.trip.mapper;
 
-import pt.notub.vehicle.mapper.VeiculoMapper;
-
-import pt.notub.network.mapper.TrajetoMapper;
-
-import pt.notub.network.mapper.ParagemMapper;
-import pt.notub.ticket.mapper.TituloMapper;
-
-import pt.notub.trip.entity.ViagemUtilizador;
-import pt.notub.trip.entity.ViagemVeiculo;
-import pt.notub.trip.dto.ViagemDTO;
-import pt.notub.trip.dto.ViagemVeiculoDTO;
-
 import java.util.List;
 import java.util.stream.Collectors;
+
+import pt.notub.network.mapper.ParagemMapper;
+import pt.notub.network.mapper.TrajetoMapper;
+import pt.notub.ticket.mapper.TituloMapper;
+import pt.notub.trip.dto.ViagemDTO;
+import pt.notub.trip.dto.ViagemVeiculoDTO;
+import pt.notub.trip.entity.ViagemUtilizador;
+import pt.notub.trip.entity.ViagemVeiculo;
+import pt.notub.vehicle.mapper.VeiculoMapper;
 
 public final class ViagemMapper {
 
@@ -47,7 +44,7 @@ public final class ViagemMapper {
         dto.setData(vv.getData());
         dto.setStartTime(vv.getStartTime());
         dto.setFinishTime(vv.getFinishTime());
-        dto.setTripId(vv.getTripId());
+        // dto.setTripId(vv.getTripId());
 
         return dto;
     }
@@ -61,7 +58,7 @@ public final class ViagemMapper {
         if (vv == null) return null;
         ViagemVeiculoDTO dto = new ViagemVeiculoDTO();
         dto.setId(vv.getId());
-        dto.setTripId(vv.getTripId());
+        // dto.setTripId(vv.getTripId());
         dto.setVeiculo(VeiculoMapper.toDTO(vv.getVeiculo()));
         dto.setTrajeto(TrajetoMapper.toDTO(vv.getTrajeto()));
         return dto;

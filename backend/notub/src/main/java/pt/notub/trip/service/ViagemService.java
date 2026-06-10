@@ -1,6 +1,14 @@
 package pt.notub.trip.service;
 
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
+import java.util.IntSummaryStatistics;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
+
 import pt.notub.common.exception.ConflitoException;
 import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
@@ -30,13 +38,6 @@ import pt.notub.trip.repository.ViagemVeiculoRepository;
 import pt.notub.validation.service.GestorValidacao;
 import pt.notub.vehicle.entity.Veiculo;
 import pt.notub.vehicle.repository.VeiculoRepository;
-
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
-import java.util.IntSummaryStatistics;
-import java.util.List;
 
 @Service
 public class ViagemService {
@@ -170,7 +171,7 @@ public class ViagemService {
 
     public ViagemVeiculoDTO createViagemVeiculo(CreateViagemVeiculoRequest request) {
         ViagemVeiculo viagemVeiculo = new ViagemVeiculo();
-        viagemVeiculo.setTripId(request.tripId());
+        // viagemVeiculo.setTripId(request.tripId());
         if (request.veiculoId() != null) {
             Veiculo veiculo = veiculoRepository.findById(request.veiculoId())
                     .orElseThrow(() -> new RecursoNaoEncontradoException("Veiculo nao encontrado"));

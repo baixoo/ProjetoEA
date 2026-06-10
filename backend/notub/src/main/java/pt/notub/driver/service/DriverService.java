@@ -1,6 +1,10 @@
 package pt.notub.driver.service;
 
+import java.util.Comparator;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
+
 import pt.notub.common.exception.RecursoNaoEncontradoException;
 import pt.notub.driver.dto.DriverTrajetoDTO;
 import pt.notub.driver.dto.StartViagemRequest;
@@ -15,9 +19,6 @@ import pt.notub.vehicle.dto.VeiculoDTO;
 import pt.notub.vehicle.entity.Veiculo;
 import pt.notub.vehicle.mapper.VeiculoMapper;
 import pt.notub.vehicle.repository.VeiculoRepository;
-
-import java.util.Comparator;
-import java.util.List;
 
 @Service
 public class DriverService {
@@ -59,7 +60,7 @@ public class DriverService {
         ViagemVeiculo viagem = new ViagemVeiculo();
         viagem.setVeiculo(veiculo);
         viagem.setTrajeto(trajeto);
-        viagem.setTripId("TRIP-" + request.veiculoId() + "-" + System.currentTimeMillis());
+        // viagem.setTripId("TRIP-" + request.veiculoId() + "-" + System.currentTimeMillis());
 
         return ViagemMapper.toVeiculoDTO(viagemVeiculoRepository.save(viagem));
     }
