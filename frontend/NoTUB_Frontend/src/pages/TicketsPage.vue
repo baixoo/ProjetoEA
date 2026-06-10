@@ -75,6 +75,73 @@
             </div>
           </div>
         </div>
+
+        <h2 class="section-title q-mt-lg">Passes de Curta Duração</h2>
+        <div class="grid-layout">
+          <div class="offer-card" :class="{ 'offer-card--disabled': hasActivePass }">
+            <div class="offer-icon bg-blue">
+              <q-icon name="schedule" size="28px" color="primary" />
+            </div>
+            <div class="offer-info">
+              <h3 class="offer-name">Passe 24 Horas</h3>
+              <p class="offer-desc">Viagens ilimitadas durante 24 horas</p>
+            </div>
+            <div class="offer-price-action">
+              <span v-if="hasActivePass" class="btn-disabled-label">Passe ativo</span>
+              <button v-else class="btn-add" @click="openCheckout('pass_h24')">
+                <span>Adicionar</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="offer-card" :class="{ 'offer-card--disabled': hasActivePass }">
+            <div class="offer-icon bg-blue">
+              <q-icon name="schedule" size="28px" color="primary" />
+            </div>
+            <div class="offer-info">
+              <h3 class="offer-name">Passe 48 Horas</h3>
+              <p class="offer-desc">Viagens ilimitadas durante 48 horas</p>
+            </div>
+            <div class="offer-price-action">
+              <span v-if="hasActivePass" class="btn-disabled-label">Passe ativo</span>
+              <button v-else class="btn-add" @click="openCheckout('pass_h48')">
+                <span>Adicionar</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="offer-card" :class="{ 'offer-card--disabled': hasActivePass }">
+            <div class="offer-icon bg-blue">
+              <q-icon name="schedule" size="28px" color="primary" />
+            </div>
+            <div class="offer-info">
+              <h3 class="offer-name">Passe 72 Horas</h3>
+              <p class="offer-desc">Viagens ilimitadas durante 72 horas</p>
+            </div>
+            <div class="offer-price-action">
+              <span v-if="hasActivePass" class="btn-disabled-label">Passe ativo</span>
+              <button v-else class="btn-add" @click="openCheckout('pass_h72')">
+                <span>Adicionar</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="offer-card" :class="{ 'offer-card--disabled': hasActivePass }">
+            <div class="offer-icon bg-orange">
+              <q-icon name="date_range" size="28px" color="warning" />
+            </div>
+            <div class="offer-info">
+              <h3 class="offer-name">Passe Semanal</h3>
+              <p class="offer-desc">Viagens ilimitadas durante 7 dias</p>
+            </div>
+            <div class="offer-price-action">
+              <span v-if="hasActivePass" class="btn-disabled-label">Passe ativo</span>
+              <button v-else class="btn-add" @click="openCheckout('pass_semanal')">
+                <span>Adicionar</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -188,10 +255,14 @@ const currentProduct = ref({
 })
 
 const products = {
-  ticket_single: { id: 'ticket_single', name: 'Bilhete Simples', type: 'ticket', ticketsQty: 1 },
-  ticket_pack5: { id: 'ticket_pack5', name: 'Pack 5 Viagens', type: 'ticket', ticketsQty: 5 },
-  pass_monthly: { id: 'pass_monthly', name: 'Passe Mensal', type: 'pass', modalidade: 'MENSAL' },
-  pass_annual: { id: 'pass_annual', name: 'Passe Anual', type: 'pass', modalidade: 'ANUAL' }
+  ticket_single:  { id: 'ticket_single',  name: 'Bilhete Simples',  type: 'ticket', ticketsQty: 1 },
+  ticket_pack5:   { id: 'ticket_pack5',   name: 'Pack 5 Viagens',   type: 'ticket', ticketsQty: 5 },
+  pass_monthly:   { id: 'pass_monthly',   name: 'Passe Mensal',     type: 'pass',   modalidade: 'MENSAL' },
+  pass_annual:    { id: 'pass_annual',    name: 'Passe Anual',      type: 'pass',   modalidade: 'ANUAL' },
+  pass_h24:       { id: 'pass_h24',       name: 'Passe 24 Horas',   type: 'pass',   modalidade: 'H24' },
+  pass_h48:       { id: 'pass_h48',       name: 'Passe 48 Horas',   type: 'pass',   modalidade: 'H48' },
+  pass_h72:       { id: 'pass_h72',       name: 'Passe 72 Horas',   type: 'pass',   modalidade: 'H72' },
+  pass_semanal:   { id: 'pass_semanal',   name: 'Passe Semanal',    type: 'pass',   modalidade: 'SEMANAL' },
 }
 
 onMounted(async () => {

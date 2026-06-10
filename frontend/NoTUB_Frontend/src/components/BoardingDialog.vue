@@ -18,217 +18,417 @@
         </div>
       </div>
 
-      <p class="boarding-question">Como deseja viajar?</p>
-
       <div v-if="loading" class="flex flex-center q-py-md">
         <q-spinner color="primary" size="30px" />
         <span class="q-ml-sm text-grey-7">A validar...</span>
       </div>
 
       <div v-else class="boarding-options">
-        <q-btn flat dense icon="arrow_back" label="Voltar à câmara" class="back-camera-btn" @click="closeDialog" />
-        <p v-if="errorMsg" class="error-text">{{ errorMsg }}</p>
+        <div v-if="showRoutePreview" class="route-preview-panel">
+          <div class="route-preview-header">
+            <q-icon name="alt_route" color="green-8" size="24px" />
+            <div>
+              <div class="route-preview-title">Confirmar embarque</div>
+              <div class="route-preview-subtitle">{{ routePreviewLineLabel }}</div>
+            </div>
+          </div>
 
-        <button
-          v-if="hasActivePass"
-          class="option-card"
-          :class="{ 'option-card--selected': selectedType === 'passe' }"
-          @click="selectedType = 'passe'"
-          :disabled="submitting"
-        >
-          <div class="option-icon-container bg-pass">
-            <q-icon name="credit_card" class="option-icon" />
+          <div v-if="zonaMin !== null" class="zone-range">
+            <q-icon name="map" size="14px" color="green-8" />
+            <span>Zonas {{ zonaMin }}
+              <span v-if="zonaMax !== zonaMin"> — {{ zonaMax }}</span>
+            </span>
           </div>
-          <div class="option-details">
-            <span class="option-title">Usar Passe Ativo</span>
-            <span class="option-subtitle">Zona: {{ activePass?.zona?.num || '-' }}</span>
-          </div>
-          <q-icon v-if="selectedType === 'passe'" name="check_circle" class="selected-icon" />
-        </button>
 
-        <button
-          v-if="unusedTicketsCount > 0"
-          class="option-card"
-          :class="{ 'option-card--selected': selectedType === 'bilhete' }"
-          @click="selectedType = 'bilhete'"
-          :disabled="submitting"
-        >
-          <div class="option-icon-container bg-ticket">
-            <q-icon name="confirmation_number" class="option-icon" />
+          <div class="route-preview-rail">
+            <template v-for="(item, index) in routePreviewItems" :key="item.key">
+              <div v-if="item.type === 'ellipsis'" class="route-connector route-stop-ellipsis"></div>
+              <div v-else class="route-stop" :class="{
+                'route-stop--first': item.kind === 'first',
+                'route-stop--current': item.kind === 'current',
+                'route-stop--last': item.kind === 'last',
+                'route-stop--middle': item.kind === 'middle'
+              }">
+                <div class="route-stop__dot"></div>
+                <span class="route-stop__name">{{ item.name }}</span>
+              </div>
+              <div v-if="index < routePreviewItems.length - 1" class="route-connector"></div>
+            </template>
           </div>
-          <div class="option-details">
-            <span class="option-title">Usar Bilhete{{ ticketQty > 1 ? 's' : '' }}</span>
-            <span class="option-subtitle">Restam {{ unusedTicketsCount }} bilhetes</span>
-          </div>
-          <q-icon v-if="selectedType === 'bilhete'" name="check_circle" class="selected-icon" />
-        </button>
 
-        <div v-if="selectedType === 'bilhete' && unusedTicketsCount > 1" class="qty-row">
-          <span class="qty-label">Quantidade:</span>
-          <q-btn round flat dense icon="remove" size="sm" @click="ticketQty = Math.max(1, ticketQty - 1)" />
-          <span class="qty-value">{{ ticketQty }}</span>
-          <q-btn round flat dense icon="add" size="sm" @click="ticketQty = Math.min(unusedTicketsCount, ticketQty + 1)" />
+          <div class="route-preview-actions">
+            <q-btn flat color="grey-7" label="Cancelar" @click="closeDialog" />
+            <q-btn color="green-8" label="Continuar" @click="showRoutePreview = false" />
+          </div>
         </div>
 
-        <div v-if="!hasActivePass && unusedTicketsCount === 0" class="no-tickets-warning">
-          <p class="warning-message">Nao tem bilhetes ou passes ativos disponiveis.</p>
-          <q-btn color="positive" label="Comprar na Loja" class="full-width q-mt-sm" @click="goToShop" />
-        </div>
+        <template v-else>
+          <p v-if="errorMsg" class="error-text">{{ errorMsg }}</p>
 
-        <button
-          v-if="selectedType"
-          class="btn-start"
-          @click="confirmSelection"
-          :disabled="submitting"
-        >
-          <q-spinner v-if="submitting" size="18px" class="q-mr-sm" />
-          {{ submitting ? 'A iniciar...' : 'Confirmar Embarque' }}
-        </button>
+          <div v-if="!travelModeSelected" class="travel-mode-selection">
+            <p class="section-title">Como deseja viajar hoje?</p>
+            
+            <div class="mode-cards-grid">
+              <button 
+                class="mode-card" 
+                :class="{ 'mode-card--selected': tempTravelMode === 'individual' }"
+                @click="tempTravelMode = 'individual'"
+              >
+                <q-icon name="person" size="28px" class="mode-icon" />
+                <span class="mode-title">VIAGEM INDIVIDUAL</span>
+                <!-- <span class="mode-desc"></span> -->
+              </button>
+
+              <button 
+                class="mode-card" 
+                :class="{ 'mode-card--selected': tempTravelMode === 'grupo' }"
+                @click="tempTravelMode = 'grupo'"
+              >
+                <q-icon name="groups" size="28px" class="mode-icon" />
+                <span class="mode-title">VIAGEM EM GRUPO</span>
+                <span class="mode-desc">  Apenas com Bilhetes.</span>
+              </button>
+            </div>
+
+            <div v-if="tempTravelMode === 'grupo'" class="group-qty-box q-mt-md">
+              <span class="qty-label">Número de Pessoas:</span>
+              <div class="flex items-center gap-sm">
+                <q-btn round flat dense icon="remove" size="sm" @click="groupSize = Math.max(2, groupSize - 1)" />
+                <span class="qty-value">{{ groupSize }}</span>
+                <q-btn round flat dense icon="add" size="sm" @click="groupSize = groupSize + 1" />
+              </div>
+            </div>
+
+            <div class="row justify-between items-center q-mt-lg">
+              <q-btn flat color="grey-7" label="Voltar à câmara" icon="arrow_back" dense @click="closeDialog" />
+              <q-btn 
+                color="green-8" 
+                label="Continuar" 
+                :disabled="!tempTravelMode" 
+                @click="confirmTravelMode" 
+              />
+            </div>
+          </div>
+
+          <div v-else class="titles-selection-flow">
+            
+            <div class="mode-indicator mb-sm">
+              <q-icon :name="travelMode === 'grupo' ? 'groups' : 'person'" size="18px" />
+              <span>Modo: <strong>{{ travelMode === 'grupo' ? `Grupo (${groupSize} pessoas)` : 'Individual' }}</strong></span>
+              <q-btn flat dense round icon="edit" size="xs" color="grey-7" @click="travelModeSelected = false" />
+            </div>
+
+            <button
+              v-if="travelMode !== 'grupo'"
+              class="option-card"
+              :class="{ 
+                'option-card--selected': selectedType === 'passe',
+                'option-card--disabled': !hasActivePass 
+              }"
+              @click="hasActivePass ? selectedType = 'passe' : null"
+              :disabled="submitting || !hasActivePass"
+            >
+              <div class="option-icon-container bg-pass">
+                <q-icon name="credit_card" class="option-icon" />
+              </div>
+              <div class="option-details">
+                <span class="option-title">Usar Passe Ativo</span>
+                <span class="option-subtitle">
+                  {{ hasActivePass ? `Zona: ${activePass?.zona?.num || '-'}` : 'Nenhum passe ativo' }}
+                </span>
+              </div>
+              <q-icon v-if="selectedType === 'passe'" name="check_circle" class="selected-icon" />
+            </button>
+
+            <button
+              class="option-card"
+              :class="{ 
+                'option-card--selected': selectedType === 'bilhete',
+                'option-card--disabled': !isTicketOptionValid 
+              }"
+              @click="isTicketOptionValid ? selectedType = 'bilhete' : null"
+              :disabled="submitting || !isTicketOptionValid"
+            >
+              <div class="option-icon-container bg-ticket">
+                <q-icon name="confirmation_number" class="option-icon" />
+              </div>
+              <div class="option-details">
+                <span class="option-title">Usar Bilhetes</span>
+                <span class="option-subtitle">
+                  <template v-if="unusedTicketsCount === 0">Sem bilhetes disponíveis</template>
+                  <template v-else-if="travelMode === 'grupo' && unusedTicketsCount < groupSize">
+                    Insuficiente (Tem {{ unusedTicketsCount }} de {{ groupSize }} necessários)
+                  </template>
+                  <template v-else>Restam {{ unusedTicketsCount }} bilhetes</template>
+                </span>
+              </div>
+              <q-icon v-if="selectedType === 'bilhete'" name="check_circle" class="selected-icon" />
+            </button>
+
+            <div v-if="selectedType === 'bilhete' && travelMode === 'individual' && unusedTicketsCount > 1" class="qty-row q-mt-sm">
+              <span class="qty-label">Quantidade de Bilhetes:</span>
+              <q-btn round flat dense icon="remove" size="sm" @click="ticketQty = Math.max(1, ticketQty - 1)" />
+              <span class="qty-value">{{ ticketQty }}</span>
+              <q-btn round flat dense icon="add" size="sm" @click="ticketQty = Math.min(unusedTicketsCount, ticketQty + 1)" />
+            </div>
+
+            <div v-if="shouldShowShopWarning" class="no-tickets-warning q-mt-md">
+              <p class="warning-message">Não possui títulos suficientes para o modo selecionado.</p>
+              <p class="warning-question">Deseja ir à loja adquirir novos bilhetes?</p>
+              <button class="btn-shop q-mt-sm" @click="goToShop">
+                <q-icon name="shopping_bag" class="q-mr-xs" size="18px" />
+                Ir para a Loja
+              </button>
+            </div>
+
+            <button
+              v-if="selectedType"
+              class="btn-start q-mt-md"
+              @click="confirmSelection"
+              :disabled="submitting"
+            >
+              <q-spinner v-if="submitting" size="18px" class="q-mr-sm" />
+              {{ submitting ? 'A iniciar...' : 'Confirmar Embarque' }}
+            </button>
+          </div>
+        </template>
       </div>
     </div>
   </q-dialog>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useTicketsStore } from 'src/stores/tickets'
-import { useViagensStore } from 'src/stores/viagens'
-import { useAuthStore } from 'src/stores/auth'
+  import { ref, computed, watch, onMounted } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { useTicketsStore } from 'src/stores/tickets'
+  import { useViagensStore } from 'src/stores/viagens'
 
-const useAuthStore_inst = useAuthStore()
+  const props = defineProps({
+    modelValue: { type: Boolean, required: true },
+    busNumber: { type: String, default: '' },
+    viagemVeiculoId: { type: [Number, String], default: null },
+    paragemEntradaId: { type: [Number, String], default: null }
+  })
 
-const props = defineProps({
-  modelValue: { type: Boolean, required: true },
-  busNumber: { type: String, default: '' },
-  viagemVeiculoId: { type: [Number, String], default: null },
-  paragemEntradaId: { type: [Number, String], default: null }
-})
+  const emit = defineEmits(['update:modelValue', 'tripStarted'])
+  const router = useRouter()
+  const ticketsStore = useTicketsStore()
+  const viagensStore = useViagensStore()
 
-const emit = defineEmits(['update:modelValue', 'tripStarted'])
-const router = useRouter()
-const ticketsStore = useTicketsStore()
-const viagensStore = useViagensStore()
+  const isOpen = ref(props.modelValue)
+  const loading = ref(false)
+  const submitting = ref(false)
+  const errorMsg = ref('')
+  const selectedType = ref(null)
+  const ticketQty = ref(1)
+  const showRoutePreview = ref(true)
 
-const isOpen = ref(props.modelValue)
-const loading = ref(false)
-const submitting = ref(false)
-const errorMsg = ref('')
-const selectedType = ref(null)
-const ticketQty = ref(1)
+  const zonaMin = ref(null)
+  const zonaMax = ref(null)
 
-const linhaNome = computed(() => {
-  const vt = (viagensStore.vehicleTrips || []).find(v => v.id == props.viagemVeiculoId)
-  return vt?.trajeto?.linha?.nome || ''
-})
+  const travelModeSelected = ref(false)
+  const tempTravelMode = ref(null) 
+  const travelMode = ref(null)   
+  const groupSize = ref(2)
 
-const stopName = computed(() => {
-  if (!props.paragemEntradaId) return ''
-  const stop = (viagensStore.stops || []).find(s => s.id == props.paragemEntradaId)
-  return stop?.nome || ''
-})
+  const linhaNome = computed(() => {
+    const vt = (viagensStore.vehicleTrips || []).find(v => v.id == props.viagemVeiculoId)
+    return vt?.trajeto?.linha?.nome || ''
+  })
 
-watch(() => props.modelValue, (val) => {
-  isOpen.value = val
-  if (val) loadTitulos()
-})
+  const stopName = computed(() => {
+    if (!props.paragemEntradaId) return ''
+    const stop = (viagensStore.stops || []).find(s => s.id == props.paragemEntradaId)
+    return stop?.nome || ''
+  })
 
-watch(isOpen, (val) => emit('update:modelValue', val))
+  const selectedTrip = computed(() => {
+    return (viagensStore.vehicleTrips || []).find(v => v.id == props.viagemVeiculoId) || null
+  })
 
-async function loadTitulos() {
-  loading.value = true
-  errorMsg.value = ''
-  selectedType.value = null
-  ticketQty.value = 1
-  try {
-    await Promise.all([ticketsStore.fetchMyTickets(), ticketsStore.fetchMyPass()])
-  } catch {
-    errorMsg.value = 'Erro ao carregar titulos.'
-  } finally {
-    loading.value = false
+  const routePreviewLineLabel = computed(() => {
+    return selectedTrip.value?.trajeto?.linha?.nome || ''
+  })
+
+  const routePreviewItems = computed(() => {
+    const pontos = [...(selectedTrip.value?.trajeto?.pontosDePassagem || [])]
+      .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+      .map(ponto => ({ id: ponto.paragem?.id ?? null, name: ponto.paragem?.nome || 'Paragem' }))
+      .filter(stop => stop.id !== null)
+
+    if (!pontos.length) {
+      return stopName.value
+        ? [{ key: 'current-fallback', type: 'stop', kind: 'current', name: stopName.value }]
+        : []
+    }
+
+    const currentIndex = pontos.findIndex(s => Number(s.id) === Number(props.paragemEntradaId))
+    const cur = currentIndex >= 0 ? currentIndex : 0
+    const last = pontos[pontos.length - 1]
+
+    const items = []
+    const pushStop = (stop, kind) => items.push({ key: `${kind}-${stop.id}`, type: 'stop', kind, name: stop.name })
+    const pushEllipsis = (key) => items.push({ key, type: 'ellipsis' })
+
+    pushStop(pontos[cur], 'current')
+
+    let added = 0
+    for (let i = cur + 1; i < pontos.length - 1 && added < 2; i++) {
+      pushStop(pontos[i], 'middle')
+      added++
+    }
+
+    const lastShownIndex = cur + 1 + added - 1
+    if (lastShownIndex < pontos.length - 2) {
+      pushEllipsis('ellipsis-right')
+    }
+
+    if (last.id !== pontos[cur].id) {
+      pushStop(last, 'last')
+    }
+
+    return items
+  })
+
+  const isTicketOptionValid = computed(() => {
+    if (unusedTicketsCount.value === 0) return false
+    if (travelMode.value === 'grupo' && unusedTicketsCount.value < groupSize.value) return false
+    return true
+  })
+
+  const shouldShowShopWarning = computed(() => {
+    if (travelMode.value === 'individual') {
+      return !hasActivePass.value && unusedTicketsCount.value === 0
+    }
+    if (travelMode.value === 'grupo') {
+      return unusedTicketsCount.value < groupSize.value
+    }
+    return false
+  })
+
+  const activePass = computed(() => ticketsStore.activePass)
+  const hasActivePass = computed(() => !!activePass.value)
+  const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
+  const unusedTicketsCount = computed(() => unusedTickets.value.length)
+
+  function confirmTravelMode() {
+    travelMode.value = tempTravelMode.value
+    travelModeSelected.value = true
+    errorMsg.value = ''
+    selectedType.value = null
+    
+    if (travelMode.value === 'grupo') {
+      if (isTicketOptionValid.value) {
+        selectedType.value = 'bilhete'
+        ticketQty.value = groupSize.value 
+      }
+    } else {
+      ticketQty.value = 1
+    }
   }
-}
 
-onMounted(() => { if (isOpen.value) loadTitulos() })
-
-const activePass = computed(() => ticketsStore.activePass)
-const hasActivePass = computed(() => !!activePass.value)
-const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
-const unusedTicketsCount = computed(() => unusedTickets.value.length)
-
-function closeDialog() {
-  isOpen.value = false
-}
-
-async function confirmSelection() {
-  submitting.value = true
-  errorMsg.value = ''
-  try {
-    if (props.paragemEntradaId) {
-      try {
-        const pos = await new Promise((resolve) => {
-          if (!navigator.geolocation) {
-            resolve(null)
-            return
-          }
-          navigator.geolocation.getCurrentPosition(
-            p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-            () => resolve(null),
-            { timeout: 5000 }
-          )
-        })
-
-        if (pos) {
-          const geoResp = await fetch('/api/geo/verificar', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${useAuthStore_inst.token}`
-            },
-            body: JSON.stringify({
-              paragemId: props.paragemEntradaId,
-              latitude: pos.lat,
-              longitude: pos.lng
-            })
-          })
-          if (geoResp.ok) {
-            const geoData = await geoResp.json()
-            if (!geoData.proximo) {
-              errorMsg.value = 'Nao esta proximo da paragem selecionada. A verificacao geografica falhou.'
-              submitting.value = false
-              return
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Geo verification skipped:', e)
-      }
+  async function loadTitulos() {
+    loading.value = true
+    errorMsg.value = ''
+    selectedType.value = null
+    ticketQty.value = 1
+    travelModeSelected.value = false
+    tempTravelMode.value = null
+    travelMode.value = null
+    groupSize.value = 2
+    try {
+      await Promise.all([ticketsStore.fetchMyTickets(), ticketsStore.fetchMyPass()])
+    } catch {
+      errorMsg.value = 'Erro ao carregar titulos.'
+    } finally {
+      loading.value = false
     }
+  }  
 
-    if (selectedType.value === 'passe') {
-      await viagensStore.startTrip(activePass.value.id, props.paragemEntradaId, props.viagemVeiculoId)
-    } else if (selectedType.value === 'bilhete') {
-      for (let i = 0; i < ticketQty.value; i++) {
-        const ticket = unusedTickets.value[i]
-        if (!ticket) break
-        await viagensStore.startTrip(ticket.id, props.paragemEntradaId, props.viagemVeiculoId)
-      }
+  async function loadZonas() {
+    if (!props.viagemVeiculoId) return
+
+    const trajetoId = selectedTrip.value?.trajeto?.id
+  
+    if (!trajetoId) {
+      console.warn('Aguardando que os dados da viagem carreguem para obter o trajetoId...')
+      return
     }
-    emit('tripStarted', { message: 'Viagem iniciada com sucesso!' })
+    
+    try {
+      const data = await viagensStore.fetchZonasVeiculo(props.viagemVeiculoId, props.paragemEntradaId)
+      zonaMin.value = data.zonaMin
+      zonaMax.value = data.zonaMax
+    } catch (e) {
+      console.warn('Erro ao carregar zonas no ecrã:', e)
+      zonaMin.value = null
+      zonaMax.value = null
+    }
+  }
+
+  function closeDialog() {
     isOpen.value = false
-    router.push('/traveling')
-  } catch (e) {
-    errorMsg.value = e.message || 'Erro ao iniciar viagem.'
-  } finally {
-    submitting.value = false
   }
-}
 
-function goToShop() {
-  isOpen.value = false
-  router.push('/tickets')
-}
-</script>
+  async function confirmSelection() {
+    submitting.value = true
+    errorMsg.value = ''
+    try {
+      if (selectedType.value === 'passe') {
+        await viagensStore.startTrip(activePass.value.id, props.paragemEntradaId, props.viagemVeiculoId)
+      } else if (selectedType.value === 'bilhete') {
+        if (travelMode.value === 'grupo' && unusedTicketsCount.value < groupSize.value) {
+          throw new Error('Não tem bilhetes suficientes para todo o grupo.')
+        }
+
+        const qtdAValidar = travelMode.value === 'grupo' ? groupSize.value : ticketQty.value
+
+        for (let i = 0; i < qtdAValidar; i++) {
+          const ticket = unusedTickets.value[i]
+          if (!ticket) break
+          await viagensStore.startTrip(ticket.id, props.paragemEntradaId, props.viagemVeiculoId)
+        }
+      }
+      emit('tripStarted', { message: 'Viagem iniciada com sucesso!' })
+      isOpen.value = false
+      router.push('/traveling')
+    } catch (e) {
+      errorMsg.value = e.message || 'Erro ao iniciar viagem.'
+    } finally {
+      submitting.value = false
+    }
+  }
+
+  function goToShop() {
+    isOpen.value = false
+    router.push('/tickets')
+  }
+
+  watch(() => props.modelValue, (val) => {
+    isOpen.value = val
+
+    if (val) {
+      console.log('BoardingDialog abriu. Props:', {
+        viagemVeiculoId: props.viagemVeiculoId,
+        paragemEntradaId: props.paragemEntradaId,
+        busNumber: props.busNumber
+      })
+      
+      showRoutePreview.value = true
+      loadTitulos()
+      loadZonas() 
+    }
+  })
+
+  watch(isOpen, (val) => emit('update:modelValue', val))
+
+  onMounted(() => { 
+    if (isOpen.value) {
+      loadTitulos()
+      loadZonas()
+    }
+  })
+  </script>
 
 <script>
 export default { name: 'BoardingDialog' }
@@ -443,18 +643,269 @@ export default { name: 'BoardingDialog' }
 }
 
 .no-tickets-warning {
-  background: #fff;
-  border: 1px solid #d7d6d6;
-  border-radius: 10px;
+  background: #ffffff;
+  border: 1px dashed #d7d6d6;
+  border-radius: 12px;
   padding: 16px;
   text-align: center;
   width: 100%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
 }
 
 .warning-message {
   font-family: 'Inter', sans-serif;
   font-size: 14px;
-  color: #505050;
-  margin: 0;
+  color: #212529;
+  font-weight: 500;
+  margin: 0 0 4px 0;
 }
+
+.warning-question {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #6c757d;
+  margin: 0 0 12px 0;
+}
+
+/* Botão de Destaque para a Loja */
+.btn-shop {
+  width: 100%;
+  height: 42px;
+  border-radius: 10px;
+  border: none;
+  background: #028e5c; /* Mantém a cor principal verde do teu ecru */
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.btn-shop:hover {
+  background: #027a4f;
+  transform: translateY(-1px);
+}
+
+.route-preview-panel {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 16px;
+  width: 100%;
+}
+
+.route-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.route-preview-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #121212;
+}
+
+.route-preview-subtitle {
+  font-size: 12px;
+  color: #028e5c;
+  font-weight: 500;
+}
+
+.route-preview-rail {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  padding-top: 10px;
+  padding-bottom: 25px; 
+  padding-left: 20px;   
+  padding-right: 20px;  
+  margin-bottom: 16px;
+  gap: 0;
+  scrollbar-width: none;
+}
+
+.route-preview-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.route-stop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.route-stop__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #028e5c;
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.route-stop__name {
+  position: absolute;
+  top: 22px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.route-connector {
+  flex-shrink: 0;
+  height: 3px;
+  width: 28px;
+  background: #028e5c;
+  z-index: 1;
+}
+
+.route-stop--first .route-stop__dot,
+.route-stop--last .route-stop__dot {
+  background: #028e5c;
+  width: 14px;
+  height: 14px;
+}
+
+.route-stop--current .route-stop__dot {
+  background: #1876d2;
+  width: 14px;
+  height: 14px;
+}
+
+.route-stop--current .route-stop__name {
+  font-weight: 700;
+  color: #1876d2;
+}
+
+.route-stop--middle .route-stop__name,
+.route-stop--last .route-stop__name {
+  font-weight: 600;
+  color: #028e5c;
+}
+
+.route-connector.route-stop-ellipsis {
+  background: transparent; 
+  
+  background-image: linear-gradient(to right, #028e5c 60%, transparent 40%);
+  background-size: 10px 10px;
+  background-repeat: repeat-x;
+}
+
+.route-preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 12px;
+}
+
+.zone-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #028e5c;
+  margin-bottom: 10px;
+}
+
+.section-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 12px;
+}
+
+.mode-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.mode-card {
+  background: #ffffff;
+  border: 2px solid #d7d6d6;
+  border-radius: 12px;
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.mode-card:hover {
+  border-color: #028e5c;
+}
+
+.mode-card--selected {
+  border-color: #028e5c;
+  background: #f4fbf7;
+  box-shadow: 0 4px 10px rgba(2, 142, 92, 0.08);
+}
+
+.mode-card .mode-icon {
+  color: #6c757d;
+  margin-bottom: 4px;
+}
+
+.mode-card--selected .mode-icon {
+  color: #028e5c;
+}
+
+.mode-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #121212;
+}
+
+.mode-desc {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 2px;
+}
+
+/* Caixa do Contador de Pessoas do Grupo */
+.group-qty-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+}
+
+/* Indicador de Modo Ativo no topo dos bilhetes */
+.mode-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #e9ecef;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #495057;
+  align-self: flex-start;
+  width: fit-content;
+  margin-bottom: 8px;
+}
+
+/* Classes utilitárias adicionadas */
+.gap-sm { gap: 8px; }
+.mb-sm { margin-bottom: 8px; }
 </style>
