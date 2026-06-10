@@ -2,10 +2,12 @@ package pt.notub.payment.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.notub.common.exception.AcessoNegadoException;
+import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
 import pt.notub.payment.dto.CheckoutRequest;
 import pt.notub.payment.dto.CheckoutResponse;
@@ -44,19 +46,20 @@ public class PagamentoService {
     private final PaymentProcessorFactory processorFactory;
     private final ApplicationEventPublisher eventPublisher;
 
-    @org.springframework.beans.factory.annotation.Value("${FRONTEND_URL}")
-    private String frontendUrl;
+    private final String frontendUrl;
 
     public PagamentoService(TransacaoRepository transacaoRepository,
                             UtilizadorRepository utilizadorRepository,
                             TarifaRepository tarifaRepository,
                             PaymentProcessorFactory processorFactory,
-                            ApplicationEventPublisher eventPublisher) {
+                            ApplicationEventPublisher eventPublisher,
+                            @Value("${FRONTEND_URL}") String frontendUrl) {
         this.transacaoRepository = transacaoRepository;
         this.utilizadorRepository = utilizadorRepository;
         this.tarifaRepository = tarifaRepository;
         this.processorFactory = processorFactory;
         this.eventPublisher = eventPublisher;
+        this.frontendUrl = frontendUrl;
     }
 
     @Transactional
@@ -64,7 +67,7 @@ public class PagamentoService {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
 
-        TipoProduto tipoProduto = TipoProduto.valueOf(request.getTipoProduto());
+        TipoProduto tipoProduto = parseTipoProduto(request.getTipoProduto());
 
         var existingOpt = transacaoRepository.findActiveByUser(
                 utilizador.getId(), EstadoPagamento.EM_CURSO);
@@ -134,7 +137,7 @@ public class PagamentoService {
                     .orElseThrow(() -> new RecursoNaoEncontradoException("Tarifa nao encontrada para bilhete"))
                     .getValor();
         } else {
-            ModalidadePasse modalidade = ModalidadePasse.valueOf(request.getModalidade());
+            ModalidadePasse modalidade = parseModalidade(request.getModalidade());
             unitPrice = tarifaRepository
                     .findByCriteria(tipoUtilizador, modalidade, nrZonas)
                     .orElseThrow(() -> new RecursoNaoEncontradoException("Tarifa nao encontrada para passe"))
@@ -144,6 +147,9 @@ public class PagamentoService {
         double totalValor;
         if (tipoProduto == TipoProduto.BILHETE) {
             int quantidade = request.getQuantidade() != null ? request.getQuantidade() : 1;
+            if (quantidade <= 0) {
+                throw new PedidoInvalidoException("Quantidade invalida");
+            }
             totalValor = unitPrice * quantidade;
         } else {
             totalValor = unitPrice;
@@ -262,5 +268,27 @@ public class PagamentoService {
         }
 
         return response;
+    }
+
+    private TipoProduto parseTipoProduto(String tipoProduto) {
+        if (tipoProduto == null || tipoProduto.isBlank()) {
+            throw new PedidoInvalidoException("Tipo de produto invalido");
+        }
+        try {
+            return TipoProduto.valueOf(tipoProduto.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new PedidoInvalidoException("Tipo de produto invalido");
+        }
+    }
+
+    private ModalidadePasse parseModalidade(String modalidade) {
+        if (modalidade == null || modalidade.isBlank()) {
+            throw new PedidoInvalidoException("Modalidade invalida");
+        }
+        try {
+            return ModalidadePasse.valueOf(modalidade.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new PedidoInvalidoException("Modalidade invalida");
+        }
     }
 }

@@ -2,13 +2,14 @@ package pt.notub.user.controller;
 
 import pt.notub.user.service.UtilizadorService;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
-import pt.notub.user.mapper.UserMapper;
-import pt.notub.user.entity.Utilizador;
 import pt.notub.common.security.AuthenticatedUser;
+import pt.notub.common.security.AuthenticatedUserContext;
+import pt.notub.user.dto.UpdateUserProfileRequest;
 import pt.notub.user.dto.UserDTO;
 
 import java.util.List;
@@ -25,34 +26,28 @@ public class UtilizadorController {
 
     @GetMapping
     public ResponseEntity<List<UserDTO>> getAllUtilizadores() {
-        return ResponseEntity.ok(UserMapper.toDTOList(utilizadorService.getAllUtilizadores()));
+        return ResponseEntity.ok(utilizadorService.getAllUtilizadores());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<UserDTO> getUtilizadorById(@PathVariable Long id) {
-        return utilizadorService.getUtilizadorById(id)
-                .map(UserMapper::toDTO)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(utilizadorService.getUtilizadorById(id));
     }
 
     @GetMapping({"/perfil", "/profile"})
-    public ResponseEntity<UserDTO> getMyProfile(@AuthenticatedUser Utilizador utilizador) {
-        return ResponseEntity.ok(UserMapper.toDTO(utilizador));
+    public ResponseEntity<UserDTO> getMyProfile(@AuthenticatedUser AuthenticatedUserContext utilizador) {
+        return ResponseEntity.ok(utilizadorService.getUtilizadorById(utilizador.id()));
     }
 
     @PutMapping({"/perfil", "/profile"})
-    public ResponseEntity<?> updateMyProfile(@AuthenticatedUser Utilizador utilizador, @Valid @RequestBody Utilizador updated) {
-        try {
-            return ResponseEntity.ok(UserMapper.toDTO(utilizadorService.updateUtilizador(utilizador.getEmail(), updated)));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(409).body(e.getMessage());
-        }
+    public ResponseEntity<UserDTO> updateMyProfile(@AuthenticatedUser AuthenticatedUserContext utilizador,
+                                                   @Valid @RequestBody UpdateUserProfileRequest updated) {
+        return ResponseEntity.ok(utilizadorService.updateUtilizador(utilizador.email(), updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteUtilizador(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUtilizador(@PathVariable Long id) {
         utilizadorService.deleteUtilizador(id);
-        return ResponseEntity.ok("Utilizador deleted");
+        return ResponseEntity.noContent().build();
     }
 }

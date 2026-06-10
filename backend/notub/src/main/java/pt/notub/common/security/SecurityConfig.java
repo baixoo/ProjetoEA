@@ -1,6 +1,5 @@
 package pt.notub.common.security;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,30 +29,36 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    @Autowired
-    private UserDetailsServiceImpl userDetailsService;
+    private final UserDetailsServiceImpl userDetailsService;
+    private final AuthEntryPointJwt unauthorizedHandler;
+    private final AuthAccessDeniedHandler accessDeniedHandler;
+    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+    private final StatelessOAuth2AuthorizationRequestRepository statelessAuthRequestRepository;
+    private final ClientRegistrationRepository clientRegistrationRepository;
+    private final String frontendUrl;
 
-    @Autowired
-    private AuthEntryPointJwt unauthorizedHandler;
-
-    @Autowired
-    private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
-
-    @Autowired
-    private OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
-
-    @Autowired
-    private StatelessOAuth2AuthorizationRequestRepository statelessAuthRequestRepository;
-
-    @Autowired
-    private ClientRegistrationRepository clientRegistrationRepository;
-
-    @Value("${FRONTEND_URL}")
-    private String frontendUrl;
+    public SecurityConfig(UserDetailsServiceImpl userDetailsService,
+                          AuthEntryPointJwt unauthorizedHandler,
+                          AuthAccessDeniedHandler accessDeniedHandler,
+                          OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
+                          OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler,
+                          StatelessOAuth2AuthorizationRequestRepository statelessAuthRequestRepository,
+                          ClientRegistrationRepository clientRegistrationRepository,
+                          @Value("${FRONTEND_URL}") String frontendUrl) {
+        this.userDetailsService = userDetailsService;
+        this.unauthorizedHandler = unauthorizedHandler;
+        this.accessDeniedHandler = accessDeniedHandler;
+        this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
+        this.oAuth2AuthenticationFailureHandler = oAuth2AuthenticationFailureHandler;
+        this.statelessAuthRequestRepository = statelessAuthRequestRepository;
+        this.clientRegistrationRepository = clientRegistrationRepository;
+        this.frontendUrl = frontendUrl;
+    }
 
     @Bean
-    public AuthTokenFilter authenticationJwtTokenFilter() {
-        return new AuthTokenFilter();
+    public AuthTokenFilter authenticationJwtTokenFilter(JwtUtils jwtUtils) {
+        return new AuthTokenFilter(jwtUtils, userDetailsService);
     }
 
     @Bean
@@ -97,11 +102,13 @@ public class SecurityConfig {
 
     @Bean
     @Order(2)
-    public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain apiFilterChain(HttpSecurity http, AuthTokenFilter authTokenFilter) throws Exception {
         http.securityMatcher("/**")
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
-            .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
+            .exceptionHandling(exception -> exception
+                .authenticationEntryPoint(unauthorizedHandler)
+                .accessDeniedHandler(accessDeniedHandler))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth ->
                 auth.requestMatchers("/api/auth/**").permitAll()
@@ -120,7 +127,7 @@ public class SecurityConfig {
             );
 
         http.authenticationProvider(authenticationProvider());
-        http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

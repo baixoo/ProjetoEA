@@ -1,12 +1,17 @@
 package pt.notub.user.service;
 
 import org.springframework.stereotype.Service;
+import pt.notub.common.exception.ConflitoException;
+import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
+import pt.notub.common.util.NifValidator;
+import pt.notub.user.dto.UpdateUserProfileRequest;
+import pt.notub.user.dto.UserDTO;
 import pt.notub.user.entity.TipoPapel;
 import pt.notub.user.entity.TipoUtilizador;
 import pt.notub.user.entity.Utilizador;
+import pt.notub.user.mapper.UserMapper;
 import pt.notub.user.repository.UtilizadorRepository;
-import pt.notub.common.util.NifValidator;
 
 import java.time.LocalDate;
 import java.time.Period;
@@ -31,81 +36,100 @@ public class UtilizadorService {
         return TipoUtilizador.ADULTO;
     }
 
-    public List<Utilizador> getAllUtilizadores() {
-        return utilizadorRepository.findAll();
+    public List<UserDTO> getAllUtilizadores() {
+        return UserMapper.toDTOList(utilizadorRepository.findAll());
     }
 
-    public Optional<Utilizador> getUtilizadorById(Long id) {
-        return utilizadorRepository.findById(id);
+    public UserDTO getUtilizadorById(Long id) {
+        Utilizador utilizador = utilizadorRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
+        return UserMapper.toDTO(utilizador);
     }
 
     public Optional<Utilizador> getUtilizadorByEmail(String email) {
         return utilizadorRepository.findByEmail(email);
     }
 
-    public Utilizador updateUtilizador(String email, Utilizador updated) {
+    public UserDTO getUtilizadorByEmailDto(String email) {
+        Utilizador utilizador = utilizadorRepository.findByEmail(email)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
+        return UserMapper.toDTO(utilizador);
+    }
+
+    public UserDTO updateUtilizador(String email, UpdateUserProfileRequest updated) {
         Utilizador utilizador = utilizadorRepository.findByEmail(email)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
 
-        if (updated.getPrimeiroNome() != null) {
-            if (!updated.getPrimeiroNome().matches("^[a-zA-ZÀ-ÿ]+$")) {
-                throw new IllegalArgumentException("O primeiro nome deve conter apenas letras");
+        if (updated.primeiroNome() != null) {
+            if (!updated.primeiroNome().matches("^[\\p{L}]+$")) {
+                throw new PedidoInvalidoException("O primeiro nome deve conter apenas letras");
             }
-            utilizador.setPrimeiroNome(updated.getPrimeiroNome());
+            utilizador.setPrimeiroNome(updated.primeiroNome());
         }
-        if (updated.getUltimoNome() != null) {
-            if (!updated.getUltimoNome().matches("^[a-zA-ZÀ-ÿ\\s]*$")) {
-                throw new IllegalArgumentException("O ultimo nome deve conter apenas letras e espacos");
+        if (updated.ultimoNome() != null) {
+            if (!updated.ultimoNome().matches("^[\\p{L}\\s]*$")) {
+                throw new PedidoInvalidoException("O ultimo nome deve conter apenas letras e espacos");
             }
-            utilizador.setUltimoNome(updated.getUltimoNome());
+            utilizador.setUltimoNome(updated.ultimoNome());
         }
-        if (updated.getDataNascimento() != null) {
-            if (updated.getDataNascimento().isAfter(LocalDate.now())) {
-                throw new IllegalArgumentException("A data de nascimento nao pode ser futura");
+        if (updated.dataNascimento() != null && !updated.dataNascimento().isBlank()) {
+            LocalDate dataNascimento;
+            try {
+                dataNascimento = LocalDate.parse(updated.dataNascimento());
+            } catch (Exception e) {
+                throw new PedidoInvalidoException("Data de nascimento invalida");
             }
-            if (updated.getDataNascimento().isBefore(LocalDate.of(1900, 1, 1))) {
-                throw new IllegalArgumentException("A data de nascimento deve ser posterior a 1900-01-01");
+            if (dataNascimento.isAfter(LocalDate.now())) {
+                throw new PedidoInvalidoException("A data de nascimento nao pode ser futura");
             }
-            utilizador.setDataNascimento(updated.getDataNascimento());
-            utilizador.setTipoUtilizador(calcularTipoUtilizador(updated.getDataNascimento()));
+            if (dataNascimento.isBefore(LocalDate.of(1900, 1, 1))) {
+                throw new PedidoInvalidoException("A data de nascimento deve ser posterior a 1900-01-01");
+            }
+            utilizador.setDataNascimento(dataNascimento);
+            utilizador.setTipoUtilizador(calcularTipoUtilizador(dataNascimento));
         }
 
-        String novoNif = updated.getNif();
+        String novoNif = updated.nif();
         if (novoNif != null && novoNif.isBlank()) {
             novoNif = null;
         }
         if (novoNif != null) {
             if (!NifValidator.isValid(novoNif)) {
-                throw new IllegalArgumentException("NIF invalido");
+                throw new PedidoInvalidoException("NIF invalido");
             }
             String nifAtual = utilizador.getNif();
             if (!novoNif.equals(nifAtual) && utilizadorRepository.existsByNif(novoNif)) {
-                throw new IllegalArgumentException("NIF ja em uso!");
+                throw new ConflitoException("NIF ja em uso!");
             }
             utilizador.setNif(novoNif);
-        } else if (updated.getNif() != null) {
+        } else if (updated.nif() != null) {
             utilizador.setNif(null);
         }
 
-        return utilizadorRepository.save(utilizador);
+        return UserMapper.toDTO(utilizadorRepository.save(utilizador));
     }
 
-    public Utilizador updateTipoUtilizador(Long id, TipoUtilizador tipoUtilizador) {
+    public UserDTO updateTipoUtilizador(Long id, TipoUtilizador tipoUtilizador) {
         Utilizador utilizador = utilizadorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
         utilizador.setTipoUtilizador(tipoUtilizador);
-        return utilizadorRepository.save(utilizador);
+        return UserMapper.toDTO(utilizadorRepository.save(utilizador));
     }
 
-    public Utilizador updateRole(Long id, String role) {
+    public UserDTO updateRole(Long id, String role) {
         if (role == null || role.isBlank()) {
-            throw new IllegalArgumentException("Role invalida");
+            throw new PedidoInvalidoException("Role invalida");
         }
-        TipoPapel novoRole = TipoPapel.valueOf(role.trim().toUpperCase());
+        TipoPapel novoRole;
+        try {
+            novoRole = TipoPapel.valueOf(role.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new PedidoInvalidoException("Role invalida");
+        }
         Utilizador utilizador = utilizadorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
         utilizador.setRole(novoRole);
-        return utilizadorRepository.save(utilizador);
+        return UserMapper.toDTO(utilizadorRepository.save(utilizador));
     }
 
     public void deleteUtilizador(Long id) {

@@ -7,6 +7,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pt.notub.network.entity.Paragem;
 import pt.notub.network.repository.ParagemRepository;
+import pt.notub.zone.dto.ZonaDTO;
+import pt.notub.zone.dto.ZonaRequest;
 import pt.notub.zone.entity.Zona;
 import pt.notub.zone.repository.ZonaRepository;
 
@@ -38,14 +40,12 @@ class ZonaServiceTest {
         existing.setNome("Old");
         existing.setNum(5);
 
-        Zona updated = new Zona();
-        updated.setNome("New");
-        updated.setNum(7);
+        ZonaRequest updated = new ZonaRequest("New", 7);
 
         when(zonaRepository.findById(1L)).thenReturn(Optional.of(existing));
         when(zonaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Zona result = service.updateZona(1L, updated);
+        ZonaDTO result = service.updateZona(1L, updated);
 
         assertEquals("New", result.getNome());
         assertEquals(7, result.getNum());
@@ -56,6 +56,8 @@ class ZonaServiceTest {
     void addParagem_assignsZona() {
         Zona zona = new Zona();
         zona.setId(1L);
+        zona.setNome("Centro");
+        zona.setNum(3);
 
         Paragem paragem = new Paragem();
         paragem.setId(2L);
@@ -64,10 +66,11 @@ class ZonaServiceTest {
         when(paragemRepository.findById(2L)).thenReturn(Optional.of(paragem));
         when(paragemRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Zona result = service.addParagem(1L, 2L);
+        ZonaDTO result = service.addParagem(1L, 2L);
 
-        assertSame(zona, result);
         assertSame(zona, paragem.getZona());
+        assertEquals("Centro", result.getNome());
+        assertEquals(3, result.getNum());
         verify(paragemRepository).save(paragem);
     }
 

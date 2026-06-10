@@ -1,23 +1,18 @@
 package pt.notub.payment.controller;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pt.notub.payment.dto.CheckoutRequest;
 import pt.notub.payment.dto.CheckoutResponse;
 import pt.notub.payment.dto.PagamentoStatusResponse;
-import pt.notub.user.entity.Utilizador;
 import pt.notub.common.security.AuthenticatedUser;
+import pt.notub.common.security.AuthenticatedUserContext;
 import pt.notub.payment.service.PagamentoService;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping({"/api/pagamento", "/api/payment"})
 public class PagamentoController {
-
-    private static final Logger logger = LoggerFactory.getLogger(PagamentoController.class);
 
     private final PagamentoService pagamentoService;
 
@@ -26,25 +21,16 @@ public class PagamentoController {
     }
 
     @PostMapping("/checkout")
-    public ResponseEntity<?> checkout(@AuthenticatedUser Utilizador utilizador, @RequestBody CheckoutRequest request) {
-        try {
-            CheckoutResponse response = pagamentoService.iniciarCheckout(utilizador.getEmail(), request);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Erro no checkout: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
-        }
+    public ResponseEntity<CheckoutResponse> checkout(@AuthenticatedUser AuthenticatedUserContext utilizador,
+                                                     @RequestBody CheckoutRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(pagamentoService.iniciarCheckout(utilizador.email(), request));
     }
 
     @GetMapping({"/estado", "/status"})
-    public ResponseEntity<?> verificarEstado(
-            @AuthenticatedUser Utilizador utilizador,
+    public ResponseEntity<PagamentoStatusResponse> verificarEstado(
+            @AuthenticatedUser AuthenticatedUserContext utilizador,
             @RequestParam("t") String token) {
-        try {
-            PagamentoStatusResponse response = pagamentoService.verificarEstado(token, utilizador.getId());
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
-        }
+        return ResponseEntity.ok(pagamentoService.verificarEstado(token, utilizador.id()));
     }
 }

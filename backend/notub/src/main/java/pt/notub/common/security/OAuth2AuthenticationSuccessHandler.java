@@ -5,7 +5,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -29,15 +28,15 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final JwtUtils jwtUtils;
     private final UtilizadorRepository utilizadorRepository;
     private final PublicadorEventosEmail publicadorEventosEmail;
-
-    @Value("${FRONTEND_URL}")
-    private String frontendUrl;
+    private final String frontendUrl;
 
     public OAuth2AuthenticationSuccessHandler(JwtUtils jwtUtils, UtilizadorRepository utilizadorRepository,
-                                              PublicadorEventosEmail publicadorEventosEmail) {
+                                              PublicadorEventosEmail publicadorEventosEmail,
+                                              @org.springframework.beans.factory.annotation.Value("${FRONTEND_URL}") String frontendUrl) {
         this.jwtUtils = jwtUtils;
         this.utilizadorRepository = utilizadorRepository;
         this.publicadorEventosEmail = publicadorEventosEmail;
+        this.frontendUrl = frontendUrl;
     }
 
     @Override

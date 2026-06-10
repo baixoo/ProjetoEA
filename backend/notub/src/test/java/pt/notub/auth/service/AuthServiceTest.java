@@ -10,7 +10,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.util.ReflectionTestUtils;
 import pt.notub.auth.dto.AuthResponse;
 import pt.notub.auth.dto.LoginRequest;
 import pt.notub.auth.dto.PedidoEsqueceuPassword;
@@ -18,6 +17,8 @@ import pt.notub.auth.dto.PedidoRedefinirPassword;
 import pt.notub.auth.dto.RegisterRequest;
 import pt.notub.auth.entity.TokenRecuperacaoSenha;
 import pt.notub.auth.repository.TokenRecuperacaoSenhaRepository;
+import pt.notub.common.dto.MensagemResponse;
+import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.notification.PublicadorEventosEmail;
 import pt.notub.common.security.JwtUtils;
 import pt.notub.common.security.UserDetailsImpl;
@@ -68,8 +69,8 @@ class AuthServiceTest {
                 tokenRecuperacaoSenhaRepository,
                 passwordEncoder,
                 jwtUtils,
-                publicadorEventosEmail);
-        ReflectionTestUtils.setField(service, "frontendUrl", "http://frontend");
+                publicadorEventosEmail,
+                "http://frontend");
     }
 
     @AfterEach
@@ -145,7 +146,7 @@ class AuthServiceTest {
         request.setPrimeiroNome("Maria123");
         request.setUltimoNome("Silva");
 
-        assertThrows(IllegalArgumentException.class, () -> service.register(request));
+        assertThrows(PedidoInvalidoException.class, () -> service.register(request));
     }
 
     @Test
@@ -158,9 +159,11 @@ class AuthServiceTest {
         when(utilizadorRepository.findByEmail("forgot@example.com")).thenReturn(Optional.of(utilizador));
         when(tokenRecuperacaoSenhaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.sendPasswordRecovery(new PedidoEsqueceuPassword() {{
+        MensagemResponse response = service.sendPasswordRecovery(new PedidoEsqueceuPassword() {{
             setEmail("forgot@example.com");
         }});
+
+        assertTrue(response.mensagem().contains("recuperacao"));
 
         ArgumentCaptor<TokenRecuperacaoSenha> captor = ArgumentCaptor.forClass(TokenRecuperacaoSenha.class);
         verify(tokenRecuperacaoSenhaRepository).save(captor.capture());
@@ -194,11 +197,12 @@ class AuthServiceTest {
         when(utilizadorRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(tokenRecuperacaoSenhaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.resetPassword(new PedidoRedefinirPassword() {{
+        MensagemResponse response = service.resetPassword(new PedidoRedefinirPassword() {{
             setToken("token-123");
             setNovaPassword("new-password");
         }});
 
+        assertEquals("Palavra-passe redefinida com sucesso", response.mensagem());
         assertEquals("encoded-new-password", utilizador.getPassword());
         assertTrue(token.isUtilizado());
         verify(utilizadorRepository).save(utilizador);

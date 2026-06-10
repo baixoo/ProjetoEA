@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.stereotype.Component;
@@ -15,9 +14,12 @@ import java.io.IOException;
 public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(OAuth2AuthenticationFailureHandler.class);
+    private final String frontendUrl;
 
-    @Value("${FRONTEND_URL}")
-    private String frontendUrl;
+    public OAuth2AuthenticationFailureHandler(
+            @org.springframework.beans.factory.annotation.Value("${FRONTEND_URL}") String frontendUrl) {
+        this.frontendUrl = frontendUrl;
+    }
 
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,

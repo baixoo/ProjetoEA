@@ -1,9 +1,11 @@
 package pt.notub.admin.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import pt.notub.tariff.entity.Tarifa;
+import pt.notub.tariff.dto.TarifaDTO;
+import pt.notub.tariff.dto.TarifaRequest;
 import pt.notub.tariff.service.TarifaService;
 
 @RestController
@@ -18,18 +20,18 @@ public class AdminTarifaController {
     }
 
     @PostMapping
-    public ResponseEntity<Tarifa> create(@RequestBody Tarifa tarifa) {
-        return ResponseEntity.ok(tarifaService.createTarifa(tarifa));
+    public ResponseEntity<TarifaDTO> create(@RequestBody TarifaRequest tarifa) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(tarifaService.createTarifa(tarifa));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Tarifa updated) {
+    public ResponseEntity<TarifaDTO> update(@PathVariable Long id, @RequestBody TarifaRequest updated) {
         return ResponseEntity.ok(tarifaService.updateTarifa(id, updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         tarifaService.deleteTarifa(id);
-        return ResponseEntity.ok("Tarifa eliminada");
+        return ResponseEntity.noContent().build();
     }
 }

@@ -14,6 +14,10 @@ import pt.notub.auth.dto.PedidoRedefinirPassword;
 import pt.notub.auth.dto.RegisterRequest;
 import pt.notub.auth.entity.TokenRecuperacaoSenha;
 import pt.notub.auth.repository.TokenRecuperacaoSenhaRepository;
+import pt.notub.common.dto.MensagemResponse;
+import pt.notub.common.exception.ConflitoException;
+import pt.notub.common.exception.PedidoInvalidoException;
+import pt.notub.common.exception.RecursoNaoEncontradoException;
 import pt.notub.common.notification.PublicadorEventosEmail;
 import pt.notub.common.security.JwtUtils;
 import pt.notub.common.security.UserDetailsImpl;
@@ -40,21 +44,22 @@ public class AuthService {
     private final JwtUtils jwtUtils;
     private final PublicadorEventosEmail publicadorEventosEmail;
 
-    @Value("${FRONTEND_URL}")
-    private String frontendUrl;
+    private final String frontendUrl;
 
     public AuthService(AuthenticationManager authenticationManager,
                        UtilizadorRepository utilizadorRepository,
                        TokenRecuperacaoSenhaRepository tokenRecuperacaoSenhaRepository,
                        PasswordEncoder passwordEncoder,
                        JwtUtils jwtUtils,
-                       PublicadorEventosEmail publicadorEventosEmail) {
+                       PublicadorEventosEmail publicadorEventosEmail,
+                       @Value("${FRONTEND_URL}") String frontendUrl) {
         this.authenticationManager = authenticationManager;
         this.utilizadorRepository = utilizadorRepository;
         this.tokenRecuperacaoSenhaRepository = tokenRecuperacaoSenhaRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
         this.publicadorEventosEmail = publicadorEventosEmail;
+        this.frontendUrl = frontendUrl;
     }
 
     public AuthResponse login(LoginRequest loginRequest) {
@@ -73,9 +78,9 @@ public class AuthService {
         utilizador.setPrimeiroNome(registerRequest.getPrimeiroNome());
         utilizador.setUltimoNome(registerRequest.getUltimoNome());
         String nif = registerRequest.getNif();
-        utilizador.setNif(nif != null && nif.isEmpty() ? null : nif);
-        if (registerRequest.getDataNascimento() != null && !registerRequest.getDataNascimento().isEmpty()) {
-            LocalDate dataNascimento = LocalDate.parse(registerRequest.getDataNascimento());
+        utilizador.setNif(nif != null && nif.isBlank() ? null : nif);
+        if (registerRequest.getDataNascimento() != null && !registerRequest.getDataNascimento().isBlank()) {
+            LocalDate dataNascimento = parseDate(registerRequest.getDataNascimento());
             utilizador.setDataNascimento(dataNascimento);
             utilizador.setTipoUtilizador(UtilizadorService.calcularTipoUtilizador(dataNascimento));
         }
@@ -92,11 +97,12 @@ public class AuthService {
         return buildAuthResponse(authentication);
     }
 
-    public UserDTO getCurrentUser(Utilizador utilizador) {
-        return UserMapper.toDTO(utilizador);
+    public UserDTO getCurrentUser(String email) {
+        return UserMapper.toDTO(utilizadorRepository.findByEmail(email)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado")));
     }
 
-    public void sendPasswordRecovery(PedidoEsqueceuPassword pedido) {
+    public MensagemResponse sendPasswordRecovery(PedidoEsqueceuPassword pedido) {
         utilizadorRepository.findByEmail(pedido.getEmail()).ifPresent(utilizador -> {
             TokenRecuperacaoSenha token = new TokenRecuperacaoSenha();
             token.setUtilizador(utilizador);
@@ -109,20 +115,25 @@ public class AuthService {
                     utilizador.getId(), utilizador.getEmail(), utilizador.getPrimeiroNome(),
                     token.getToken(), urlRecuperacao);
         });
+        return new MensagemResponse("Se o email existir, foi enviado um link de recuperacao.");
     }
 
-    public void resetPassword(PedidoRedefinirPassword pedido) {
+    public MensagemResponse resetPassword(PedidoRedefinirPassword pedido) {
+        if (pedido.getNovaPassword() == null || pedido.getNovaPassword().isBlank()) {
+            throw new PedidoInvalidoException("Palavra-passe invalida");
+        }
         TokenRecuperacaoSenha token = tokenRecuperacaoSenhaRepository
                 .findValidToken(pedido.getToken())
-                .orElseThrow(() -> new RuntimeException("Token invalido ou expirado"));
+                .orElseThrow(() -> new PedidoInvalidoException("Token invalido ou expirado"));
         if (token.getDataExpiracao().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Token de recuperacao expirado");
+            throw new PedidoInvalidoException("Token de recuperacao expirado");
         }
         Utilizador utilizador = token.getUtilizador();
         utilizador.setPassword(passwordEncoder.encode(pedido.getNovaPassword()));
         utilizadorRepository.save(utilizador);
         token.setUtilizado(true);
         tokenRecuperacaoSenhaRepository.save(token);
+        return new MensagemResponse("Palavra-passe redefinida com sucesso");
     }
 
     private AuthResponse buildAuthResponse(Authentication authentication) {
@@ -133,34 +144,45 @@ public class AuthService {
 
     private void validateRegisterRequest(RegisterRequest registerRequest) {
         if (registerRequest.getEmail() == null || registerRequest.getEmail().isBlank()) {
-            throw new IllegalArgumentException("Erro: Email e obrigatorio!");
+            throw new PedidoInvalidoException("Erro: Email e obrigatorio!");
         }
         if (utilizadorRepository.existsByEmail(registerRequest.getEmail())) {
-            throw new IllegalArgumentException("Erro: Email ja em uso!");
+            throw new ConflitoException("Erro: Email ja em uso!");
+        }
+        if (registerRequest.getPassword() == null || registerRequest.getPassword().isBlank()) {
+            throw new PedidoInvalidoException("Erro: Palavra-passe obrigatoria!");
         }
         if (registerRequest.getPrimeiroNome() == null || !registerRequest.getPrimeiroNome().matches("^[\\p{L}]+$")) {
-            throw new IllegalArgumentException("Erro: Primeiro nome invalido! Deve conter apenas letras.");
+            throw new PedidoInvalidoException("Erro: Primeiro nome invalido! Deve conter apenas letras.");
         }
         if (registerRequest.getUltimoNome() == null || !registerRequest.getUltimoNome().matches("^[\\p{L}\\s]+$")) {
-            throw new IllegalArgumentException("Erro: Ultimo nome invalido! Deve conter apenas letras e espacos.");
+            throw new PedidoInvalidoException("Erro: Ultimo nome invalido! Deve conter apenas letras e espacos.");
         }
         String nif = registerRequest.getNif();
         if (nif != null && !nif.isEmpty()) {
             if (!NifValidator.isValid(nif)) {
-                throw new IllegalArgumentException("Erro: NIF invalido!");
+                throw new PedidoInvalidoException("Erro: NIF invalido!");
             }
             if (utilizadorRepository.existsByNif(nif)) {
-                throw new IllegalArgumentException("Erro: NIF ja em uso!");
+                throw new ConflitoException("Erro: NIF ja em uso!");
             }
         }
         if (registerRequest.getDataNascimento() != null && !registerRequest.getDataNascimento().isEmpty()) {
-            LocalDate dataNascimento = LocalDate.parse(registerRequest.getDataNascimento());
+            LocalDate dataNascimento = parseDate(registerRequest.getDataNascimento());
             if (dataNascimento.isAfter(LocalDate.now())) {
-                throw new IllegalArgumentException("Erro: A data de nascimento nao pode ser futura!");
+                throw new PedidoInvalidoException("Erro: A data de nascimento nao pode ser futura!");
             }
             if (dataNascimento.isBefore(LocalDate.of(1900, 1, 1))) {
-                throw new IllegalArgumentException("Erro: A data de nascimento deve ser posterior a 1900-01-01!");
+                throw new PedidoInvalidoException("Erro: A data de nascimento deve ser posterior a 1900-01-01!");
             }
+        }
+    }
+
+    private LocalDate parseDate(String value) {
+        try {
+            return LocalDate.parse(value);
+        } catch (Exception e) {
+            throw new PedidoInvalidoException("Data de nascimento invalida");
         }
     }
 }

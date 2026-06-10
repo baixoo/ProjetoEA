@@ -1,9 +1,11 @@
 package pt.notub.admin.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import pt.notub.trip.entity.ViagemVeiculo;
+import pt.notub.trip.dto.CreateViagemVeiculoRequest;
+import pt.notub.trip.dto.ViagemVeiculoDTO;
 import pt.notub.trip.service.ViagemService;
 
 @RestController
@@ -18,13 +20,13 @@ public class AdminViagemController {
     }
 
     @PostMapping
-    public ResponseEntity<ViagemVeiculo> create(@RequestBody ViagemVeiculo viagemVeiculo) {
-        return ResponseEntity.ok(viagemService.createViagemVeiculo(viagemVeiculo));
+    public ResponseEntity<ViagemVeiculoDTO> create(@RequestBody CreateViagemVeiculoRequest viagemVeiculo) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(viagemService.createViagemVeiculo(viagemVeiculo));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         viagemService.deleteViagemVeiculo(id);
-        return ResponseEntity.ok("Viagem de veiculo eliminada");
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,18 +1,22 @@
 package pt.notub.transaction.service;
 
 import org.springframework.stereotype.Service;
+import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
 import pt.notub.payment.entity.EstadoPagamento;
-import pt.notub.ticket.entity.TituloTransporte;
 import pt.notub.payment.entity.Transacao;
-import pt.notub.user.entity.Utilizador;
+import pt.notub.ticket.entity.TituloTransporte;
 import pt.notub.ticket.repository.TituloTransporteRepository;
+import pt.notub.transaction.dto.CreateTransacaoRequest;
+import pt.notub.transaction.dto.TransacaoDTO;
+import pt.notub.transaction.dto.UpdateEstadoPagamentoRequest;
+import pt.notub.transaction.mapper.TransacaoMapper;
 import pt.notub.payment.repository.TransacaoRepository;
+import pt.notub.user.entity.Utilizador;
 import pt.notub.user.repository.UtilizadorRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class TransacaoService {
@@ -29,30 +33,31 @@ public class TransacaoService {
         this.utilizadorRepository = utilizadorRepository;
     }
 
-    public List<Transacao> getAllTransacoes() {
-        return transacaoRepository.findAll();
+    public List<TransacaoDTO> getAllTransacoes() {
+        return TransacaoMapper.toDTOList(transacaoRepository.findAll());
     }
 
-    public Optional<Transacao> getTransacaoById(Long id) {
-        return transacaoRepository.findById(id);
+    public TransacaoDTO getTransacaoById(Long id) {
+        return TransacaoMapper.toDTO(transacaoRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Transacao nao encontrada")));
     }
 
-    public List<Transacao> getTransacoesByTitulo(Long tituloId) {
-        return transacaoRepository.findByTituloId(tituloId);
+    public List<TransacaoDTO> getTransacoesByTitulo(Long tituloId) {
+        return TransacaoMapper.toDTOList(transacaoRepository.findByTituloId(tituloId));
     }
 
-    public List<Transacao> getTransacoesByEstado(EstadoPagamento estado) {
-        return transacaoRepository.findByEstadoPagamento(estado);
+    public List<TransacaoDTO> getTransacoesByEstado(String estado) {
+        return TransacaoMapper.toDTOList(transacaoRepository.findByEstadoPagamento(parseEstado(estado)));
     }
 
-    public List<Transacao> getTransacoesByUtilizador(Long utilizadorId) {
-        return transacaoRepository.findByUtilizadorId(utilizadorId);
+    public List<TransacaoDTO> getTransacoesByUtilizador(Long utilizadorId) {
+        return TransacaoMapper.toDTOList(transacaoRepository.findByUtilizadorId(utilizadorId));
     }
 
-    public Transacao createTransacao(Long tituloId, Long utilizadorId, String referenciaExterna) {
-        TituloTransporte titulo = tituloTransporteRepository.findById(tituloId)
+    public TransacaoDTO createTransacao(CreateTransacaoRequest request) {
+        TituloTransporte titulo = tituloTransporteRepository.findById(request.tituloId())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Titulo nao encontrado"));
-        Utilizador utilizador = utilizadorRepository.findById(utilizadorId)
+        Utilizador utilizador = utilizadorRepository.findById(request.utilizadorId())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
 
         Transacao transacao = new Transacao();
@@ -60,15 +65,26 @@ public class TransacaoService {
         transacao.setUtilizador(utilizador);
         transacao.setDataHora(LocalDateTime.now());
         transacao.setEstadoPagamento(EstadoPagamento.EM_CURSO);
-        transacao.setReferenciaExterna(referenciaExterna);
+        transacao.setReferenciaExterna(request.referenciaExterna());
 
-        return transacaoRepository.save(transacao);
+        return TransacaoMapper.toDTO(transacaoRepository.save(transacao));
     }
 
-    public Transacao updateEstado(Long id, EstadoPagamento estado) {
+    public TransacaoDTO updateEstado(Long id, UpdateEstadoPagamentoRequest request) {
         Transacao transacao = transacaoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Transacao nao encontrada"));
-        transacao.setEstadoPagamento(estado);
-        return transacaoRepository.save(transacao);
+        transacao.setEstadoPagamento(parseEstado(request.estado()));
+        return TransacaoMapper.toDTO(transacaoRepository.save(transacao));
+    }
+
+    private EstadoPagamento parseEstado(String estado) {
+        if (estado == null || estado.isBlank()) {
+            throw new PedidoInvalidoException("Estado invalido");
+        }
+        try {
+            return EstadoPagamento.valueOf(estado.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new PedidoInvalidoException("Estado invalido");
+        }
     }
 }

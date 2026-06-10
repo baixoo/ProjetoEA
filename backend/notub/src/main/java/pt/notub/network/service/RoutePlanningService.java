@@ -3,6 +3,8 @@ package pt.notub.network.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import pt.notub.common.exception.PedidoInvalidoException;
+import pt.notub.common.exception.RecursoNaoEncontradoException;
 import pt.notub.network.dto.HorarioDTO;
 import pt.notub.network.dto.HorarioParagemDTO;
 import pt.notub.network.dto.ParagemProximasPassagensDTO;
@@ -244,6 +246,10 @@ public class RoutePlanningService {
         return planearRota(origemId, destinoId, LocalTime.now(), LocalDate.now().getDayOfWeek());
     }
 
+    public List<RotaDTO> planearRota(Long origemId, Long destinoId, String time, String day) {
+        return planearRota(origemId, destinoId, parseTimeOrDefault(time), parseDayOrDefault(day));
+    }
+
     public List<RotaDTO> planearRota(Long origemId, Long destinoId, LocalTime queryTime, DayOfWeek dayOfWeek) {
         ensureInitialized();
 
@@ -276,6 +282,10 @@ public class RoutePlanningService {
         List<RotaDTO> finalResults = results.stream().limit(MAX_RESULTS).collect(Collectors.toList());
         log.info("Route planning complete: {} results in {}ms", finalResults.size(), System.currentTimeMillis() - start);
         return finalResults;
+    }
+
+    public List<ProximoPasseDTO> findProximosPasses(Long trajetoId, Long paragemId, String time, String day) {
+        return findProximosPasses(trajetoId, paragemId, parseTimeOrDefault(time), parseDayOrDefault(day));
     }
 
     private List<RotaDTO> findRaptorRoutes(Set<Long> origemIds, Set<Long> destinoIds, String serviceId, int queryMinutes) {
@@ -643,6 +653,9 @@ public class RoutePlanningService {
     public List<ProximoPasseDTO> findProximosPasses(Long trajetoId, Long paragemId, LocalTime queryTime, DayOfWeek dayOfWeek) {
         ensureInitialized();
 
+        requireTrajeto(trajetoId);
+        requireParagem(paragemId);
+
         String serviceId = resolveServiceId(dayOfWeek);
         int queryMinutes = toMinutes(queryTime);
 
@@ -651,7 +664,9 @@ public class RoutePlanningService {
 
         Map<Long, Integer> offsets = trajetoOffsetMap.getOrDefault(trajetoId, Map.of());
         Integer offset = offsets.get(paragemId);
-        if (offset == null) return List.of();
+        if (offset == null) {
+            throw new RecursoNaoEncontradoException("Paragem nao encontrada");
+        }
 
         List<ProximoPasseDTO> result = new ArrayList<>();
         for (Viagem v : viagens) {
@@ -668,12 +683,18 @@ public class RoutePlanningService {
         return result;
     }
 
+    public ParagemProximasPassagensDTO findProximasPassagensPorParagem(Long paragemId, String time, String day) {
+        return findProximasPassagensPorParagem(paragemId, parseTimeOrDefault(time), parseDayOrDefault(day));
+    }
+
     public ParagemProximasPassagensDTO findProximasPassagensPorParagem(Long paragemId, LocalTime queryTime, DayOfWeek dayOfWeek) {
         ensureInitialized();
 
+        requireParagem(paragemId);
+
         Paragem paragem = paragemCache.get(paragemId);
         if (paragem == null) {
-            return null;
+            throw new RecursoNaoEncontradoException("Paragem nao encontrada");
         }
 
         Map<Long, List<PontosDePassagem>> pontosByTrajeto = new HashMap<>();
@@ -719,10 +740,15 @@ public class RoutePlanningService {
 
     public List<HorarioDTO> findHorarios(Long linhaId, String serviceId) {
         ensureInitialized();
+        serviceId = normalizeServiceId(serviceId);
 
         List<Trajeto> trajetos = trajetoCache.values().stream()
                 .filter(t -> t.getLinha() != null && t.getLinha().getId().equals(linhaId))
                 .collect(Collectors.toList());
+
+        if (trajetos.isEmpty()) {
+            throw new RecursoNaoEncontradoException("Linha nao encontrada");
+        }
 
         Map<Long, List<Viagem>> viagensByTrajeto = viagensByServiceAndTrajeto.getOrDefault(serviceId, Map.of());
 
@@ -743,10 +769,15 @@ public class RoutePlanningService {
 
     public List<HorarioParagemDTO> findHorariosPorParagem(Long linhaId, String serviceId) {
         ensureInitialized();
+        serviceId = normalizeServiceId(serviceId);
 
         List<Trajeto> trajetos = trajetoCache.values().stream()
                 .filter(t -> t.getLinha() != null && t.getLinha().getId().equals(linhaId))
                 .collect(Collectors.toList());
+
+        if (trajetos.isEmpty()) {
+            throw new RecursoNaoEncontradoException("Linha nao encontrada");
+        }
 
         Map<Long, List<Viagem>> viagensByTrajeto = viagensByServiceAndTrajeto.getOrDefault(serviceId, Map.of());
 
@@ -907,6 +938,47 @@ public class RoutePlanningService {
             case SUNDAY -> "DOM";
             default -> "UTEIS";
         };
+    }
+
+    private LocalTime parseTimeOrDefault(String time) {
+        if (time == null || time.isBlank()) {
+            return LocalTime.now();
+        }
+        try {
+            return LocalTime.parse(time, TIME_FMT);
+        } catch (Exception e) {
+            throw new PedidoInvalidoException("Hora invalida");
+        }
+    }
+
+    private DayOfWeek parseDayOrDefault(String day) {
+        if (day == null || day.isBlank()) {
+            return LocalDate.now().getDayOfWeek();
+        }
+        try {
+            return DayOfWeek.valueOf(day.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new PedidoInvalidoException("Dia invalido");
+        }
+    }
+
+    private String normalizeServiceId(String serviceId) {
+        if (serviceId == null || serviceId.isBlank()) {
+            return "UTEIS";
+        }
+        return serviceId.trim().toUpperCase();
+    }
+
+    private void requireTrajeto(Long trajetoId) {
+        if (!trajetoCache.containsKey(trajetoId)) {
+            throw new RecursoNaoEncontradoException("Trajeto nao encontrado");
+        }
+    }
+
+    private void requireParagem(Long paragemId) {
+        if (!paragemCache.containsKey(paragemId)) {
+            throw new RecursoNaoEncontradoException("Paragem nao encontrada");
+        }
     }
 
     private int toMinutes(LocalTime t) {

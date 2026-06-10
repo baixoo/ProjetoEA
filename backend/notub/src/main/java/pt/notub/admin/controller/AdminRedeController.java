@@ -1,12 +1,17 @@
 package pt.notub.admin.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import pt.notub.network.entity.Linha;
-import pt.notub.network.entity.Paragem;
-import pt.notub.network.entity.PontosDePassagem;
-import pt.notub.network.entity.Trajeto;
+import pt.notub.network.dto.LinhaDTO;
+import pt.notub.network.dto.LinhaRequest;
+import pt.notub.network.dto.ParagemDTO;
+import pt.notub.network.dto.ParagemRequest;
+import pt.notub.network.dto.PontoPassagemDTO;
+import pt.notub.network.dto.PontoPassagemRequest;
+import pt.notub.network.dto.TrajetoDTO;
+import pt.notub.network.dto.TrajetoRequest;
 import pt.notub.network.service.TransportNetworkService;
 
 @RestController
@@ -21,61 +26,61 @@ public class AdminRedeController {
     }
 
     @PostMapping({"/linhas", "/lines"})
-    public ResponseEntity<Linha> createLinha(@RequestBody Linha linha) {
-        return ResponseEntity.ok(transportNetworkService.createLinha(linha));
+    public ResponseEntity<LinhaDTO> createLinha(@RequestBody LinhaRequest linha) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(transportNetworkService.createLinha(linha));
     }
 
     @PutMapping({"/linhas/{id}", "/lines/{id}"})
-    public ResponseEntity<?> updateLinha(@PathVariable Long id, @RequestBody Linha updated) {
+    public ResponseEntity<LinhaDTO> updateLinha(@PathVariable Long id, @RequestBody LinhaRequest updated) {
         return ResponseEntity.ok(transportNetworkService.updateLinha(id, updated));
     }
 
     @DeleteMapping({"/linhas/{id}", "/lines/{id}"})
-    public ResponseEntity<?> deleteLinha(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteLinha(@PathVariable Long id) {
         transportNetworkService.deleteLinha(id);
-        return ResponseEntity.ok("Linha eliminada");
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping({"/trajetos", "/routes"})
-    public ResponseEntity<Trajeto> createTrajeto(@RequestBody Trajeto trajeto) {
-        return ResponseEntity.ok(transportNetworkService.createTrajeto(trajeto));
+    public ResponseEntity<TrajetoDTO> createTrajeto(@RequestBody TrajetoRequest trajeto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(transportNetworkService.createTrajeto(trajeto));
     }
 
     @PutMapping({"/trajetos/{id}", "/routes/{id}"})
-    public ResponseEntity<?> updateTrajeto(@PathVariable Long id, @RequestBody Trajeto updated) {
+    public ResponseEntity<TrajetoDTO> updateTrajeto(@PathVariable Long id, @RequestBody TrajetoRequest updated) {
         return ResponseEntity.ok(transportNetworkService.updateTrajeto(id, updated));
     }
 
     @DeleteMapping({"/trajetos/{id}", "/routes/{id}"})
-    public ResponseEntity<?> deleteTrajeto(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteTrajeto(@PathVariable Long id) {
         transportNetworkService.deleteTrajeto(id);
-        return ResponseEntity.ok("Trajeto eliminado");
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping({"/paragens", "/stops"})
-    public ResponseEntity<Paragem> createParagem(@RequestBody Paragem paragem) {
-        return ResponseEntity.ok(transportNetworkService.createParagem(paragem));
+    public ResponseEntity<ParagemDTO> createParagem(@RequestBody ParagemRequest paragem) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(transportNetworkService.createParagem(paragem));
     }
 
     @PutMapping({"/paragens/{id}", "/stops/{id}"})
-    public ResponseEntity<?> updateParagem(@PathVariable Long id, @RequestBody Paragem updated) {
+    public ResponseEntity<ParagemDTO> updateParagem(@PathVariable Long id, @RequestBody ParagemRequest updated) {
         return ResponseEntity.ok(transportNetworkService.updateParagem(id, updated));
     }
 
     @DeleteMapping({"/paragens/{id}", "/stops/{id}"})
-    public ResponseEntity<?> deleteParagem(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteParagem(@PathVariable Long id) {
         transportNetworkService.deleteParagem(id);
-        return ResponseEntity.ok("Paragem eliminada");
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping({"/trajetos/{trajetoId}/pontos", "/routes/{trajetoId}/points"})
-    public ResponseEntity<PontosDePassagem> addPonto(@PathVariable Long trajetoId, @RequestBody PontosDePassagem ponto) {
-        return ResponseEntity.ok(transportNetworkService.addPonto(trajetoId, ponto));
+    public ResponseEntity<PontoPassagemDTO> addPonto(@PathVariable Long trajetoId, @RequestBody PontoPassagemRequest ponto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(transportNetworkService.addPonto(trajetoId, ponto));
     }
 
     @DeleteMapping({"/pontos/{id}", "/points/{id}"})
-    public ResponseEntity<?> deletePonto(@PathVariable Long id) {
+    public ResponseEntity<Void> deletePonto(@PathVariable Long id) {
         transportNetworkService.deletePonto(id);
-        return ResponseEntity.ok("Ponto de passagem eliminado");
+        return ResponseEntity.noContent().build();
     }
 }

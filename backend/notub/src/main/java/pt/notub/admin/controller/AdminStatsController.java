@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
+import pt.notub.admin.dto.AdminStatsResponse;
 import pt.notub.admin.service.ServicoAdmin;
 
 @RestController
@@ -19,7 +20,7 @@ public class AdminStatsController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getStats() {
+    public ResponseEntity<AdminStatsResponse> getStats() {
         return ResponseEntity.ok(servicoAdmin.getStats());
     }
 }

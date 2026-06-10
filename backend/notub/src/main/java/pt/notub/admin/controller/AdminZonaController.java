@@ -1,9 +1,11 @@
 package pt.notub.admin.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import pt.notub.zone.entity.Zona;
+import pt.notub.zone.dto.ZonaDTO;
+import pt.notub.zone.dto.ZonaRequest;
 import pt.notub.zone.service.ZonaService;
 
 @RestController
@@ -18,29 +20,29 @@ public class AdminZonaController {
     }
 
     @PostMapping
-    public ResponseEntity<Zona> create(@RequestBody Zona zona) {
-        return ResponseEntity.ok(zonaService.createZona(zona));
+    public ResponseEntity<ZonaDTO> create(@RequestBody ZonaRequest zona) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(zonaService.createZona(zona));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Zona updated) {
+    public ResponseEntity<ZonaDTO> update(@PathVariable Long id, @RequestBody ZonaRequest updated) {
         return ResponseEntity.ok(zonaService.updateZona(id, updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         zonaService.deleteZona(id);
-        return ResponseEntity.ok("Zona eliminada");
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping({"/{id}/paragens/{paragemId}", "/{id}/stops/{paragemId}"})
-    public ResponseEntity<?> addParagem(@PathVariable Long id, @PathVariable Long paragemId) {
+    public ResponseEntity<ZonaDTO> addParagem(@PathVariable Long id, @PathVariable Long paragemId) {
         return ResponseEntity.ok(zonaService.addParagem(id, paragemId));
     }
 
     @DeleteMapping({"/{id}/paragens/{paragemId}", "/{id}/stops/{paragemId}"})
-    public ResponseEntity<?> removeParagem(@PathVariable Long id, @PathVariable Long paragemId) {
+    public ResponseEntity<Void> removeParagem(@PathVariable Long id, @PathVariable Long paragemId) {
         zonaService.removeParagem(paragemId);
-        return ResponseEntity.ok("Paragem removida da zona");
+        return ResponseEntity.noContent().build();
     }
 }

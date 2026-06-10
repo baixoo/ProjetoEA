@@ -12,11 +12,15 @@ import java.security.Key;
 @Component
 public class JwtUtils {
 
-    @Value("${projetoea.app.jwtSecret}")
-    private String jwtSecret;
+    private final String jwtSecret;
 
-    @Value("${projetoea.app.jwtExpirationMs}")
-    private int jwtExpirationMs;
+    private final int jwtExpirationMs;
+
+    public JwtUtils(@Value("${projetoea.app.jwtSecret}") String jwtSecret,
+                    @Value("${projetoea.app.jwtExpirationMs}") int jwtExpirationMs) {
+        this.jwtSecret = jwtSecret;
+        this.jwtExpirationMs = jwtExpirationMs;
+    }
 
     public String generateJwtToken(Authentication authentication) {
         UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();

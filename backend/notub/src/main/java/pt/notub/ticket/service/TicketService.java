@@ -1,11 +1,16 @@
 package pt.notub.ticket.service;
 
 import org.springframework.stereotype.Service;
+import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
 import pt.notub.points.service.ServicoPontos;
 import pt.notub.tariff.entity.ModalidadePasse;
+import pt.notub.ticket.dto.BilheteDTO;
+import pt.notub.ticket.dto.PasseDTO;
 import pt.notub.ticket.entity.Bilhete;
 import pt.notub.ticket.entity.Passe;
+import pt.notub.ticket.mapper.BilheteMapper;
+import pt.notub.ticket.mapper.PasseMapper;
 import pt.notub.ticket.repository.BilheteRepository;
 import pt.notub.ticket.repository.PasseRepository;
 import pt.notub.user.entity.Utilizador;
@@ -36,7 +41,38 @@ public class TicketService {
         this.servicoPontos = servicoPontos;
     }
 
-    public Bilhete criarBilhete(Utilizador utilizador, Zona zona) {
+    public List<BilheteDTO> buyTickets(String email, int quantidade, Long zonaId) {
+        if (quantidade <= 0) {
+            throw new PedidoInvalidoException("Quantidade deve ser maior que zero");
+        }
+        Utilizador utilizador = findUtilizadorByEmail(email);
+        Zona zona = findZona(zonaId);
+        List<Bilhete> bilhetes = new ArrayList<>();
+        for (int i = 0; i < quantidade; i++) {
+            bilhetes.add(criarBilhete(utilizador, zona));
+        }
+        return BilheteMapper.toDTOList(bilhetes);
+    }
+
+    public PasseDTO buyPasse(String email, ModalidadePasse modalidade, Long zonaId) {
+        Utilizador utilizador = findUtilizadorByEmail(email);
+        Zona zona = findZona(zonaId);
+        return PasseMapper.toDTO(criarPasse(utilizador, modalidade, zona));
+    }
+
+    public List<BilheteDTO> getUserTickets(String email) {
+        Utilizador utilizador = findUtilizadorByEmail(email);
+        return BilheteMapper.toDTOList(bilheteRepository.findByUtilizadorId(utilizador.getId()));
+    }
+
+    public PasseDTO getUserPasse(String email) {
+        Utilizador utilizador = findUtilizadorByEmail(email);
+        Passe passe = passeRepository.findByUtilizadorId(utilizador.getId())
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Passe nao encontrado"));
+        return PasseMapper.toDTO(passe);
+    }
+
+    private Bilhete criarBilhete(Utilizador utilizador, Zona zona) {
         Bilhete bilhete = new Bilhete();
         bilhete.setUtilizador(utilizador);
         bilhete.setUsado(false);
@@ -44,10 +80,10 @@ public class TicketService {
         return bilheteRepository.save(bilhete);
     }
 
-    public Passe criarPasse(Utilizador utilizador, ModalidadePasse modalidade, Zona zona) {
+    private Passe criarPasse(Utilizador utilizador, ModalidadePasse modalidade, Zona zona) {
         passeRepository.findByUtilizadorId(utilizador.getId()).ifPresent(passe -> {
             if (passe.getFim() != null && passe.getFim().isAfter(LocalDateTime.now())) {
-                throw new RuntimeException("Utilizador ja tem um passe ativo ate " + passe.getFim());
+                throw new PedidoInvalidoException("Utilizador ja tem um passe ativo ate " + passe.getFim());
             }
         });
         Passe passe = new Passe();
@@ -59,37 +95,17 @@ public class TicketService {
         return passeRepository.save(passe);
     }
 
-    public List<Bilhete> buyTickets(String email, int quantidade, Long zonaId) {
-        Utilizador utilizador = utilizadorRepository.findByEmail(email)
+    private Utilizador findUtilizadorByEmail(String email) {
+        return utilizadorRepository.findByEmail(email)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
-        Zona zona = zonaRepository.findById(zonaId)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
-        List<Bilhete> bilhetes = new ArrayList<>();
-        for (int i = 0; i < quantidade; i++) {
-            bilhetes.add(criarBilhete(utilizador, zona));
+    }
+
+    private Zona findZona(Long zonaId) {
+        if (zonaId == null) {
+            throw new PedidoInvalidoException("Zona invalida");
         }
-        return bilhetes;
-    }
-
-    public Passe buyPasse(String email, ModalidadePasse modalidade, Long zonaId) {
-        Utilizador utilizador = utilizadorRepository.findByEmail(email)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
-        Zona zona = zonaRepository.findById(zonaId)
+        return zonaRepository.findById(zonaId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
-        Passe passe = criarPasse(utilizador, modalidade, zona);
-        return passe;
-    }
-
-    public List<Bilhete> getUserTickets(String email) {
-        Utilizador utilizador = utilizadorRepository.findByEmail(email)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
-        return bilheteRepository.findByUtilizadorId(utilizador.getId());
-    }
-
-    public Passe getUserPasse(String email) {
-        Utilizador utilizador = utilizadorRepository.findByEmail(email)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
-        return passeRepository.findByUtilizadorId(utilizador.getId()).orElse(null);
     }
 
     private LocalDateTime calcularFimPasse(ModalidadePasse modalidade) {

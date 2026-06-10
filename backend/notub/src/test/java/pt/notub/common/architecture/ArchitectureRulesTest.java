@@ -25,6 +25,16 @@ class ArchitectureRulesTest {
     }
 
     @Test
+    void controllersStayTypedAndThin() throws IOException {
+        List<Path> offenders = Files.walk(SOURCE_ROOT)
+                .filter(path -> path.toString().endsWith("Controller.java"))
+                .filter(this::hasControllerAntiPattern)
+                .collect(Collectors.toList());
+
+        assertTrue(offenders.isEmpty(), "Controllers must stay typed and thin: " + offenders);
+    }
+
+    @Test
     void sourceDoesNotUseFindAllStreamFilterForRepositoryQueries() throws IOException {
         List<Path> offenders = Files.walk(SOURCE_ROOT)
                 .filter(path -> path.toString().endsWith(".java"))
@@ -36,7 +46,26 @@ class ArchitectureRulesTest {
 
     private boolean importsRepositoryPackage(Path path) {
         try {
-            return Files.readString(path).contains(".repository.");
+            String content = Files.readString(path);
+            return content.contains(".repository.")
+                    || content.contains(".entity.")
+                    || content.contains(".mapper.");
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private boolean hasControllerAntiPattern(Path path) {
+        try {
+            String content = Files.readString(path);
+            return content.contains("ResponseEntity<?>")
+                    || content.contains("ResponseEntity.notFound(")
+                    || content.contains("ResponseEntity.badRequest(")
+                    || content.contains("Map.of(")
+                    || content.contains("try {")
+                    || content.lines().anyMatch(line -> line.contains("ResponseEntity.status(")
+                    && !line.contains("HttpStatus.CREATED")
+                    && !line.contains("HttpStatus.NO_CONTENT"));
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }

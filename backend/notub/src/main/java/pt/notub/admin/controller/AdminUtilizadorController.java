@@ -1,10 +1,11 @@
 package pt.notub.admin.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pt.notub.admin.dto.UpdateRoleRequest;
-import pt.notub.user.entity.Utilizador;
+import pt.notub.user.dto.UserDTO;
 import pt.notub.user.service.UtilizadorService;
 
 import java.util.List;
@@ -21,23 +22,23 @@ public class AdminUtilizadorController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Utilizador>> getAll() {
+    public ResponseEntity<List<UserDTO>> getAll() {
         return ResponseEntity.ok(utilizadorService.getAllUtilizadores());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getById(@PathVariable Long id) {
-        return utilizadorService.getUtilizadorById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<UserDTO> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(utilizadorService.getUtilizadorById(id));
     }
 
     @PutMapping("/{id}/role")
-    public ResponseEntity<?> updateRole(@PathVariable Long id, @RequestBody UpdateRoleRequest pedido) {
+    public ResponseEntity<UserDTO> updateRole(@PathVariable Long id, @RequestBody UpdateRoleRequest pedido) {
         return ResponseEntity.ok(utilizadorService.updateRole(id, pedido.role()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         utilizadorService.deleteUtilizador(id);
-        return ResponseEntity.ok("Utilizador eliminado");
+        return ResponseEntity.noContent().build();
     }
 }

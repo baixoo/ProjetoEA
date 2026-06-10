@@ -25,7 +25,7 @@ public class AuthenticatedUserArgumentResolver implements HandlerMethodArgumentR
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
         return parameter.getParameterAnnotation(AuthenticatedUser.class) != null
-                && parameter.getParameterType().equals(Utilizador.class);
+                && parameter.getParameterType().equals(AuthenticatedUserContext.class);
     }
 
     @Override
@@ -35,7 +35,8 @@ public class AuthenticatedUserArgumentResolver implements HandlerMethodArgumentR
         if (auth == null || !(auth.getPrincipal() instanceof UserDetailsImpl userDetails)) {
             throw new AutenticacaoRequeridaException();
         }
-        return utilizadorRepository.findByEmail(userDetails.getUsername())
+        Utilizador utilizador = utilizadorRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
+        return new AuthenticatedUserContext(utilizador.getId(), utilizador.getEmail(), utilizador.getRole());
     }
 }

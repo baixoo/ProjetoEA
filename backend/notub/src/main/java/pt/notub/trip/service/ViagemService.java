@@ -1,77 +1,85 @@
 package pt.notub.trip.service;
 
 import org.springframework.stereotype.Service;
-import pt.notub.driver.service.NotificacaoValidacaoService;
-import pt.notub.driver.dto.NotificacaoValidacaoDTO;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
+import pt.notub.driver.dto.NotificacaoValidacaoDTO;
+import pt.notub.driver.service.NotificacaoValidacaoService;
 import pt.notub.network.entity.Paragem;
+import pt.notub.network.entity.Trajeto;
 import pt.notub.network.repository.ParagemRepository;
+import pt.notub.network.repository.TrajetoRepository;
 import pt.notub.points.service.ServicoPontos;
 import pt.notub.ticket.entity.Bilhete;
 import pt.notub.ticket.entity.Passe;
 import pt.notub.ticket.entity.TituloTransporte;
 import pt.notub.ticket.repository.TituloTransporteRepository;
+import pt.notub.trip.dto.CreateViagemVeiculoRequest;
+import pt.notub.trip.dto.ViagemDTO;
+import pt.notub.trip.dto.ViagemVeiculoDTO;
 import pt.notub.trip.entity.EstadoViagem;
 import pt.notub.trip.entity.ViagemUtilizador;
 import pt.notub.trip.entity.ViagemVeiculo;
+import pt.notub.trip.mapper.ViagemMapper;
 import pt.notub.trip.repository.ViagemUtilizadorRepository;
 import pt.notub.trip.repository.ViagemVeiculoRepository;
-import pt.notub.user.repository.UtilizadorRepository;
 import pt.notub.validation.service.GestorValidacao;
+import pt.notub.vehicle.entity.Veiculo;
+import pt.notub.vehicle.repository.VeiculoRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ViagemService {
 
+    private static final int MAX_HOURS_FOR_POINTS = 24;
+
     private final ViagemUtilizadorRepository viagemUtilizadorRepository;
     private final ViagemVeiculoRepository viagemVeiculoRepository;
-    private final UtilizadorRepository utilizadorRepository;
     private final ParagemRepository paragemRepository;
     private final TituloTransporteRepository tituloTransporteRepository;
+    private final VeiculoRepository veiculoRepository;
+    private final TrajetoRepository trajetoRepository;
     private final ServicoPontos servicoPontos;
     private final GestorValidacao gestorValidacao;
     private final NotificacaoValidacaoService notificacaoService;
 
     public ViagemService(ViagemUtilizadorRepository viagemUtilizadorRepository,
                          ViagemVeiculoRepository viagemVeiculoRepository,
-                         UtilizadorRepository utilizadorRepository,
                          ParagemRepository paragemRepository,
                          TituloTransporteRepository tituloTransporteRepository,
+                         VeiculoRepository veiculoRepository,
+                         TrajetoRepository trajetoRepository,
                          ServicoPontos servicoPontos,
                          GestorValidacao gestorValidacao,
                          NotificacaoValidacaoService notificacaoService) {
         this.viagemUtilizadorRepository = viagemUtilizadorRepository;
         this.viagemVeiculoRepository = viagemVeiculoRepository;
-        this.utilizadorRepository = utilizadorRepository;
         this.paragemRepository = paragemRepository;
         this.tituloTransporteRepository = tituloTransporteRepository;
+        this.veiculoRepository = veiculoRepository;
+        this.trajetoRepository = trajetoRepository;
         this.servicoPontos = servicoPontos;
         this.gestorValidacao = gestorValidacao;
         this.notificacaoService = notificacaoService;
     }
 
-    public List<ViagemUtilizador> getAllViagensUtilizador() {
-        return viagemUtilizadorRepository.findAll();
+    public List<ViagemDTO> getAllViagensUtilizador() {
+        return ViagemMapper.toDTOList(viagemUtilizadorRepository.findAll());
     }
 
-    public List<ViagemUtilizador> getViagensByUtilizador(Long utilizadorId) {
-        return viagemUtilizadorRepository.findByUtilizadorId(utilizadorId);
+    public List<ViagemDTO> getViagensByUtilizador(Long utilizadorId) {
+        return ViagemMapper.toDTOList(viagemUtilizadorRepository.findByUtilizadorId(utilizadorId));
     }
 
-    public Optional<ViagemUtilizador> getViagemUtilizadorById(Long id) {
-        return viagemUtilizadorRepository.findById(id);
+    public ViagemDTO getViagemUtilizadorById(Long id) {
+        return ViagemMapper.toDTO(findViagemUtilizador(id));
     }
 
-    public ViagemUtilizador iniciarViagem(Long tituloId, Long paragemEntradaId, Long viagemVeiculoId) {
-        TituloTransporte titulo = tituloTransporteRepository.findById(tituloId)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Titulo nao encontrado"));
-        Paragem paragemEntrada = paragemRepository.findById(paragemEntradaId)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
-        ViagemVeiculo viagemVeiculo = viagemVeiculoRepository.findById(viagemVeiculoId)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("ViagemVeiculo nao encontrado"));
+    public ViagemDTO iniciarViagem(Long tituloId, Long paragemEntradaId, Long viagemVeiculoId) {
+        TituloTransporte titulo = findTitulo(tituloId);
+        Paragem paragemEntrada = findParagem(paragemEntradaId);
+        ViagemVeiculo viagemVeiculo = findViagemVeiculo(viagemVeiculoId);
 
         boolean valido = gestorValidacao.validarTitulo(tituloId);
 
@@ -104,21 +112,16 @@ public class ViagemService {
         }
 
         Long veiculoId = viagemVeiculo.getVeiculo() != null ? viagemVeiculo.getVeiculo().getId() : null;
-
         NotificacaoValidacaoDTO notificacao = new NotificacaoValidacaoDTO(
                 valido, nomePassageiro, tituloTipo, veiculoId, LocalDateTime.now());
         notificacaoService.notificarMotorista(notificacao);
 
-        return saved;
+        return ViagemMapper.toDTO(saved);
     }
 
-    private static final int MAX_HOURS_FOR_POINTS = 24;
-
-    public ViagemUtilizador terminarViagem(Long viagemId, Long paragemSaidaId) {
-        ViagemUtilizador viagem = viagemUtilizadorRepository.findById(viagemId)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Viagem nao encontrada"));
-        Paragem paragemSaida = paragemRepository.findById(paragemSaidaId)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
+    public ViagemDTO terminarViagem(Long viagemId, Long paragemSaidaId) {
+        ViagemUtilizador viagem = findViagemUtilizador(viagemId);
+        Paragem paragemSaida = findParagem(paragemSaidaId);
 
         viagem.setParagemSaida(paragemSaida);
         viagem.setFim(LocalDateTime.now());
@@ -126,8 +129,8 @@ public class ViagemService {
 
         ViagemUtilizador saved = viagemUtilizadorRepository.save(viagem);
 
-        boolean concederPontos = viagem.getInicio() != null &&
-                java.time.Duration.between(viagem.getInicio(), viagem.getFim()).toHours() <= MAX_HOURS_FOR_POINTS;
+        boolean concederPontos = viagem.getInicio() != null
+                && java.time.Duration.between(viagem.getInicio(), viagem.getFim()).toHours() <= MAX_HOURS_FOR_POINTS;
 
         if (concederPontos) {
             if (viagem.getTitulo() instanceof Bilhete bilhete && bilhete.getUtilizador() != null) {
@@ -137,30 +140,62 @@ public class ViagemService {
             }
         }
 
-        return saved;
+        return ViagemMapper.toDTO(saved);
     }
 
-    public List<ViagemVeiculo> getAllViagensVeiculo() {
-        return viagemVeiculoRepository.findAll();
+    public List<ViagemVeiculoDTO> getAllViagensVeiculo() {
+        return ViagemMapper.toVeiculoDTOList(viagemVeiculoRepository.findAll());
     }
 
-    public Optional<ViagemVeiculo> getViagemVeiculoById(Long id) {
-        return viagemVeiculoRepository.findById(id);
+    public ViagemVeiculoDTO getViagemVeiculoById(Long id) {
+        return ViagemMapper.toVeiculoDTO(findViagemVeiculo(id));
     }
 
-    public List<ViagemVeiculo> getViagensByVeiculo(Long veiculoId) {
-        return viagemVeiculoRepository.findByVeiculoId(veiculoId);
+    public List<ViagemVeiculoDTO> getViagensByVeiculo(Long veiculoId) {
+        return ViagemMapper.toVeiculoDTOList(viagemVeiculoRepository.findByVeiculoId(veiculoId));
     }
 
-    public List<ViagemVeiculo> getViagensByTrajeto(Long trajetoId) {
-        return viagemVeiculoRepository.findByTrajetoId(trajetoId);
+    public List<ViagemVeiculoDTO> getViagensByTrajeto(Long trajetoId) {
+        return ViagemMapper.toVeiculoDTOList(viagemVeiculoRepository.findByTrajetoId(trajetoId));
     }
 
-    public ViagemVeiculo createViagemVeiculo(ViagemVeiculo viagemVeiculo) {
-        return viagemVeiculoRepository.save(viagemVeiculo);
+    public ViagemVeiculoDTO createViagemVeiculo(CreateViagemVeiculoRequest request) {
+        ViagemVeiculo viagemVeiculo = new ViagemVeiculo();
+        viagemVeiculo.setTripId(request.tripId());
+        if (request.veiculoId() != null) {
+            Veiculo veiculo = veiculoRepository.findById(request.veiculoId())
+                    .orElseThrow(() -> new RecursoNaoEncontradoException("Veiculo nao encontrado"));
+            viagemVeiculo.setVeiculo(veiculo);
+        }
+        if (request.trajetoId() != null) {
+            Trajeto trajeto = trajetoRepository.findById(request.trajetoId())
+                    .orElseThrow(() -> new RecursoNaoEncontradoException("Trajeto nao encontrado"));
+            viagemVeiculo.setTrajeto(trajeto);
+        }
+        return ViagemMapper.toVeiculoDTO(viagemVeiculoRepository.save(viagemVeiculo));
     }
 
     public void deleteViagemVeiculo(Long id) {
         viagemVeiculoRepository.deleteById(id);
+    }
+
+    private ViagemUtilizador findViagemUtilizador(Long id) {
+        return viagemUtilizadorRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Viagem nao encontrada"));
+    }
+
+    private ViagemVeiculo findViagemVeiculo(Long id) {
+        return viagemVeiculoRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("ViagemVeiculo nao encontrado"));
+    }
+
+    private TituloTransporte findTitulo(Long tituloId) {
+        return tituloTransporteRepository.findById(tituloId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Titulo nao encontrado"));
+    }
+
+    private Paragem findParagem(Long paragemId) {
+        return paragemRepository.findById(paragemId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
     }
 }

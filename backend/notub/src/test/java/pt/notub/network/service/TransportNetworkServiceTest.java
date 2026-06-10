@@ -5,17 +5,20 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import pt.notub.network.dto.LinhaDTO;
+import pt.notub.network.dto.LinhaRequest;
 import pt.notub.network.entity.Linha;
 import pt.notub.network.entity.Trajeto;
 import pt.notub.network.repository.LinhaRepository;
 import pt.notub.network.repository.ParagemRepository;
 import pt.notub.network.repository.PontosDePassagemRepository;
 import pt.notub.network.repository.TrajetoRepository;
+import pt.notub.zone.repository.ZonaRepository;
 
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,11 +36,19 @@ class TransportNetworkServiceTest {
     @Mock
     private PontosDePassagemRepository pontosDePassagemRepository;
 
+    @Mock
+    private ZonaRepository zonaRepository;
+
     private TransportNetworkService service;
 
     @BeforeEach
     void setUp() {
-        service = new TransportNetworkService(paragemRepository, linhaRepository, trajetoRepository, pontosDePassagemRepository);
+        service = new TransportNetworkService(
+                paragemRepository,
+                linhaRepository,
+                trajetoRepository,
+                pontosDePassagemRepository,
+                zonaRepository);
     }
 
     @Test
@@ -67,14 +78,13 @@ class TransportNetworkServiceTest {
         existing.setNome("Old");
         existing.setIdentificadorServico("A");
 
-        Linha updated = new Linha();
-        updated.setNome("New");
-        updated.setIdentificadorServico("B");
+        LinhaRequest updated = new LinhaRequest("New", "B");
 
         when(linhaRepository.findById(5L)).thenReturn(Optional.of(existing));
+        when(trajetoRepository.findByLinhaId(5L)).thenReturn(List.of());
         when(linhaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Linha result = service.updateLinha(5L, updated);
+        LinhaDTO result = service.updateLinha(5L, updated);
 
         assertEquals("New", result.getNome());
         assertEquals("B", result.getIdentificadorServico());

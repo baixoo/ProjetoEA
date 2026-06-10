@@ -7,19 +7,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
-import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
-import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
@@ -32,13 +27,14 @@ public class StatelessOAuth2AuthorizationRequestRepository
     private static final long STATE_TTL_SECONDS = 300;
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    @Value("${projetoea.app.jwtSecret}")
-    private String jwtSecret;
-
+    private final String jwtSecret;
     private final ClientRegistrationRepository clientRegistrationRepository;
 
-    public StatelessOAuth2AuthorizationRequestRepository(ClientRegistrationRepository clientRegistrationRepository) {
+    public StatelessOAuth2AuthorizationRequestRepository(
+            ClientRegistrationRepository clientRegistrationRepository,
+            @org.springframework.beans.factory.annotation.Value("${projetoea.app.jwtSecret}") String jwtSecret) {
         this.clientRegistrationRepository = clientRegistrationRepository;
+        this.jwtSecret = jwtSecret;
     }
 
     @Override

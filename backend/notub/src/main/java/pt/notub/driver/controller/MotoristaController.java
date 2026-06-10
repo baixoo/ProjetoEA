@@ -1,5 +1,6 @@
 package pt.notub.driver.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pt.notub.driver.dto.DriverTrajetoDTO;
@@ -38,12 +39,12 @@ public class MotoristaController {
 
     @PostMapping({"/viagens/start", "/trips/start"})
     public ResponseEntity<ViagemVeiculoDTO> startViagem(@RequestBody StartViagemRequest request) {
-        return ResponseEntity.ok(driverService.startViagem(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(driverService.startViagem(request));
     }
 
     @DeleteMapping({"/viagens/{id}/end", "/trips/{id}/end"})
-    public ResponseEntity<?> endViagem(@PathVariable Long id) {
+    public ResponseEntity<Void> endViagem(@PathVariable Long id) {
         driverService.endViagem(id);
-        return ResponseEntity.ok(Map.of("mensagem", "Viagem terminada"));
+        return ResponseEntity.noContent().build();
     }
 }

@@ -4,11 +4,13 @@ import org.springframework.stereotype.Service;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
 import pt.notub.network.entity.Paragem;
 import pt.notub.network.repository.ParagemRepository;
+import pt.notub.zone.dto.ZonaDTO;
+import pt.notub.zone.dto.ZonaRequest;
 import pt.notub.zone.entity.Zona;
+import pt.notub.zone.mapper.ZonaMapper;
 import pt.notub.zone.repository.ZonaRepository;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ZonaService {
@@ -21,42 +23,51 @@ public class ZonaService {
         this.paragemRepository = paragemRepository;
     }
 
-    public List<Zona> getAllZonas() {
-        return zonaRepository.findAll();
+    public List<ZonaDTO> getAllZonas() {
+        return ZonaMapper.toDTOList(zonaRepository.findAll());
     }
 
-    public Optional<Zona> getZonaById(Long id) {
-        return zonaRepository.findById(id);
-    }
-
-    public Optional<Zona> getZonaByNome(String nome) {
-        return zonaRepository.findByNome(nome);
-    }
-
-    public Zona createZona(Zona zona) {
-        return zonaRepository.save(zona);
-    }
-
-    public Zona updateZona(Long id, Zona updated) {
+    public ZonaDTO getZonaById(Long id) {
         Zona zona = zonaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
-        if (updated.getNome() != null) zona.setNome(updated.getNome());
-        if (updated.getNum() != 0) zona.setNum(updated.getNum());
-        return zonaRepository.save(zona);
+        return ZonaMapper.toDTO(zona);
+    }
+
+    public ZonaDTO getZonaByNome(String nome) {
+        Zona zona = zonaRepository.findByNome(nome)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
+        return ZonaMapper.toDTO(zona);
+    }
+
+    public ZonaDTO createZona(ZonaRequest pedido) {
+        Zona zona = new Zona();
+        zona.setNome(pedido.nome());
+        if (pedido.num() != null) {
+            zona.setNum(pedido.num());
+        }
+        return ZonaMapper.toDTO(zonaRepository.save(zona));
+    }
+
+    public ZonaDTO updateZona(Long id, ZonaRequest updated) {
+        Zona zona = zonaRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
+        if (updated.nome() != null) zona.setNome(updated.nome());
+        if (updated.num() != null) zona.setNum(updated.num());
+        return ZonaMapper.toDTO(zonaRepository.save(zona));
     }
 
     public void deleteZona(Long id) {
         zonaRepository.deleteById(id);
     }
 
-    public Zona addParagem(Long zonaId, Long paragemId) {
+    public ZonaDTO addParagem(Long zonaId, Long paragemId) {
         Zona zona = zonaRepository.findById(zonaId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
         Paragem paragem = paragemRepository.findById(paragemId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
         paragem.setZona(zona);
         paragemRepository.save(paragem);
-        return zona;
+        return ZonaMapper.toDTO(zona);
     }
 
     public void removeParagem(Long paragemId) {
