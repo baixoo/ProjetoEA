@@ -1,7 +1,9 @@
 package pt.notub.trip.dto;
 
-import pt.notub.trip.entity.EstadoViagem;
+
 import pt.notub.network.dto.ParagemDTO;
+import pt.notub.ticket.dto.TituloTransporteDTO;
+import pt.notub.trip.entity.EstadoViagem;
 
 import java.time.LocalDateTime;
 
@@ -13,6 +15,8 @@ public class ViagemDTO {
     private EstadoViagem estado;
     private ParagemDTO paragemEntrada;
     private ParagemDTO paragemSaida;
+    private TituloTransporteDTO titulo;
+    private ViagemVeiculoDTO viagemVeiculo;
 
     public ViagemDTO() {}
 
@@ -28,4 +32,10 @@ public class ViagemDTO {
     public void setParagemEntrada(ParagemDTO paragemEntrada) { this.paragemEntrada = paragemEntrada; }
     public ParagemDTO getParagemSaida() { return paragemSaida; }
     public void setParagemSaida(ParagemDTO paragemSaida) { this.paragemSaida = paragemSaida; }
+
+    public TituloTransporteDTO getTitulo() { return titulo; }
+    public void setTitulo(TituloTransporteDTO titulo) { this.titulo = titulo; }
+
+    public ViagemVeiculoDTO getViagemVeiculo() { return viagemVeiculo; }
+    public void setViagemVeiculo(ViagemVeiculoDTO viagemVeiculo) { this.viagemVeiculo = viagemVeiculo; }
 }

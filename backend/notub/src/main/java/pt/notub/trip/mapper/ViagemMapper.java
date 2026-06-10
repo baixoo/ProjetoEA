@@ -5,6 +5,7 @@ import pt.notub.vehicle.mapper.VeiculoMapper;
 import pt.notub.network.mapper.TrajetoMapper;
 
 import pt.notub.network.mapper.ParagemMapper;
+import pt.notub.ticket.mapper.TituloMapper;
 
 import pt.notub.trip.entity.ViagemUtilizador;
 import pt.notub.trip.entity.ViagemVeiculo;
@@ -27,6 +28,27 @@ public final class ViagemMapper {
         dto.setEstado(vu.getEstado());
         dto.setParagemEntrada(ParagemMapper.toDTO(vu.getParagemEntrada()));
         dto.setParagemSaida(ParagemMapper.toDTO(vu.getParagemSaida()));
+
+        dto.setTitulo(TituloMapper.toDTO(vu.getTitulo()));
+
+        dto.setViagemVeiculo(ViagemMapper.toVVDTO(vu.getViagemVeiculo()));
+        return dto;
+    }
+
+    public static ViagemVeiculoDTO toVVDTO(ViagemVeiculo vv) {
+        if (vv == null) return null;
+
+        ViagemVeiculoDTO dto = new ViagemVeiculoDTO();
+        
+        dto.setId(vv.getId());
+        dto.setTrajeto(TrajetoMapper.toDTO(vv.getTrajeto()));
+        dto.setVeiculo(VeiculoMapper.toDTO(vv.getVeiculo())); 
+
+        dto.setData(vv.getData());
+        dto.setStartTime(vv.getStartTime());
+        dto.setFinishTime(vv.getFinishTime());
+        dto.setTripId(vv.getTripId());
+
         return dto;
     }
 

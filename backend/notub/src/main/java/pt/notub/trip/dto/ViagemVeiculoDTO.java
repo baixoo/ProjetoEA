@@ -3,12 +3,19 @@ package pt.notub.trip.dto;
 import pt.notub.network.dto.TrajetoDTO;
 import pt.notub.vehicle.dto.VeiculoDTO;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 public class ViagemVeiculoDTO {
 
     private Long id;
     private String tripId;
     private VeiculoDTO veiculo;
     private TrajetoDTO trajeto;
+
+    private LocalDate data;
+    private LocalDateTime startTime;
+    private LocalDateTime finishTime;
 
     public ViagemVeiculoDTO() {}
 
@@ -20,4 +27,11 @@ public class ViagemVeiculoDTO {
     public void setVeiculo(VeiculoDTO veiculo) { this.veiculo = veiculo; }
     public TrajetoDTO getTrajeto() { return trajeto; }
     public void setTrajeto(TrajetoDTO trajeto) { this.trajeto = trajeto; }
+
+    public LocalDate getData() { return data; }
+    public void setData(LocalDate data) { this.data = data; }
+    public LocalDateTime getStartTime() { return startTime; }
+    public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
+    public LocalDateTime getFinishTime() { return finishTime; }
+    public void setFinishTime(LocalDateTime finishTime) { this.finishTime = finishTime; }
 }

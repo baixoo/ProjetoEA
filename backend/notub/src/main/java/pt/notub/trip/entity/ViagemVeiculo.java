@@ -5,6 +5,9 @@ import pt.notub.vehicle.entity.Veiculo;
 import pt.notub.network.entity.Trajeto;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 
 @Entity
 public class ViagemVeiculo {
@@ -23,6 +26,9 @@ public class ViagemVeiculo {
     @JoinColumn(name = "trajeto_id")
     private Trajeto trajeto;
 
+    private LocalDateTime startTime;
+    private LocalDateTime finishTime;
+
     public ViagemVeiculo() {}
 
     // Getters and Setters
@@ -34,4 +40,19 @@ public class ViagemVeiculo {
     public void setVeiculo(Veiculo veiculo) { this.veiculo = veiculo; }
     public Trajeto getTrajeto() { return trajeto; }
     public void setTrajeto(Trajeto trajeto) { this.trajeto = trajeto; }
+    public LocalDate getData() { return startTime != null ? startTime.toLocalDate() : null;
+    }
+    public void setData(LocalDate data) {
+        if (data != null) {
+            if (this.startTime != null) {
+                this.startTime = LocalDateTime.of(data, this.startTime.toLocalTime());
+            } else {
+                this.startTime = LocalDateTime.of(data, LocalDateTime.now().toLocalTime());
+            }
+        }
+    }
+    public LocalDateTime getStartTime() { return startTime; }
+    public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
+    public LocalDateTime getFinishTime() { return finishTime; }
+    public void setFinishTime(LocalDateTime finishTime) { this.finishTime = finishTime;}
 }
