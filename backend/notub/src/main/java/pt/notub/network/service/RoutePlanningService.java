@@ -1,5 +1,6 @@
 package pt.notub.network.service;
 
+import java.text.Normalizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,6 +39,7 @@ public class RoutePlanningService {
     private static final int MAX_WAIT_MINUTES = 65;
     private static final int MAX_RESULTS = 3;
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final Pattern GENERATED_SUFFIX_PATTERN = Pattern.compile("\\s+(?:I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$");
 
     private static final int MAX_NEARBY = 5;
 
@@ -148,7 +151,7 @@ public class RoutePlanningService {
             if (p.getParagem() != null) {
                 Paragem paragem = p.getParagem();
                 paragemCache.putIfAbsent(paragem.getId(), paragem);
-                nomeToIds.computeIfAbsent(paragem.getNome(), k -> new HashSet<>()).add(paragem.getId());
+                nomeToIds.computeIfAbsent(normalizeStopGroupKey(paragem.getNome()), k -> new HashSet<>()).add(paragem.getId());
                 if (paragem.getZona() != null) {
                     zoneNameByNum.putIfAbsent(paragem.getZona().getNum(), paragem.getZona().getNome());
                 }
@@ -869,8 +872,11 @@ public class RoutePlanningService {
         Set<Long> ids = new HashSet<>();
         ids.add(paragemId);
         Paragem p = paragemCache.get(paragemId);
-        if (p != null && nomeToIds.containsKey(p.getNome())) {
-            ids.addAll(nomeToIds.get(p.getNome()));
+        if (p != null) {
+            String groupKey = normalizeStopGroupKey(p.getNome());
+            if (nomeToIds.containsKey(groupKey)) {
+                ids.addAll(nomeToIds.get(groupKey));
+            }
         }
         return ids;
     }
@@ -883,7 +889,8 @@ public class RoutePlanningService {
 
         Paragem stop = paragemCache.get(stopId);
         if (stop != null) {
-            for (Long sameNameId : nomeToIds.getOrDefault(stop.getNome(), Set.of())) {
+            String groupKey = normalizeStopGroupKey(stop.getNome());
+            for (Long sameNameId : nomeToIds.getOrDefault(groupKey, Set.of())) {
                 if (!sameNameId.equals(stopId)) {
                     bestWalk.merge(sameNameId, 0, Math::min);
                 }
@@ -922,6 +929,20 @@ public class RoutePlanningService {
 
     private static Set<Integer> immutableZones(Set<Integer> zones) {
         return Collections.unmodifiableSet(new TreeSet<>(zones));
+    }
+
+    static String normalizeStopGroupKey(String stopName) {
+        if (stopName == null) {
+            return "";
+        }
+        String normalized = Normalizer.normalize(stopName, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toUpperCase(Locale.ROOT)
+                .trim();
+        normalized = GENERATED_SUFFIX_PATTERN.matcher(normalized).replaceAll("");
+        normalized = normalized.replaceAll("[^A-Z0-9]+", " ");
+        normalized = normalized.replaceAll("\\s+", " ").trim();
+        return normalized.isBlank() ? stopName.toUpperCase(Locale.ROOT).trim() : normalized;
     }
 
     private List<ZonaResumoDTO> toZonaResumoDtos(Set<Integer> zoneNums) {

@@ -55,4 +55,14 @@ class RoutePlanningServiceTest {
         assertThrows(RecursoNaoEncontradoException.class,
                 () -> service.findProximasPassagensPorParagem(99L, "08:00", "MONDAY"));
     }
+
+    @Test
+    void normalizeStopGroupKey_ignoresGeneratedSuffixAndPunctuation() {
+        assertEquals(
+                RoutePlanningService.normalizeStopGroupKey("AV.ALIADOS I"),
+                RoutePlanningService.normalizeStopGroupKey("Av. Aliados II"));
+        assertEquals(
+                RoutePlanningService.normalizeStopGroupKey("S.BENTO"),
+                RoutePlanningService.normalizeStopGroupKey("S. Bento"));
+    }
 }

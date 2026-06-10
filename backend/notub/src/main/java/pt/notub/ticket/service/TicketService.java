@@ -25,6 +25,8 @@ import java.util.List;
 @Service
 public class TicketService {
 
+    private static final int MAX_ZONE_NUM = 3;
+
     private final BilheteRepository bilheteRepository;
     private final PasseRepository passeRepository;
     private final UtilizadorRepository utilizadorRepository;
@@ -104,8 +106,13 @@ public class TicketService {
         if (zonaId == null) {
             throw new PedidoInvalidoException("Zona invalida");
         }
-        return zonaRepository.findById(zonaId)
+        Zona zona = zonaRepository.findById(zonaId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Zona nao encontrada"));
+        int num = zona.getNum();
+        if (num < 1 || num > MAX_ZONE_NUM) {
+            throw new PedidoInvalidoException("Zona invalida");
+        }
+        return zona;
     }
 
     private LocalDateTime calcularFimPasse(ModalidadePasse modalidade) {

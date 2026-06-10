@@ -16,6 +16,8 @@ import java.util.List;
 @Service
 public class TarifaService {
 
+    private static final int MAX_ZONE_NUM = 3;
+
     private final TarifaRepository tarifaRepository;
 
     public TarifaService(TarifaRepository tarifaRepository) {
@@ -48,6 +50,7 @@ public class TarifaService {
     public TarifaDTO calcularTarifa(String tipoProduto, String tipoUtilizador, String modalidade, int nrZonas) {
         TipoUtilizador tipo = tipoUtilizador != null ? parseTipoUtilizador(tipoUtilizador) : TipoUtilizador.ADULTO;
         String tipoProdutoNormalizado = tipoProduto != null ? tipoProduto.trim().toUpperCase() : null;
+        int nrZonasNormalizado = requireNrZonas(nrZonas);
         ModalidadePasse mod = null;
         if (tipoProdutoNormalizado != null && !tipoProdutoNormalizado.equals("BILHETE")
                 && !tipoProdutoNormalizado.equals("PASSE")) {
@@ -60,14 +63,14 @@ public class TarifaService {
         } else {
             mod = parseModalidade(modalidade);
         }
-        return TarifaMapper.toDTO(tarifaRepository.findByCriteria(tipo, mod, nrZonas)
+        return TarifaMapper.toDTO(tarifaRepository.findByCriteria(tipo, mod, nrZonasNormalizado)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Tarifa nao encontrada")));
     }
 
     public TarifaDTO createTarifa(TarifaRequest pedido) {
         Tarifa tarifa = new Tarifa();
         tarifa.setValor(requireValue(pedido.valor(), "Valor invalido"));
-        tarifa.setNrZonas(requireInt(pedido.nrZonas(), "Numero de zonas invalido"));
+        tarifa.setNrZonas(requireNrZonas(pedido.nrZonas()));
         if (pedido.tipoUtilizador() != null) tarifa.setTipoUtilizador(parseTipoUtilizador(pedido.tipoUtilizador()));
         if (pedido.modalidade() != null) tarifa.setModalidade(parseModalidade(pedido.modalidade()));
         return TarifaMapper.toDTO(tarifaRepository.save(tarifa));
@@ -79,7 +82,7 @@ public class TarifaService {
         if (updated.valor() != null) tarifa.setValor(updated.valor());
         if (updated.tipoUtilizador() != null) tarifa.setTipoUtilizador(parseTipoUtilizador(updated.tipoUtilizador()));
         if (updated.modalidade() != null) tarifa.setModalidade(parseModalidade(updated.modalidade()));
-        if (updated.nrZonas() != null) tarifa.setNrZonas(updated.nrZonas());
+        if (updated.nrZonas() != null) tarifa.setNrZonas(requireNrZonas(updated.nrZonas()));
         return TarifaMapper.toDTO(tarifaRepository.save(tarifa));
     }
 
@@ -116,9 +119,9 @@ public class TarifaService {
         return value;
     }
 
-    private Integer requireInt(Integer value, String message) {
-        if (value == null) {
-            throw new PedidoInvalidoException(message);
+    private int requireNrZonas(Integer value) {
+        if (value == null || value < 1 || value > MAX_ZONE_NUM) {
+            throw new PedidoInvalidoException("Numero de zonas invalido");
         }
         return value;
     }

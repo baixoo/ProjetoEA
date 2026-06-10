@@ -28,8 +28,8 @@
           </div>
           <div v-if="origemFocused && !origemId" class="dropdown">
             <div
-              v-for="(opt, idx) in filteredOrigemOptions"
-              :key="idx"
+              v-for="opt in filteredOrigemOptions"
+              :key="opt.value"
               class="dropdown-item"
               @mousedown.prevent="selectOrigem(opt)"
             >
@@ -65,8 +65,8 @@
           </div>
           <div v-if="destinoFocused && !destinoId" class="dropdown">
             <div
-              v-for="(opt, idx) in filteredDestinoOptions"
-              :key="idx"
+              v-for="opt in filteredDestinoOptions"
+              :key="opt.value"
               class="dropdown-item"
               @mousedown.prevent="selectDestino(opt)"
             >
@@ -358,17 +358,7 @@ onMounted(async () => {
 
 function buildOptions() {
   const stops = viagensStore.stops || []
-  const groups = new Map()
-  for (const s of stops) {
-    if (!groups.has(s.nome)) groups.set(s.nome, [])
-    groups.get(s.nome).push(s)
-  }
-  allStopOptions = []
-  for (const [nome, group] of groups) {
-    const zoneNames = [...new Set(group.map(s => s.zonaNome).filter(Boolean))]
-    const zoneSuffix = zoneNames.length > 0 ? ` (${zoneNames.join(', ')})` : ''
-    allStopOptions.push({ label: `${nome}${zoneSuffix}`, value: group[0].id, nome })
-  }
+  allStopOptions = stops.map(s => ({ label: s.nome, value: s.id }))
   allStopOptions.sort((a, b) => a.label.localeCompare(b.label))
 }
 

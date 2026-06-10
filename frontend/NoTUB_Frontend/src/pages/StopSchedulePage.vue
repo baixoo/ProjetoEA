@@ -27,8 +27,8 @@
         </div>
         <div v-if="stopFocused && !selectedStopId" class="dropdown">
           <div
-            v-for="(opt, idx) in filteredOptions"
-            :key="idx"
+            v-for="opt in filteredOptions"
+            :key="opt.value"
             class="dropdown-item"
             @mousedown.prevent="selectStop(opt)"
           >
@@ -151,10 +151,7 @@ onMounted(async () => {
     })
     if (response.ok) {
       allStops = await response.json()
-      filteredOptions.value = allStops
-        .filter((s, i, arr) => arr.findIndex(x => x.nome === s.nome) === i)
-        .map(s => ({ label: s.nome, value: s.nome }))
-        .sort((a, b) => a.label.localeCompare(b.label))
+      filteredOptions.value = buildStopOptions('')
     }
   } catch (e) {
     console.error(e)
@@ -171,23 +168,21 @@ function onInput() {
 }
 
 function filterOptions() {
-  const q = stopQuery.value.toLowerCase()
-  if (!q) {
-    filteredOptions.value = allStops
-      .filter((s, i, arr) => arr.findIndex(x => x.nome === s.nome) === i)
-      .map(s => ({ label: s.nome, value: s.nome }))
-      .sort((a, b) => a.label.localeCompare(b.label))
-  } else {
-    filteredOptions.value = allStops
-      .filter((s, i, arr) => s.nome.toLowerCase().includes(q) && arr.findIndex(x => x.nome === s.nome) === i)
-      .map(s => ({ label: s.nome, value: s.nome }))
-      .sort((a, b) => a.label.localeCompare(b.label))
-  }
+  filteredOptions.value = buildStopOptions(stopQuery.value)
+}
+
+function buildStopOptions(query) {
+  const q = (query || '').trim().toLowerCase()
+  return allStops
+    .filter(s => !q || s.nome.toLowerCase().includes(q))
+    .map(s => ({ label: s.nome, value: s.id }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .slice(0, 80)
 }
 
 function selectStop(opt) {
   stopQuery.value = opt.label
-  selectedStopId.value = opt.label
+  selectedStopId.value = opt.value
   stopFocused.value = false
   loadProximosPasses(opt.value)
 }
@@ -208,11 +203,7 @@ function toggleLinha(linhaId) {
   expandedLinhas[linhaId] = !expandedLinhas[linhaId]
 }
 
-async function loadProximosPasses(nome) {
-  const matching = allStops.filter(s => s.nome === nome)
-  if (matching.length === 0) return
-
-  const stopId = matching[0].id
+async function loadProximosPasses(stopId) {
   loading.value = true
   searched.value = true
 

@@ -323,7 +323,7 @@ async function handleRedeem() {
     }
 
     // 2. Buy the free ticket (using first zone id or fallback 1)
-    const zoneId = viagensStore.zones?.[0]?.id || 1
+    const zoneId = viagensStore.zones?.find(z => Number(z?.num) >= 1 && Number(z?.num) <= 3)?.id || 1
     await ticketsStore.buyTickets(1, zoneId)
 
     // 3. Refresh user profile (for points balance) and history

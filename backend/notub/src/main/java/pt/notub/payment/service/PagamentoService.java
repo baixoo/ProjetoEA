@@ -39,6 +39,7 @@ public class PagamentoService {
 
     private static final Logger logger = LoggerFactory.getLogger(PagamentoService.class);
     private static final long CHECKOUT_TIMEOUT_MINUTES = 5;
+    private static final int MAX_ZONE_NUM = 3;
 
     private final TransacaoRepository transacaoRepository;
     private final UtilizadorRepository utilizadorRepository;
@@ -68,6 +69,8 @@ public class PagamentoService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Utilizador nao encontrado"));
 
         TipoProduto tipoProduto = parseTipoProduto(request.getTipoProduto());
+        Long zonaId = request.getZonaId() != null ? request.getZonaId() : 1L;
+        int nrZonas = requireNrZonas(zonaId);
 
         var existingOpt = transacaoRepository.findActiveByUser(
                 utilizador.getId(), EstadoPagamento.EM_CURSO);
@@ -81,11 +84,10 @@ public class PagamentoService {
                 boolean mesmoProduto = existing.getTipoProduto() == tipoProduto;
                 boolean mesmoValor = false;
                 if (mesmoProduto) {
-                    Long zonaIdReq = request.getZonaId() != null ? request.getZonaId() : 1L;
                     if (tipoProduto == TipoProduto.BILHETE) {
-                        mesmoValor = existing.getZonaId().equals(zonaIdReq);
+                        mesmoValor = existing.getZonaId().equals(zonaId);
                     } else {
-                        mesmoValor = existing.getZonaId().equals(zonaIdReq)
+                        mesmoValor = existing.getZonaId().equals(zonaId)
                                 && existing.getModalidade() != null
                                 && existing.getModalidade().equals(request.getModalidade());
                     }
@@ -120,10 +122,6 @@ public class PagamentoService {
                 transacaoRepository.save(existing);
             }
         }
-
-        Long zonaId = request.getZonaId();
-        if (zonaId == null) zonaId = 1L;
-        int nrZonas = zonaId.intValue();
 
         TipoUtilizador tipoUtilizador = utilizador.getTipoUtilizador();
         if (tipoUtilizador == null) {
@@ -268,6 +266,13 @@ public class PagamentoService {
         }
 
         return response;
+    }
+
+    private int requireNrZonas(Long zonaId) {
+        if (zonaId == null || zonaId < 1 || zonaId > MAX_ZONE_NUM) {
+            throw new PedidoInvalidoException("Zona invalida");
+        }
+        return Math.toIntExact(zonaId);
     }
 
     private TipoProduto parseTipoProduto(String tipoProduto) {

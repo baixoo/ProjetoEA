@@ -24,7 +24,7 @@
           <div class="text-h6">{{ editing ? 'Editar Zona' : 'Nova Zona' }}</div>
         </q-card-section>
         <q-card-section class="q-pt-none column q-gutter-sm">
-          <q-input v-model.number="form.num" label="Numero" type="number" outlined />
+          <q-input v-model.number="form.num" label="Numero" type="number" min="1" max="3" step="1" outlined />
           <q-input v-model="form.nome" label="Nome" outlined />
         </q-card-section>
         <q-card-actions align="right">

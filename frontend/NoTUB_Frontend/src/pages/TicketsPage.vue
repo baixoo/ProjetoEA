@@ -273,7 +273,7 @@ onMounted(async () => {
   ])
 
   if (viagensStore.zones?.length > 0) {
-    selectedZoneId.value = viagensStore.zones[0].id
+    selectedZoneId.value = zoneOptions.value[0]?.id ?? 1
   } else {
     selectedZoneId.value = 1
   }
@@ -302,8 +302,14 @@ async function loadCheckoutPrice() {
 }
 
 const zoneOptions = computed(() => {
-  if (viagensStore.zones?.length > 0) {
-    return viagensStore.zones
+  const zones = (viagensStore.zones || [])
+    .filter(zone => {
+      const num = Number(zone?.num)
+      return Number.isFinite(num) && num >= 1 && num <= 3
+    })
+    .sort((a, b) => Number(a.num) - Number(b.num))
+  if (zones.length > 0) {
+    return zones
   }
   return [
     { id: 1, num: 1 },
@@ -354,7 +360,7 @@ function openCheckout(productId) {
   errorMessage.value = ''
 
   if (viagensStore.zones?.length > 0) {
-    selectedZoneId.value = viagensStore.zones[0].id
+    selectedZoneId.value = zoneOptions.value[0]?.id ?? 1
   } else {
     selectedZoneId.value = 1
   }

@@ -12,6 +12,8 @@ Improvements over v1:
 """
 import csv
 import random
+import re
+import unicodedata
 from pathlib import Path
 from collections import defaultdict
 
@@ -22,6 +24,7 @@ random.seed(42)
 
 OPERATING_HOURS = 18
 TURNAROUND_MINUTES = 20
+MAX_ZONE_NUM = 3
 
 ZONE_MACRO_MAP = {
     "PRT1": 1, "PRT2": 1, "PRT3": 1,
@@ -29,18 +32,92 @@ ZONE_MACRO_MAP = {
     "MAI1": 2, "MAI2": 2, "MAI3": 2, "MAI4": 2,
     "VCD8": 2,
     "VNG1": 3, "VNG2": 3, "VNG4": 3, "VNG5": 3,
-    "GDM1": 4, "GDM2": 4,
-    "VLG1": 4, "VLG2": 4, "VLG3": 4,
+    "GDM1": 3, "GDM2": 3,
+    "VLG1": 3, "VLG2": 3, "VLG3": 3,
 }
 
 MACRO_ZONE_NAMES = {
     1: "Porto e Matosinhos",
     2: "Maia e Vila do Conde",
-    3: "Vila Nova de Gaia",
-    4: "Gondomar e Valongo",
+    3: "Vila Nova de Gaia, Gondomar e Valongo",
 }
 
 WEEKDAY_SERVICE_IDS = {"UTEIS", "ELECUTEIS"}
+
+
+def sql_escape(value):
+    return value.replace("'", "''")
+
+
+def to_roman(value):
+    numerals = [
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
+    ]
+    result = []
+    remaining = value
+    for arabic, roman in numerals:
+        while remaining >= arabic:
+            result.append(roman)
+            remaining -= arabic
+    return "".join(result)
+
+
+def normalize_stop_group_key(name):
+    if not name:
+        return ""
+    normalized = unicodedata.normalize("NFKD", name)
+    normalized = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+    normalized = normalized.upper().strip()
+    normalized = re.sub(r"[^A-Z0-9]+", " ", normalized)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    normalized = re.sub(r"\s+(?:I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$", "", normalized)
+    return normalized or name.strip().upper()
+
+
+def format_stop_display_name(name):
+    if not name:
+        return ""
+    formatted = unicodedata.normalize("NFC", name)
+    formatted = re.sub(r"\s+", " ", formatted.strip())
+    formatted = re.sub(r"\.(?=[A-Za-zÀ-ÖØ-öø-ÿ])", ". ", formatted)
+    formatted = re.sub(r"\s+", " ", formatted).strip()
+    return formatted.lower().title()
+
+
+def build_stop_display_names(stops):
+    grouped = defaultdict(list)
+    for stop_id, stop in stops.items():
+        grouped[normalize_stop_group_key(stop["name"])].append((stop_id, stop))
+
+    display_names = {}
+    for entries in grouped.values():
+        entries.sort(key=lambda item: (
+            float(item[1]["lat"]),
+            float(item[1]["lon"]),
+            item[1]["code"] or "",
+            item[0],
+        ))
+        if len(entries) == 1:
+            stop_id, stop = entries[0]
+            display_names[stop_id] = format_stop_display_name(stop["name"])
+            continue
+
+        for idx, (stop_id, stop) in enumerate(entries, start=1):
+            display_names[stop_id] = f"{format_stop_display_name(stop['name'])} {to_roman(idx)}"
+
+    return display_names
 
 
 def load_stops():
@@ -166,6 +243,7 @@ def main():
     routes = load_routes()
     trips = load_trips()
     stop_times = load_stop_times()
+    stop_display_names = build_stop_display_names(stops)
     print(f"  Stops: {len(stops)}")
     print(f"  Routes: {len(routes)}")
     print(f"  Route+Direction combos: {len(trips)}")
@@ -179,10 +257,10 @@ def main():
 
     # ── Zonas ──
     lines.append("-- ═══ Zonas ═══")
-    for zid in range(1, 5):
+    for zid in range(1, MAX_ZONE_NUM + 1):
         name = MACRO_ZONE_NAMES[zid]
         lines.append(
-            f"INSERT INTO zona (id, num, nome) VALUES ({zid}, {zid}, '{name}') ON CONFLICT (id) DO NOTHING;"
+            f"INSERT INTO zona (id, num, nome) VALUES ({zid}, {zid}, '{sql_escape(name)}') ON CONFLICT (id) DO NOTHING;"
         )
     lines.append("")
 
@@ -194,7 +272,7 @@ def main():
         pid = idx + 1
         paragem_id_map[stop_id] = pid
         s = stops[stop_id]
-        name = s["name"].replace("'", "''")
+        name = sql_escape(stop_display_names.get(stop_id, format_stop_display_name(s["name"])))
         lat = float(s["lat"])
         lon = float(s["lon"])
         zid = ZONE_MACRO_MAP.get(s["zone_id"], 1)
@@ -329,7 +407,7 @@ def main():
     }
 
     for tipo, prices in BILHETE_PRICES.items():
-        for nr_z in range(1, 5):
+        for nr_z in range(1, MAX_ZONE_NUM + 1):
             tarifa_id += 1
             valor = prices[nr_z - 1]
             lines.append(
@@ -341,7 +419,7 @@ def main():
 
     for modalidade, tipo_prices in PASSE_PRICES.items():
         for tipo, prices in tipo_prices.items():
-            for nr_z in range(1, 5):
+            for nr_z in range(1, MAX_ZONE_NUM + 1):
                 tarifa_id += 1
                 valor = prices[nr_z - 1]
                 lines.append(
@@ -353,7 +431,7 @@ def main():
 
     # ── Sequences reset ──
     lines.append("-- ═══ Reset Sequences ═══")
-    lines.append(f"SELECT setval('zona_id_seq', 4);")
+    lines.append(f"SELECT setval('zona_id_seq', {MAX_ZONE_NUM});")
     lines.append(f"SELECT setval('paragem_id_seq', {len(stops)});")
     lines.append(f"SELECT setval('linha_id_seq', {linhas_usadas});")
     lines.append(f"SELECT setval('trajeto_id_seq', {trajetos_usados});")
@@ -369,7 +447,7 @@ def main():
     output = "\n".join(lines)
     OUTPUT_PATH.write_text(output, encoding="utf-8")
     print(f"\nDone! Written to {OUTPUT_PATH}")
-    print(f"  Zones:      4")
+    print(f"  Zones:      {MAX_ZONE_NUM}")
     print(f"  Paragens:   {len(stops)}")
     print(f"  Linhas:     {linhas_usadas}")
     print(f"  Trajetos:   {trajetos_usados}")

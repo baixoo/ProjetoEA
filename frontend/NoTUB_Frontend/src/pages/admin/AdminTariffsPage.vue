@@ -32,7 +32,7 @@
             :options="['CRIANCA','ESTUDANTE','ADULTO','SENIOR']" />
           <q-select v-model="form.modalidade" label="Modalidade" outlined
             :options="['MENSAL','ANUAL','SEMANAL','H24','H48','H72']" clearable />
-          <q-input v-model.number="form.nrZonas" label="Nr Zonas" type="number" outlined />
+          <q-input v-model.number="form.nrZonas" label="Nr Zonas" type="number" min="1" max="3" step="1" outlined />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="Cancelar" v-close-popup />
