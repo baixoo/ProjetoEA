@@ -16,6 +16,7 @@ public abstract class Veiculo {
     private String matricula;
     private int nLugares;
     private int lotacaoAtual;
+    private Integer tempoAtraso;
 
     @Embedded
     private Point localizacaoAtual;
@@ -35,6 +36,8 @@ public abstract class Veiculo {
     public void setnLugares(int nLugares) { this.nLugares = nLugares; }
     public int getLotacaoAtual() { return lotacaoAtual; }
     public void setLotacaoAtual(int lotacaoAtual) { this.lotacaoAtual = lotacaoAtual; }
+    public Integer getTempoAtraso() { return tempoAtraso; }
+    public void setTempoAtraso(Integer tempoAtraso) { this.tempoAtraso = tempoAtraso; }
     public Point getLocalizacaoAtual() { return localizacaoAtual; }
     public void setLocalizacaoAtual(Point localizacaoAtual) { this.localizacaoAtual = localizacaoAtual; }
     public Linha getLinha() { return linha; }

@@ -156,12 +156,7 @@ public class TransportNetworkService {
         Trajeto trajeto = findTrajeto(trajetoId);
         PontosDePassagem ponto = new PontosDePassagem();
         ponto.setOrdem(requireValue(pedido.ordem(), "Ordem invalida"));
-        if (pedido.horaChegada() != null) {
-            ponto.setHoraChegada(pedido.horaChegada());
-        }
-        if (pedido.tempoDesdeInicio() != null) {
-            ponto.setTempoDesdeInicio(pedido.tempoDesdeInicio());
-        }
+        ponto.setTrajeto(trajeto);
         if (pedido.paragemId() != null) {
             ponto.setParagem(findParagem(pedido.paragemId()));
         } else {

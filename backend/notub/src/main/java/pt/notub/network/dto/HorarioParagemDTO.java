@@ -1,7 +1,6 @@
 package pt.notub.network.dto;
 
 import java.util.List;
-import java.util.Map;
 
 public class HorarioParagemDTO {
     private Long trajetoId;
@@ -26,8 +25,8 @@ public class HorarioParagemDTO {
     public static class ParagemHorarioDTO {
         private Long paragemId;
         private String nome;
-        private int tempoDesdeInicio;
-        private Map<Integer, List<Integer>> horarios;
+        private int ordem;
+        private List<HorarioItemDTO> horarios;
 
         public ParagemHorarioDTO() {}
 
@@ -35,9 +34,9 @@ public class HorarioParagemDTO {
         public void setParagemId(Long paragemId) { this.paragemId = paragemId; }
         public String getNome() { return nome; }
         public void setNome(String nome) { this.nome = nome; }
-        public int getTempoDesdeInicio() { return tempoDesdeInicio; }
-        public void setTempoDesdeInicio(int tempoDesdeInicio) { this.tempoDesdeInicio = tempoDesdeInicio; }
-        public Map<Integer, List<Integer>> getHorarios() { return horarios; }
-        public void setHorarios(Map<Integer, List<Integer>> horarios) { this.horarios = horarios; }
+        public int getOrdem() { return ordem; }
+        public void setOrdem(int ordem) { this.ordem = ordem; }
+        public List<HorarioItemDTO> getHorarios() { return horarios; }
+        public void setHorarios(List<HorarioItemDTO> horarios) { this.horarios = horarios; }
     }
 }

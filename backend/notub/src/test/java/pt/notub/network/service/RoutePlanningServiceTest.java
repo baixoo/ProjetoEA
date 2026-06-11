@@ -8,6 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.mockito.Mockito.lenient;
 import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
+import pt.notub.network.repository.HorarioRepository;
 import pt.notub.network.repository.PontosDePassagemRepository;
 import pt.notub.network.repository.TrajetoRepository;
 import pt.notub.trip.repository.ViagemRepository;
@@ -27,15 +28,19 @@ class RoutePlanningServiceTest {
     private TrajetoRepository trajetoRepository;
 
     @Mock
+    private HorarioRepository horarioRepository;
+
+    @Mock
     private ViagemRepository viagemRepository;
 
     private RoutePlanningService service;
 
     @BeforeEach
     void setUp() {
-        service = new RoutePlanningService(pontosRepository, trajetoRepository, viagemRepository);
+        service = new RoutePlanningService(pontosRepository, trajetoRepository, horarioRepository, viagemRepository);
         lenient().when(pontosRepository.findAll()).thenReturn(List.of());
         lenient().when(trajetoRepository.findAll()).thenReturn(List.of());
+        lenient().when(horarioRepository.findAll()).thenReturn(List.of());
         lenient().when(viagemRepository.findAll()).thenReturn(List.of());
     }
 

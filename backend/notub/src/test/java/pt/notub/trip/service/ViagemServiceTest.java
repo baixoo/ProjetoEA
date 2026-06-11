@@ -7,18 +7,22 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.driver.service.NotificacaoValidacaoService;
+import pt.notub.network.entity.Horario;
 import pt.notub.network.entity.Paragem;
 import pt.notub.network.entity.PontosDePassagem;
 import pt.notub.network.entity.Trajeto;
 import pt.notub.network.repository.ParagemRepository;
+import pt.notub.network.repository.HorarioRepository;
 import pt.notub.network.repository.TrajetoRepository;
 import pt.notub.points.service.ServicoPontos;
 import pt.notub.ticket.repository.TituloTransporteRepository;
 import pt.notub.trip.dto.ParagemAtualDTO;
 import pt.notub.trip.dto.ZonaMinMaxDTO;
+import pt.notub.trip.entity.Viagem;
 import pt.notub.trip.entity.ViagemVeiculo;
 import pt.notub.trip.repository.ViagemUtilizadorRepository;
 import pt.notub.trip.repository.ViagemVeiculoRepository;
+import pt.notub.trip.repository.ViagemRepository;
 import pt.notub.validation.service.GestorValidacao;
 import pt.notub.vehicle.repository.VeiculoRepository;
 import pt.notub.zone.entity.Zona;
@@ -43,6 +47,9 @@ class ViagemServiceTest {
     private ParagemRepository paragemRepository;
 
     @Mock
+    private HorarioRepository horarioRepository;
+
+    @Mock
     private TituloTransporteRepository tituloTransporteRepository;
 
     @Mock
@@ -50,6 +57,9 @@ class ViagemServiceTest {
 
     @Mock
     private TrajetoRepository trajetoRepository;
+
+    @Mock
+    private ViagemRepository viagemRepository;
 
     @Mock
     private ServicoPontos servicoPontos;
@@ -68,9 +78,11 @@ class ViagemServiceTest {
                 viagemUtilizadorRepository,
                 viagemVeiculoRepository,
                 paragemRepository,
+                horarioRepository,
                 tituloTransporteRepository,
                 veiculoRepository,
                 trajetoRepository,
+                viagemRepository,
                 servicoPontos,
                 gestorValidacao,
                 notificacaoService);
@@ -79,11 +91,26 @@ class ViagemServiceTest {
     @Test
     void getParagemAtual_returnsNearestStopDuringTrip() {
         LocalTime agora = LocalTime.now();
+        String serviceId = "UTEIS";
+        String tripId = "trip-1";
         ViagemVeiculo viagem = viagemComPontos(
-                ponto(1, 10L, 1, agora.minusMinutes(20)),
-                ponto(2, 20L, 2, agora.minusMinutes(1)),
-                ponto(3, 30L, 3, agora.plusMinutes(20)));
+                ponto(1, 10L, 1),
+                ponto(2, 20L, 2),
+                ponto(3, 30L, 3));
         when(viagemVeiculoRepository.findById(1L)).thenReturn(Optional.of(viagem));
+
+        Trajeto trajeto = viagem.getTrajeto();
+        Viagem schedule = new Viagem();
+        schedule.setTrajeto(trajeto);
+        schedule.setServiceId(serviceId);
+        schedule.setHoraPartida(agora.minusMinutes(20));
+        schedule.setGtfsTripId(tripId);
+        when(viagemRepository.findByTrajetoId(trajeto.getId())).thenReturn(List.of(schedule));
+        when(horarioRepository.findByTrajetoAndServico(trajeto.getId(), serviceId)).thenReturn(List.of(
+                horario(1, 10L, 1, agora.minusMinutes(20), tripId),
+                horario(2, 20L, 2, agora.minusMinutes(1), tripId),
+                horario(3, 30L, 3, agora.plusMinutes(20), tripId)
+        ));
 
         ParagemAtualDTO result = service.getParagemAtual(1L);
 
@@ -116,6 +143,7 @@ class ViagemServiceTest {
 
     private ViagemVeiculo viagemComPontos(PontosDePassagem... pontos) {
         Trajeto trajeto = new Trajeto();
+        trajeto.setId(100L);
         trajeto.setPontosDePassagem(List.of(pontos));
 
         ViagemVeiculo viagem = new ViagemVeiculo();
@@ -123,7 +151,7 @@ class ViagemServiceTest {
         return viagem;
     }
 
-    private PontosDePassagem ponto(int ordem, Long paragemId, int zonaNum, LocalTime horaChegada) {
+    private PontosDePassagem ponto(int ordem, Long paragemId, int zonaNum) {
         Zona zona = new Zona();
         zona.setNum(zonaNum);
 
@@ -134,7 +162,36 @@ class ViagemServiceTest {
         PontosDePassagem ponto = new PontosDePassagem();
         ponto.setOrdem(ordem);
         ponto.setParagem(paragem);
-        ponto.setHoraChegada(horaChegada);
         return ponto;
+    }
+
+    private PontosDePassagem ponto(int ordem, Long paragemId, int zonaNum, LocalTime ignoredHora) {
+        return ponto(ordem, paragemId, zonaNum);
+    }
+
+    private Horario horario(int ordem, Long paragemId, int zonaNum, LocalTime hora, String tripId) {
+        Horario horario = new Horario();
+        horario.setId((long) ordem);
+        horario.setHora(hora);
+        horario.setGtfsTripId(tripId);
+
+        Trajeto trajeto = new Trajeto();
+        trajeto.setId(100L);
+
+        Zona zona = new Zona();
+        zona.setNum(zonaNum);
+
+        Paragem paragem = new Paragem();
+        paragem.setId(paragemId);
+        paragem.setZona(zona);
+
+        PontosDePassagem ponto = new PontosDePassagem();
+        ponto.setId((long) ordem);
+        ponto.setOrdem(ordem);
+        ponto.setTrajeto(trajeto);
+        ponto.setParagem(paragem);
+
+        horario.setPontoPassagem(ponto);
+        return horario;
     }
 }

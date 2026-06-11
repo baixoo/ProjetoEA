@@ -18,6 +18,7 @@ public final class VeiculoMapper {
         dto.setMatricula(v.getMatricula());
         dto.setnLugares(v.getnLugares());
         dto.setLotacaoAtual(v.getLotacaoAtual());
+        dto.setTempoAtraso(v.getTempoAtraso());
         dto.setLocalizacaoAtual(toPointDTO(v.getLocalizacaoAtual()));
         dto.setTipo(v.getClass().getSimpleName());
         if (v.getLinha() != null) {

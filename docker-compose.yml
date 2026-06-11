@@ -35,7 +35,7 @@ services:
   backend:
     build: ./backend/notub
     deploy:
-      replicas: 2
+      replicas: 1
     depends_on:
       postgres:
         condition: service_healthy

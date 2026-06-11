@@ -6,6 +6,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.IntSummaryStatistics;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -14,10 +17,12 @@ import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
 import pt.notub.driver.dto.NotificacaoValidacaoDTO;
 import pt.notub.driver.service.NotificacaoValidacaoService;
+import pt.notub.network.entity.Horario;
 import pt.notub.network.entity.Paragem;
 import pt.notub.network.entity.PontosDePassagem;
 import pt.notub.network.entity.Trajeto;
 import pt.notub.network.repository.ParagemRepository;
+import pt.notub.network.repository.HorarioRepository;
 import pt.notub.network.repository.TrajetoRepository;
 import pt.notub.points.service.ServicoPontos;
 import pt.notub.ticket.entity.Bilhete;
@@ -30,9 +35,11 @@ import pt.notub.trip.dto.ViagemDTO;
 import pt.notub.trip.dto.ViagemVeiculoDTO;
 import pt.notub.trip.dto.ZonaMinMaxDTO;
 import pt.notub.trip.entity.EstadoViagem;
+import pt.notub.trip.entity.Viagem;
 import pt.notub.trip.entity.ViagemUtilizador;
 import pt.notub.trip.entity.ViagemVeiculo;
 import pt.notub.trip.mapper.ViagemMapper;
+import pt.notub.trip.repository.ViagemRepository;
 import pt.notub.trip.repository.ViagemUtilizadorRepository;
 import pt.notub.trip.repository.ViagemVeiculoRepository;
 import pt.notub.validation.service.GestorValidacao;
@@ -47,9 +54,11 @@ public class ViagemService {
     private final ViagemUtilizadorRepository viagemUtilizadorRepository;
     private final ViagemVeiculoRepository viagemVeiculoRepository;
     private final ParagemRepository paragemRepository;
+    private final HorarioRepository horarioRepository;
     private final TituloTransporteRepository tituloTransporteRepository;
     private final VeiculoRepository veiculoRepository;
     private final TrajetoRepository trajetoRepository;
+    private final ViagemRepository viagemRepository;
     private final ServicoPontos servicoPontos;
     private final GestorValidacao gestorValidacao;
     private final NotificacaoValidacaoService notificacaoService;
@@ -57,18 +66,22 @@ public class ViagemService {
     public ViagemService(ViagemUtilizadorRepository viagemUtilizadorRepository,
                          ViagemVeiculoRepository viagemVeiculoRepository,
                          ParagemRepository paragemRepository,
+                         HorarioRepository horarioRepository,
                          TituloTransporteRepository tituloTransporteRepository,
                          VeiculoRepository veiculoRepository,
                          TrajetoRepository trajetoRepository,
+                         ViagemRepository viagemRepository,
                          ServicoPontos servicoPontos,
                          GestorValidacao gestorValidacao,
                          NotificacaoValidacaoService notificacaoService) {
         this.viagemUtilizadorRepository = viagemUtilizadorRepository;
         this.viagemVeiculoRepository = viagemVeiculoRepository;
         this.paragemRepository = paragemRepository;
+        this.horarioRepository = horarioRepository;
         this.tituloTransporteRepository = tituloTransporteRepository;
         this.veiculoRepository = veiculoRepository;
         this.trajetoRepository = trajetoRepository;
+        this.viagemRepository = viagemRepository;
         this.servicoPontos = servicoPontos;
         this.gestorValidacao = gestorValidacao;
         this.notificacaoService = notificacaoService;
@@ -187,26 +200,35 @@ public class ViagemService {
 
     public ParagemAtualDTO getParagemAtual(Long viagemVeiculoId) {
         ViagemVeiculo viagem = findViagemVeiculo(viagemVeiculoId);
-        List<PontosDePassagem> pontos = getPontosComHoraEParagem(viagem);
+        if (viagem.getTrajeto() == null) {
+            throw new RecursoNaoEncontradoException("Trajeto nao encontrado");
+        }
 
-        if (pontos.isEmpty()) {
+        Viagem viagemHorario = findViagemHorarioAtual(viagem.getTrajeto().getId(), LocalTime.now());
+        List<Horario> horarios = getHorariosDaViagem(viagemHorario);
+
+        if (horarios.isEmpty()) {
             throw new RecursoNaoEncontradoException("Pontos de passagem nao encontrados");
         }
 
         LocalTime agora = LocalTime.now();
-        LocalTime inicio = pontos.get(0).getHoraChegada();
-        LocalTime fim = pontos.get(pontos.size() - 1).getHoraChegada();
+        LocalTime inicio = horarios.get(0).getHora();
+        LocalTime fim = horarios.get(horarios.size() - 1).getHora();
 
         if (agora.isBefore(inicio) || agora.isAfter(fim)) {
             throw new ConflitoException("Viagem nao esta a decorrer neste momento");
         }
 
-        PontosDePassagem maisProximo = pontos.stream()
+        Horario maisProximo = horarios.stream()
                 .min(Comparator.comparingLong(p ->
-                        Math.abs(ChronoUnit.MINUTES.between(p.getHoraChegada(), agora))))
+                        Math.abs(ChronoUnit.MINUTES.between(p.getHora(), agora))))
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Paragem atual nao encontrada"));
 
-        return new ParagemAtualDTO(maisProximo.getParagem().getId());
+        if (maisProximo.getPontoPassagem() == null || maisProximo.getPontoPassagem().getParagem() == null) {
+            throw new RecursoNaoEncontradoException("Paragem atual nao encontrada");
+        }
+
+        return new ParagemAtualDTO(maisProximo.getPontoPassagem().getParagem().getId());
     }
 
     public ZonaMinMaxDTO getZonaMinMax(Long viagemVeiculoId, Long paragemId) {
@@ -249,10 +271,27 @@ public class ViagemService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("ViagemVeiculo nao encontrado"));
     }
 
-    private List<PontosDePassagem> getPontosComHoraEParagem(ViagemVeiculo viagem) {
-        return getPontosComParagem(viagem).stream()
-                .filter(p -> p.getHoraChegada() != null)
-                .toList();
+    private Viagem findViagemHorarioAtual(Long trajetoId, LocalTime agora) {
+        List<Viagem> viagens = viagemRepository.findByTrajetoId(trajetoId);
+        if (viagens.isEmpty()) {
+            throw new RecursoNaoEncontradoException("Viagem nao encontrada");
+        }
+
+        return viagens.stream()
+                .filter(v -> v.getHoraPartida() != null)
+                .min(Comparator.comparingLong(v -> Math.abs(ChronoUnit.MINUTES.between(v.getHoraPartida(), agora))))
+                .orElse(viagens.get(0));
+    }
+
+    private List<Horario> getHorariosDaViagem(Viagem viagem) {
+        if (viagem == null || viagem.getTrajeto() == null || viagem.getServiceId() == null || viagem.getGtfsTripId() == null) {
+            return List.of();
+        }
+
+        return horarioRepository.findByTrajetoAndServico(viagem.getTrajeto().getId(), viagem.getServiceId()).stream()
+                .filter(h -> viagem.getGtfsTripId().equals(h.getGtfsTripId()))
+                .sorted(Comparator.comparingInt(h -> h.getPontoPassagem().getOrdem()))
+                .collect(Collectors.toList());
     }
 
     private List<PontosDePassagem> getPontosComParagem(ViagemVeiculo viagem) {

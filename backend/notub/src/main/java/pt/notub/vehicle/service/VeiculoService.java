@@ -100,6 +100,12 @@ public class VeiculoService {
             veiculo.setLocalizacaoAtual(request.localizacaoAtual());
         }
 
+        if (request.tempoAtraso() != null) {
+            veiculo.setTempoAtraso(request.tempoAtraso());
+        } else if (isCreate) {
+            veiculo.setTempoAtraso(0);
+        }
+
         if (request.linhaId() != null) {
             Linha linha = linhaRepository.findById(request.linhaId())
                     .orElseThrow(() -> new RecursoNaoEncontradoException("Linha nao encontrada"));

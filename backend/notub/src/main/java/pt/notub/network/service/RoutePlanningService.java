@@ -7,14 +7,18 @@ import org.springframework.stereotype.Service;
 import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
 import pt.notub.network.dto.HorarioDTO;
+import pt.notub.network.dto.HorarioItemDTO;
 import pt.notub.network.dto.HorarioParagemDTO;
 import pt.notub.network.dto.ParagemProximasPassagensDTO;
 import pt.notub.network.dto.ProximoPasseDTO;
 import pt.notub.network.dto.RotaDTO;
 import pt.notub.network.dto.ZonaResumoDTO;
+import pt.notub.network.entity.Horario;
 import pt.notub.network.entity.Paragem;
 import pt.notub.network.entity.PontosDePassagem;
 import pt.notub.network.entity.Trajeto;
+import pt.notub.network.mapper.HorarioMapper;
+import pt.notub.network.repository.HorarioRepository;
 import pt.notub.network.repository.PontosDePassagemRepository;
 import pt.notub.network.repository.TrajetoRepository;
 import pt.notub.trip.entity.Viagem;
@@ -42,6 +46,7 @@ public class RoutePlanningService {
     private static final Pattern GENERATED_SUFFIX_PATTERN = Pattern.compile("\\s+(?:I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$");
 
     private static final int MAX_NEARBY = 5;
+    private static final Set<String> WEEKDAY_SERVICE_IDS = Set.of("UTEIS", "ELECUTEIS");
 
     private record WalkEdge(long toId, int minutes) {}
 
@@ -103,8 +108,21 @@ public class RoutePlanningService {
         }
     }
 
+    private static final class TripSchedule {
+        private final String tripId;
+        private final String serviceName;
+        private final List<Horario> horarios;
+
+        private TripSchedule(String tripId, String serviceName, List<Horario> horarios) {
+            this.tripId = tripId;
+            this.serviceName = serviceName;
+            this.horarios = horarios;
+        }
+    }
+
     private final PontosDePassagemRepository pontosRepo;
     private final TrajetoRepository trajetoRepo;
+    private final HorarioRepository horarioRepo;
     private final ViagemRepository viagemRepo;
 
     private volatile boolean initialized = false;
@@ -124,9 +142,11 @@ public class RoutePlanningService {
 
     public RoutePlanningService(PontosDePassagemRepository pontosRepo,
                                 TrajetoRepository trajetoRepo,
+                                HorarioRepository horarioRepo,
                                 ViagemRepository viagemRepo) {
         this.pontosRepo = pontosRepo;
         this.trajetoRepo = trajetoRepo;
+        this.horarioRepo = horarioRepo;
         this.viagemRepo = viagemRepo;
     }
 
@@ -138,10 +158,11 @@ public class RoutePlanningService {
 
         List<PontosDePassagem> allPontos = pontosRepo.findAll();
         List<Trajeto> allTrajetos = trajetoRepo.findAll();
+        List<Horario> allHorarios = horarioRepo.findAll();
         List<Viagem> allViagens = viagemRepo.findAll();
 
-        log.info("Loaded {} pontos, {} trajetos, {} viagens in {}ms",
-                allPontos.size(), allTrajetos.size(), allViagens.size(),
+        log.info("Loaded {} pontos, {} trajetos, {} viagens, {} horarios in {}ms",
+                allPontos.size(), allTrajetos.size(), allViagens.size(), allHorarios.size(),
                 System.currentTimeMillis() - start);
 
         paragemCache = new HashMap<>();
@@ -179,23 +200,44 @@ public class RoutePlanningService {
         paragemToPontos = new HashMap<>();
         paragemToTrajetoIds = new HashMap<>();
         pontoToTrajeto = new HashMap<>();
-        for (var entry : trajetoPontosMap.entrySet()) {
+
+        Map<Long, List<TripSchedule>> horariosByTrajeto = groupTripSchedulesByTrajeto(allHorarios);
+        for (var entry : horariosByTrajeto.entrySet()) {
             Long trajetoId = entry.getKey();
+            List<TripSchedule> schedules = entry.getValue();
+            TripSchedule representative = pickRepresentativeTripSchedule(schedules);
+            if (representative == null || representative.horarios.isEmpty()) {
+                continue;
+            }
+
             Map<Long, Integer> offsets = new HashMap<>();
             Map<Long, Integer> stopIndices = new HashMap<>();
-            List<PontosDePassagem> pontos = entry.getValue();
-            for (int i = 0; i < pontos.size(); i++) {
-                PontosDePassagem p = pontos.get(i);
-                if (p.getParagem() == null) continue;
-                Long stopId = p.getParagem().getId();
-                offsets.put(stopId, p.getTempoDesdeInicio());
+            int firstMinutes = toMinutes(representative.horarios.getFirst().getHora());
+
+            for (int i = 0; i < representative.horarios.size(); i++) {
+                Horario horario = representative.horarios.get(i);
+                PontosDePassagem ponto = horario.getPontoPassagem();
+                if (ponto == null || ponto.getParagem() == null) continue;
+
+                Long stopId = ponto.getParagem().getId();
+                int currentMinutes = toMinutes(horario.getHora());
+                int offset = currentMinutes - firstMinutes;
+                if (offset < 0) offset += 1440;
+
+                offsets.put(stopId, offset);
                 stopIndices.putIfAbsent(stopId, i);
-                paragemToPontos.computeIfAbsent(stopId, k -> new ArrayList<>()).add(p);
+                paragemToPontos.computeIfAbsent(stopId, k -> new ArrayList<>()).add(ponto);
                 paragemToTrajetoIds.computeIfAbsent(stopId, k -> new HashSet<>()).add(trajetoId);
-                pontoToTrajeto.put(p.getId(), trajetoId);
+                pontoToTrajeto.put(ponto.getId(), trajetoId);
             }
+
             trajetoOffsetMap.put(trajetoId, offsets);
             trajetoStopIndexMap.put(trajetoId, stopIndices);
+
+            Horario lastHorario = representative.horarios.getLast();
+            if (lastHorario.getPontoPassagem() != null && lastHorario.getPontoPassagem().getParagem() != null) {
+                destinoFinalMap.put(trajetoId, lastHorario.getPontoPassagem().getParagem().getNome());
+            }
         }
 
         viagensByServiceAndTrajeto = new HashMap<>();
@@ -243,6 +285,64 @@ public class RoutePlanningService {
         log.info("RoutePlanningService cache initialized in {}ms. {} paragens, {} trajetos, {} viagens grouped into {} services",
                 System.currentTimeMillis() - start, paragemCache.size(), trajetoPontosMap.size(),
                 allViagens.size(), viagensByServiceAndTrajeto.size());
+    }
+
+    private Map<Long, List<TripSchedule>> groupTripSchedulesByTrajeto(List<Horario> allHorarios) {
+        Map<Long, Map<String, TripSchedule>> grouped = new HashMap<>();
+        for (Horario horario : allHorarios) {
+            if (horario.getPontoPassagem() == null || horario.getPontoPassagem().getTrajeto() == null) continue;
+            if (horario.getGtfsTripId() == null || horario.getHora() == null) continue;
+
+            Long trajetoId = horario.getPontoPassagem().getTrajeto().getId();
+            grouped
+                    .computeIfAbsent(trajetoId, k -> new LinkedHashMap<>())
+                    .computeIfAbsent(horario.getGtfsTripId(),
+                            tripId -> new TripSchedule(tripId,
+                                    horario.getServico() != null ? horario.getServico().getNome() : "",
+                                    new ArrayList<>()))
+                    .horarios.add(horario);
+        }
+
+        Map<Long, List<TripSchedule>> result = new HashMap<>();
+        for (var entry : grouped.entrySet()) {
+            List<TripSchedule> schedules = new ArrayList<>(entry.getValue().values());
+            for (TripSchedule schedule : schedules) {
+                schedule.horarios.sort(Comparator.comparingInt(h -> h.getPontoPassagem().getOrdem()));
+            }
+            schedules.sort(Comparator
+                    .comparing((TripSchedule s) -> s.horarios.isEmpty() ? Integer.MAX_VALUE : toMinutes(s.horarios.getFirst().getHora()))
+                    .thenComparing(s -> s.tripId));
+            result.put(entry.getKey(), schedules);
+        }
+        return result;
+    }
+
+    private TripSchedule pickRepresentativeTripSchedule(List<TripSchedule> schedules) {
+        if (schedules == null || schedules.isEmpty()) {
+            return null;
+        }
+
+        List<TripSchedule> weekdaySchedules = schedules.stream()
+                .filter(schedule -> schedule.serviceName != null
+                        && WEEKDAY_SERVICE_IDS.contains(schedule.serviceName.toUpperCase()))
+                .toList();
+        List<TripSchedule> candidates = weekdaySchedules.isEmpty() ? schedules : weekdaySchedules;
+
+        List<TripSchedule> morningSchedules = new ArrayList<>();
+        for (TripSchedule schedule : candidates) {
+            if (schedule.horarios.isEmpty()) continue;
+            int firstMinutes = toMinutes(schedule.horarios.getFirst().getHora());
+            if (firstMinutes >= 420 && firstMinutes <= 600) {
+                morningSchedules.add(schedule);
+            }
+        }
+
+        List<TripSchedule> selected = morningSchedules.isEmpty() ? candidates : morningSchedules;
+        return selected.stream()
+                .max(Comparator
+                        .comparingInt((TripSchedule s) -> s.horarios.size())
+                        .thenComparing(s -> s.tripId))
+                .orElse(null);
     }
 
     public List<RotaDTO> planearRota(Long origemId, Long destinoId) {
@@ -753,15 +853,25 @@ public class RoutePlanningService {
             throw new RecursoNaoEncontradoException("Linha nao encontrada");
         }
 
-        Map<Long, List<Viagem>> viagensByTrajeto = viagensByServiceAndTrajeto.getOrDefault(serviceId, Map.of());
+        List<Horario> horarios = horarioRepo.findByLinhaAndServico(linhaId, serviceId);
+        Map<Long, Map<String, List<Horario>>> horariosByTrajeto = new LinkedHashMap<>();
+        for (Horario horario : horarios) {
+            if (horario.getPontoPassagem() == null || horario.getPontoPassagem().getTrajeto() == null) continue;
+            horariosByTrajeto
+                    .computeIfAbsent(horario.getPontoPassagem().getTrajeto().getId(), k -> new LinkedHashMap<>())
+                    .computeIfAbsent(horario.getGtfsTripId(), k -> new ArrayList<>())
+                    .add(horario);
+        }
 
         List<HorarioDTO> result = new ArrayList<>();
         for (Trajeto t : trajetos) {
-            List<Viagem> viagens = viagensByTrajeto.getOrDefault(t.getId(), List.of());
+            Map<String, List<Horario>> viagens = horariosByTrajeto.getOrDefault(t.getId(), Map.of());
             String destinoFinal = destinoFinalMap.getOrDefault(t.getId(), "");
 
-            List<String> partidas = viagens.stream()
-                    .map(v -> v.getHoraPartida().format(TIME_FMT))
+            List<String> partidas = viagens.values().stream()
+                    .filter(list -> !list.isEmpty())
+                    .map(list -> list.get(0).getHora().format(TIME_FMT))
+                    .sorted()
                     .collect(Collectors.toList());
 
             result.add(new HorarioDTO(t.getId(), t.getDirecao().name(), destinoFinal, partidas));
@@ -782,12 +892,24 @@ public class RoutePlanningService {
             throw new RecursoNaoEncontradoException("Linha nao encontrada");
         }
 
-        Map<Long, List<Viagem>> viagensByTrajeto = viagensByServiceAndTrajeto.getOrDefault(serviceId, Map.of());
+        List<Horario> horarios = horarioRepo.findByLinhaAndServico(linhaId, serviceId);
+        Map<Long, Map<Long, List<HorarioItemDTO>>> horariosByTrajeto = new LinkedHashMap<>();
+        for (Horario horario : horarios) {
+            if (horario.getPontoPassagem() == null || horario.getPontoPassagem().getTrajeto() == null) continue;
+            if (horario.getPontoPassagem().getParagem() == null) continue;
+
+            Long trajetoId = horario.getPontoPassagem().getTrajeto().getId();
+            Long paragemId = horario.getPontoPassagem().getParagem().getId();
+            horariosByTrajeto
+                    .computeIfAbsent(trajetoId, k -> new LinkedHashMap<>())
+                    .computeIfAbsent(paragemId, k -> new ArrayList<>())
+                    .add(HorarioMapper.toItemDTO(horario));
+        }
 
         List<HorarioParagemDTO> result = new ArrayList<>();
         for (Trajeto t : trajetos) {
             List<PontosDePassagem> pontos = trajetoPontosMap.getOrDefault(t.getId(), List.of());
-            List<Viagem> viagens = viagensByTrajeto.getOrDefault(t.getId(), List.of());
+            Map<Long, List<HorarioItemDTO>> horariosPorParagem = horariosByTrajeto.getOrDefault(t.getId(), Map.of());
 
             HorarioParagemDTO dto = new HorarioParagemDTO();
             dto.setTrajetoId(t.getId());
@@ -797,22 +919,16 @@ public class RoutePlanningService {
 
             List<HorarioParagemDTO.ParagemHorarioDTO> paragensHorario = new ArrayList<>();
             for (PontosDePassagem p : pontos) {
+                if (p.getParagem() == null) {
+                    continue;
+                }
                 HorarioParagemDTO.ParagemHorarioDTO ph = new HorarioParagemDTO.ParagemHorarioDTO();
                 ph.setParagemId(p.getParagem().getId());
                 ph.setNome(p.getParagem().getNome());
-                ph.setTempoDesdeInicio(p.getTempoDesdeInicio());
-
-                Map<Integer, List<Integer>> horarios = new TreeMap<>();
-                for (Viagem v : viagens) {
-                    int depMin = toMinutes(v.getHoraPartida()) + p.getTempoDesdeInicio();
-                    int hour = (depMin / 60) % 24;
-                    int minute = depMin % 60;
-                    horarios.computeIfAbsent(hour, k -> new ArrayList<>()).add(minute);
-                }
-                for (var entry : horarios.entrySet()) {
-                    Collections.sort(entry.getValue());
-                }
-                ph.setHorarios(horarios);
+                ph.setOrdem(p.getOrdem());
+                List<HorarioItemDTO> stopHorarios = new ArrayList<>(horariosPorParagem.getOrDefault(p.getParagem().getId(), List.of()));
+                stopHorarios.sort(Comparator.comparing(HorarioItemDTO::getHora));
+                ph.setHorarios(stopHorarios);
                 paragensHorario.add(ph);
             }
             dto.setParagens(paragensHorario);

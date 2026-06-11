@@ -14,9 +14,10 @@ public final class PontoPassagemMapper {
         if (pdp == null) return null;
         PontoPassagemDTO dto = new PontoPassagemDTO();
         dto.setId(pdp.getId());
+        if (pdp.getTrajeto() != null) {
+            dto.setTrajetoId(pdp.getTrajeto().getId());
+        }
         dto.setOrdem(pdp.getOrdem());
-        dto.setHoraChegada(pdp.getHoraChegada());
-        dto.setTempoDesdeInicio(pdp.getTempoDesdeInicio());
         dto.setParagem(ParagemMapper.toDTO(pdp.getParagem()));
         return dto;
     }

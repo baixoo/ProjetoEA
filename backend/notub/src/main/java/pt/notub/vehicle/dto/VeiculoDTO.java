@@ -8,6 +8,7 @@ public class VeiculoDTO {
     private String matricula;
     private int nLugares;
     private int lotacaoAtual;
+    private Integer tempoAtraso;
     private PointDTO localizacaoAtual;
     private String tipo;
     private Long linhaId;
@@ -23,6 +24,8 @@ public class VeiculoDTO {
     public void setnLugares(int nLugares) { this.nLugares = nLugares; }
     public int getLotacaoAtual() { return lotacaoAtual; }
     public void setLotacaoAtual(int lotacaoAtual) { this.lotacaoAtual = lotacaoAtual; }
+    public Integer getTempoAtraso() { return tempoAtraso; }
+    public void setTempoAtraso(Integer tempoAtraso) { this.tempoAtraso = tempoAtraso; }
     public PointDTO getLocalizacaoAtual() { return localizacaoAtual; }
     public void setLocalizacaoAtual(PointDTO localizacaoAtual) { this.localizacaoAtual = localizacaoAtual; }
     public String getTipo() { return tipo; }

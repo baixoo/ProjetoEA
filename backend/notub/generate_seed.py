@@ -2,13 +2,6 @@
 Generates seed_data.sql from the Porto STCP GTFS dataset.
 Run:  python generate_seed.py
 Output: src/main/resources/data.sql
-
-Improvements over v1:
-- Reads calendar.txt for service_id awareness
-- Picks representative trip from UTEIS morning departures (07:00-10:00)
-- Generates ALL viagem rows (UTEIS + SAB + DOM) for real schedule lookup
-- Auto-detects night routes (noturno) based on departure times
-- Stores Viagem (trip departures) separately from Trajeto (stop patterns)
 """
 import csv
 import random
@@ -51,19 +44,9 @@ def sql_escape(value):
 
 def to_roman(value):
     numerals = [
-        (1000, "M"),
-        (900, "CM"),
-        (500, "D"),
-        (400, "CD"),
-        (100, "C"),
-        (90, "XC"),
-        (50, "L"),
-        (40, "XL"),
-        (10, "X"),
-        (9, "IX"),
-        (5, "V"),
-        (4, "IV"),
-        (1, "I"),
+        (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"),
+        (100, "C"), (90, "XC"), (50, "L"), (40, "XL"),
+        (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I"),
     ]
     result = []
     remaining = value
@@ -173,30 +156,25 @@ def load_stop_times():
     return stop_times
 
 
-def time_to_minutes(t):
+def time_to_seconds(t):
     parts = t.split(":")
     h = int(parts[0])
     m = int(parts[1])
-    if h >= 24:
-        h -= 24
-    return h * 60 + m
+    s = int(parts[2]) if len(parts) > 2 else 0
+    return h * 3600 + m * 60 + s
 
 
-def normalize_time(t):
-    parts = t.split(":")
-    h = int(parts[0])
-    m = int(parts[1])
-    s = int(parts[2])
+def seconds_to_time(secs):
+    h = secs // 3600
+    m = (secs % 3600) // 60
+    s = secs % 60
     if h >= 24:
         h -= 24
     return f"{h:02d}:{m:02d}:{s:02d}"
 
 
-def is_night_time(t):
-    h = int(t.split(":")[0])
-    if h >= 24:
-        h -= 24
-    return h < 6
+def normalize_time(t):
+    return seconds_to_time(time_to_seconds(t))
 
 
 def pick_representative_trip(trip_list, stop_times):
@@ -209,7 +187,7 @@ def pick_representative_trip(trip_list, stop_times):
         tid = t["trip_id"]
         if tid in stop_times and stop_times[tid]:
             first_arrival = stop_times[tid][0]["arrival"]
-            mins = time_to_minutes(first_arrival)
+            mins = time_to_seconds(first_arrival) // 60
             if 420 <= mins <= 600:
                 morning_trips.append(t)
 
@@ -244,6 +222,7 @@ def main():
     trips = load_trips()
     stop_times = load_stop_times()
     stop_display_names = build_stop_display_names(stops)
+
     print(f"  Stops: {len(stops)}")
     print(f"  Routes: {len(routes)}")
     print(f"  Route+Direction combos: {len(trips)}")
@@ -252,6 +231,47 @@ def main():
     lines.append("-- NoTUB Seed Data (auto-generated from Porto STCP GTFS dataset)")
     lines.append("-- DO NOT EDIT MANUALLY - regenerate with: python generate_seed.py")
     lines.append("")
+    # ── Atualização de Esquema ──
+    lines.append("-- ═══ Atualização de Esquema ═══")
+    lines.append("DROP TABLE IF EXISTS horario CASCADE;")
+    lines.append("DROP TABLE IF EXISTS ponto_passagem CASCADE;")
+    lines.append("DROP TABLE IF EXISTS pontos_de_passagem CASCADE;")
+    lines.append("DROP TABLE IF EXISTS servico CASCADE;")
+    lines.append("DROP TABLE IF EXISTS viagem CASCADE;")
+    lines.append(
+        "CREATE TABLE IF NOT EXISTS servico ("
+        "id BIGSERIAL PRIMARY KEY, "
+        "nome VARCHAR(255) NOT NULL UNIQUE"
+        ");"
+    )
+    lines.append(
+        "CREATE TABLE IF NOT EXISTS ponto_passagem ("
+        "id BIGSERIAL PRIMARY KEY, "
+        "ordem INT NOT NULL, "
+        "trajeto_id BIGINT NOT NULL REFERENCES trajeto(id) ON DELETE CASCADE, "
+        "paragem_id BIGINT NOT NULL REFERENCES paragem(id)"
+        ");"
+    )
+    lines.append(
+        "CREATE TABLE IF NOT EXISTS horario ("
+        "id BIGSERIAL PRIMARY KEY, "
+        "hora TIME NOT NULL, "
+        "ponto_passagem_id BIGINT NOT NULL REFERENCES ponto_passagem(id) ON DELETE CASCADE, "
+        "servico_id BIGINT NOT NULL REFERENCES servico(id), "
+        "gtfs_trip_id VARCHAR(255) NOT NULL"
+        ");"
+    )
+    lines.append(
+        "CREATE TABLE IF NOT EXISTS viagem ("
+        "id BIGSERIAL PRIMARY KEY, "
+        "trajeto_id BIGINT NOT NULL REFERENCES trajeto(id) ON DELETE CASCADE, "
+        "service_id VARCHAR(255) NOT NULL, "
+        "hora_partida TIME NOT NULL, "
+        "gtfs_trip_id VARCHAR(255) NOT NULL UNIQUE"
+        ");"
+    )
+    lines.append("")
+
     lines.append("BEGIN;")
     lines.append("")
 
@@ -262,6 +282,19 @@ def main():
         lines.append(
             f"INSERT INTO zona (id, num, nome) VALUES ({zid}, {zid}, '{sql_escape(name)}') ON CONFLICT (id) DO NOTHING;"
         )
+    lines.append("")
+
+    # ── Serviços ──
+    lines.append("-- ═══ Serviços ═══")
+    servico_map = {}
+    servico_id_seq = 0
+    for trip_list in trips.values():
+        for t in trip_list:
+            s_id = t["service_id"]
+            if s_id not in servico_map:
+                servico_id_seq += 1
+                servico_map[s_id] = servico_id_seq
+                lines.append(f"INSERT INTO servico (id, nome) VALUES ({servico_id_seq}, '{sql_escape(s_id)}') ON CONFLICT (id) DO NOTHING;")
     lines.append("")
 
     # ── Paragens ──
@@ -282,16 +315,18 @@ def main():
         )
     lines.append("")
 
-    # ── Linhas + Trajetos + PontosDePassagem + Viagens ──
-    lines.append("-- ═══ Linhas ═══")
+    # ── Linhas + Trajetos + PontosDePassagem + Horarios ──
+    lines.append("-- ═══ Linhas, Trajetos e Horários ═══")
     linha_id = 0
     trajeto_id = 0
     pdp_id = 0
     autocarro_id = 0
     viagem_id = 0
+    horario_id = 0
     linhas_usadas = 0
     trajetos_usados = 0
     total_viagens = 0
+    total_horarios = 0
 
     for route_id in sorted(routes.keys()):
         route = routes[route_id]
@@ -331,7 +366,8 @@ def main():
             )
 
             st_list = stop_times[best_trip]
-            first_arrival_minutes = time_to_minutes(st_list[0]["arrival"])
+            first_arrival_secs = time_to_seconds(st_list[0]["arrival"])
+            trajeto_pdps = []
 
             for ordem, st in enumerate(st_list):
                 pdp_id += 1
@@ -339,34 +375,54 @@ def main():
                 if paragem_fk is None:
                     pdp_id -= 1
                     continue
-                arrival = normalize_time(st["arrival"])
-                current_minutes = time_to_minutes(st["arrival"])
-                tempo_desde_inicio = current_minutes - first_arrival_minutes
+
+                current_secs = time_to_seconds(st["arrival"])
+                diff_secs = current_secs - first_arrival_secs
+
+                trajeto_pdps.append((pdp_id, diff_secs))
+
                 lines.append(
-                    f"INSERT INTO pontos_de_passagem (id, ordem, hora_chegada, tempo_desde_inicio, trajeto_id, paragem_id) "
-                    f"VALUES ({pdp_id}, {ordem}, '{arrival}', {tempo_desde_inicio}, {this_trajeto_id}, {paragem_fk}) ON CONFLICT (id) DO NOTHING;"
+                    f"INSERT INTO ponto_passagem (id, ordem, trajeto_id, paragem_id) "
+                    f"VALUES ({pdp_id}, {ordem}, {this_trajeto_id}, {paragem_fk}) ON CONFLICT (id) DO NOTHING;"
                 )
 
-            last_arrival_minutes = time_to_minutes(st_list[-1]["arrival"])
-            duracao_min = last_arrival_minutes - first_arrival_minutes
+            last_arrival_secs = time_to_seconds(st_list[-1]["arrival"])
+            duracao_min = (last_arrival_secs - first_arrival_secs) // 60
             if duracao_min > linha_max_duracao:
                 linha_max_duracao = duracao_min
 
+            # Gerar Horários a partir das Viagens
             for t in trip_list:
                 tid = t["trip_id"]
                 if tid not in stop_times or not stop_times[tid]:
                     continue
+
                 service_id = t["service_id"]
-                first_dep = normalize_time(stop_times[tid][0]["departure"])
-                viagem_id += 1
-                total_viagens += 1
+                servico_fk = servico_map[service_id]
+
                 if service_id in WEEKDAY_SERVICE_IDS:
                     linha_viagens_uteis += 1
-                gtfs_trip_escaped = tid.replace("'", "''")
+
+                first_dep_secs = time_to_seconds(stop_times[tid][0]["departure"])
+                viagem_id += 1
+                total_viagens += 1
                 lines.append(
                     f"INSERT INTO viagem (id, trajeto_id, service_id, hora_partida, gtfs_trip_id) "
-                    f"VALUES ({viagem_id}, {this_trajeto_id}, '{service_id}', '{first_dep}', '{gtfs_trip_escaped}') ON CONFLICT (id) DO NOTHING;"
+                    f"VALUES ({viagem_id}, {this_trajeto_id}, '{sql_escape(service_id)}', "
+                    f"'{seconds_to_time(first_dep_secs)}', '{sql_escape(tid)}') ON CONFLICT (id) DO NOTHING;"
                 )
+
+                for current_pdp_id, diff_secs in trajeto_pdps:
+                    horario_id += 1
+                    total_horarios += 1
+
+                    hora_passagem_secs = first_dep_secs + diff_secs
+                    hora_str = seconds_to_time(hora_passagem_secs)
+
+                    lines.append(
+                        f"INSERT INTO horario (id, hora, ponto_passagem_id, servico_id, gtfs_trip_id) "
+                        f"VALUES ({horario_id}, '{hora_str}', {current_pdp_id}, {servico_fk}, '{sql_escape(tid)}') ON CONFLICT (id) DO NOTHING;"
+                    )
 
         round_trip_min = max(60, linha_max_duracao * 2 + TURNAROUND_MINUTES)
         viagens_per_bus = max(1, (OPERATING_HOURS * 60) // round_trip_min)
@@ -377,16 +433,14 @@ def main():
             matricula = f"PT-{short[:3].upper()}-{autocarro_id:02d}"
             nlugares = random.choice([40, 50, 60])
             lines.append(
-                f"INSERT INTO veiculo (id, matricula, n_lugares, lotacao_atual, dtype, linha_id) "
-                f"VALUES ({autocarro_id}, '{matricula}', {nlugares}, 0, 'Autocarro', {linha_id}) ON CONFLICT (id) DO NOTHING;"
+                f"INSERT INTO veiculo (id, matricula, n_lugares, lotacao_atual, tempo_atraso, dtype, linha_id) "
+                f"VALUES ({autocarro_id}, '{matricula}', {nlugares}, 0, 0, 'Autocarro', {linha_id}) ON CONFLICT (id) DO NOTHING;"
             )
             lines.append(
                 f"INSERT INTO autocarro (id) VALUES ({autocarro_id}) ON CONFLICT (id) DO NOTHING;"
             )
 
     lines.append("")
-
-    # ── Tarifas ──
     lines.append("-- ═══ Tarifas ═══")
     tarifa_id = 0
 
@@ -432,11 +486,13 @@ def main():
     # ── Sequences reset ──
     lines.append("-- ═══ Reset Sequences ═══")
     lines.append(f"SELECT setval('zona_id_seq', {MAX_ZONE_NUM});")
+    lines.append(f"SELECT setval('servico_id_seq', {servico_id_seq});")
     lines.append(f"SELECT setval('paragem_id_seq', {len(stops)});")
     lines.append(f"SELECT setval('linha_id_seq', {linhas_usadas});")
     lines.append(f"SELECT setval('trajeto_id_seq', {trajetos_usados});")
-    lines.append(f"SELECT setval('pontos_de_passagem_id_seq', {pdp_id});")
+    lines.append(f"SELECT setval('ponto_passagem_id_seq', {pdp_id});")
     lines.append(f"SELECT setval('viagem_id_seq', {viagem_id});")
+    lines.append(f"SELECT setval('horario_id_seq', {horario_id});")
     lines.append(f"SELECT setval('veiculo_id_seq', {autocarro_id});")
     lines.append(f"SELECT setval('tarifa_id_seq', {tarifa_id});")
     lines.append("")
@@ -448,14 +504,15 @@ def main():
     OUTPUT_PATH.write_text(output, encoding="utf-8")
     print(f"\nDone! Written to {OUTPUT_PATH}")
     print(f"  Zones:      {MAX_ZONE_NUM}")
+    print(f"  Serviços:   {servico_id_seq}")
     print(f"  Paragens:   {len(stops)}")
     print(f"  Linhas:     {linhas_usadas}")
     print(f"  Trajetos:   {trajetos_usados}")
     print(f"  Pontos:     {pdp_id}")
     print(f"  Viagens:    {total_viagens}")
+    print(f"  Horários:   {total_horarios}")
     print(f"  Autocarros: {autocarro_id}")
     print(f"  Tarifas:    {tarifa_id}")
-
 
 if __name__ == "__main__":
     main()
