@@ -438,16 +438,13 @@ function triggerBoarding() {
     stopScanner()
     return
   }
-
-  if (!selectedStop.value) {
-    console.log('Sem paragem, a detetar...')
-    detectNearestStop()
-    return
-  }
-
+  
   console.log('A abrir boardingOpen!')
   boardingOpen.value = true
-}
+  detectCurrentStop()
+} 
+
+
 
 function cancelTitlesDialog() {
   titlesDialogOpen.value = false
@@ -462,7 +459,7 @@ function goToTicketsFromDialog() {
   router.push('/tickets')
 }
 
-async function detectNearestStop() {
+async function detectCurrentStop() {
   try {
     const resp = await fetch(`/api/viagens/veiculo/${selectedVehicleTrip.value}/paragem-atual`, {
       headers: { Authorization: `Bearer ${authStore.token}` }

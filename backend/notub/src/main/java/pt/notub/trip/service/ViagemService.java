@@ -216,35 +216,33 @@ public class ViagemService {
 
     public ParagemAtualDTO getParagemAtual(Long viagemVeiculoId) {
         ViagemVeiculo viagem = findViagemVeiculo(viagemVeiculoId);
-        if (viagem.getTrajeto() == null) {
-            throw new RecursoNaoEncontradoException("Trajeto nao encontrado");
+        if (viagem == null) {
+            throw new RecursoNaoEncontradoException("ViagemVeiculo nao encontrada");
         }
 
-        Viagem viagemHorario = findViagemHorarioAtual(viagem.getTrajeto().getId(), LocalTime.now());
-        List<Horario> horarios = getHorariosDaViagem(viagemHorario);
+        LocalDateTime agora = LocalDateTime.now();
+        LocalDateTime startTime = viagem.getStartTime();
+        LocalDateTime finishTime = viagem.getFinishTime();
 
-        if (horarios.isEmpty()) {
-            throw new RecursoNaoEncontradoException("Pontos de passagem nao encontrados");
-        }
+        System.out.println("-> StartTime: " + startTime + " | FinishTime: " + finishTime + " | Agora: " + agora);
 
-        LocalTime agora = LocalTime.now();
-        LocalTime inicio = horarios.get(0).getHora();
-        LocalTime fim = horarios.get(horarios.size() - 1).getHora();
-
-        if (agora.isBefore(inicio) || agora.isAfter(fim)) {
+        if (startTime == null || (finishTime != null && (agora.isBefore(startTime) || agora.isAfter(finishTime)))) {
             throw new ConflitoException("Viagem nao esta a decorrer neste momento");
         }
 
-        Horario maisProximo = horarios.stream()
-                .min(Comparator.comparingLong(p ->
-                        Math.abs(ChronoUnit.MINUTES.between(p.getHora(), agora))))
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Paragem atual nao encontrada"));
-
-        if (maisProximo.getPontoPassagem() == null || maisProximo.getPontoPassagem().getParagem() == null) {
-            throw new RecursoNaoEncontradoException("Paragem atual nao encontrada");
+        PontosDePassagem pontoAtual = viagem.getPontoAtual();
+        
+        if (pontoAtual == null) {
+            throw new RecursoNaoEncontradoException("Ponto de passagem atual nao definido para este veiculo");
         }
 
-        return new ParagemAtualDTO(maisProximo.getPontoPassagem().getParagem().getId());
+        Paragem paragem = pontoAtual.getParagem();
+        
+        if (paragem == null || paragem.getId() == null) {
+            throw new RecursoNaoEncontradoException("Paragem atual nao encontrada para o ponto de passagem");
+        }
+
+        return new ParagemAtualDTO(paragem.getId());
     }
 
     public ZonaMinMaxDTO getZonaMinMax(Long viagemVeiculoId, Long paragemId) {
