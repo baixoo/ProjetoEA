@@ -5,9 +5,8 @@ import pt.notub.network.entity.Linha;
 import jakarta.persistence.*;
 
 @Entity
-@Inheritance(strategy = InheritanceType.JOINED)
-@DiscriminatorColumn(name = "dtype", discriminatorType = DiscriminatorType.STRING)
-public abstract class Veiculo {
+@Table(name = "veiculo")
+public class Veiculo {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,6 +23,9 @@ public abstract class Veiculo {
     @ManyToOne
     @JoinColumn(name = "linha_id")
     private Linha linha;
+
+    @Enumerated(EnumType.STRING)
+    private TipoVeiculo tipo;
 
     public Veiculo() {}
 
@@ -42,4 +44,6 @@ public abstract class Veiculo {
     public void setLocalizacaoAtual(Point localizacaoAtual) { this.localizacaoAtual = localizacaoAtual; }
     public Linha getLinha() { return linha; }
     public void setLinha(Linha linha) { this.linha = linha; }
+    public TipoVeiculo getTipo() { return tipo; }
+    public void setTipo(TipoVeiculo tipo) { this.tipo = tipo; }
 }

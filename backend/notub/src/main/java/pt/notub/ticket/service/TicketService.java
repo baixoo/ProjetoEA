@@ -9,6 +9,7 @@ import pt.notub.ticket.dto.BilheteDTO;
 import pt.notub.ticket.dto.PasseDTO;
 import pt.notub.ticket.entity.Bilhete;
 import pt.notub.ticket.entity.Passe;
+import pt.notub.ticket.entity.TipoTituloTransporte;
 import pt.notub.ticket.mapper.BilheteMapper;
 import pt.notub.ticket.mapper.PasseMapper;
 import pt.notub.ticket.repository.BilheteRepository;
@@ -77,6 +78,7 @@ public class TicketService {
     private Bilhete criarBilhete(Utilizador utilizador, Zona zona) {
         Bilhete bilhete = new Bilhete();
         bilhete.setUtilizador(utilizador);
+        bilhete.setTipo(TipoTituloTransporte.BILHETE);
         bilhete.setUsado(false);
         bilhete.setZona(zona);
         return bilheteRepository.save(bilhete);
@@ -90,6 +92,7 @@ public class TicketService {
         });
         Passe passe = new Passe();
         passe.setUtilizador(utilizador);
+        passe.setTipo(TipoTituloTransporte.PASSE);
         passe.setModalidade(modalidade);
         passe.setInicio(LocalDateTime.now());
         passe.setFim(calcularFimPasse(modalidade));

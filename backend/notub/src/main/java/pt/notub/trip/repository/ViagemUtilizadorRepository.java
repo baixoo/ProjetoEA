@@ -21,9 +21,7 @@ public interface ViagemUtilizadorRepository extends JpaRepository<ViagemUtilizad
        "JOIN FETCH vv.veiculo vec " +
        "JOIN FETCH vv.trajeto traj " +
        "JOIN FETCH traj.linha lin " +
-       "JOIN v.titulo t " +
-       "LEFT JOIN pt.notub.ticket.entity.Bilhete b ON b.id = t.id " +
-       "LEFT JOIN pt.notub.ticket.entity.Passe p ON p.id = t.id " +
-       "WHERE b.utilizador.id = :utilizadorId OR p.utilizador.id = :utilizadorId")
-List<ViagemUtilizador> findByUtilizadorId(@Param("utilizadorId") Long utilizadorId);
+       "JOIN FETCH v.titulo t " +
+       "WHERE t.utilizador.id = :utilizadorId")
+    List<ViagemUtilizador> findByUtilizadorId(@Param("utilizadorId") Long utilizadorId);
 }

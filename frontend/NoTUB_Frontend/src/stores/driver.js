@@ -141,7 +141,7 @@ export const useDriverStore = defineStore('driver', () => {
     scheduleOptions.value = []
   }
 
-  async function startScheduledViagem(veiculoId, trajetoId, viagemId) {
+  async function startScheduledViagem(veiculoId, trajetoId, serviceId, gtfsTripId) {
     if (!authStore.token) return
     loading.value = true
     try {
@@ -151,7 +151,7 @@ export const useDriverStore = defineStore('driver', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authStore.token}`
         },
-        body: JSON.stringify({ veiculoId, trajetoId, viagemId })
+        body: JSON.stringify({ veiculoId, trajetoId, serviceId, gtfsTripId })
       })
       if (!response.ok) {
         const text = await response.text()

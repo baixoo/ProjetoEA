@@ -35,11 +35,9 @@ import pt.notub.trip.dto.ViagemDTO;
 import pt.notub.trip.dto.ViagemVeiculoDTO;
 import pt.notub.trip.dto.ZonaMinMaxDTO;
 import pt.notub.trip.entity.EstadoViagem;
-import pt.notub.trip.entity.Viagem;
 import pt.notub.trip.entity.ViagemUtilizador;
 import pt.notub.trip.entity.ViagemVeiculo;
 import pt.notub.trip.mapper.ViagemMapper;
-import pt.notub.trip.repository.ViagemRepository;
 import pt.notub.trip.repository.ViagemUtilizadorRepository;
 import pt.notub.trip.repository.ViagemVeiculoRepository;
 import pt.notub.validation.service.GestorValidacao;
@@ -58,7 +56,6 @@ public class ViagemService {
     private final TituloTransporteRepository tituloTransporteRepository;
     private final VeiculoRepository veiculoRepository;
     private final TrajetoRepository trajetoRepository;
-    private final ViagemRepository viagemRepository;
     private final ServicoPontos servicoPontos;
     private final GestorValidacao gestorValidacao;
     private final NotificacaoValidacaoService notificacaoService;
@@ -70,7 +67,6 @@ public class ViagemService {
                          TituloTransporteRepository tituloTransporteRepository,
                          VeiculoRepository veiculoRepository,
                          TrajetoRepository trajetoRepository,
-                         ViagemRepository viagemRepository,
                          ServicoPontos servicoPontos,
                          GestorValidacao gestorValidacao,
                          NotificacaoValidacaoService notificacaoService) {
@@ -81,7 +77,6 @@ public class ViagemService {
         this.tituloTransporteRepository = tituloTransporteRepository;
         this.veiculoRepository = veiculoRepository;
         this.trajetoRepository = trajetoRepository;
-        this.viagemRepository = viagemRepository;
         this.servicoPontos = servicoPontos;
         this.gestorValidacao = gestorValidacao;
         this.notificacaoService = notificacaoService;
@@ -128,17 +123,15 @@ public class ViagemService {
             }
         }
 
-        String nomePassageiro = "";
+        String nomePassageiro = "Desconhecido";
+        if (titulo.getUtilizador() != null) {
+            nomePassageiro = titulo.getUtilizador().getPrimeiroNome() + " " + titulo.getUtilizador().getUltimoNome();
+        }
+
         String tituloTipo = "";
-        if (titulo instanceof Bilhete bilhete) {
-            nomePassageiro = bilhete.getUtilizador() != null
-                    ? bilhete.getUtilizador().getPrimeiroNome() + " " + bilhete.getUtilizador().getUltimoNome()
-                    : "Desconhecido";
+        if (titulo.getTipo() == pt.notub.ticket.entity.TipoTituloTransporte.BILHETE) {
             tituloTipo = "Bilhete";
         } else if (titulo instanceof Passe passe) {
-            nomePassageiro = passe.getUtilizador() != null
-                    ? passe.getUtilizador().getPrimeiroNome() + " " + passe.getUtilizador().getUltimoNome()
-                    : "Desconhecido";
             tituloTipo = "Passe " + passe.getModalidade().name();
         }
 
@@ -171,12 +164,8 @@ public class ViagemService {
         boolean concederPontos = viagem.getInicio() != null
                 && java.time.Duration.between(viagem.getInicio(), viagem.getFim()).toHours() <= MAX_HOURS_FOR_POINTS;
 
-        if (concederPontos) {
-            if (viagem.getTitulo() instanceof Bilhete bilhete && bilhete.getUtilizador() != null) {
-                servicoPontos.atribuirPontosViagem(bilhete.getUtilizador().getId());
-            } else if (viagem.getTitulo() instanceof Passe passe && passe.getUtilizador() != null) {
-                servicoPontos.atribuirPontosViagem(passe.getUtilizador().getId());
-            }
+        if (concederPontos && viagem.getTitulo().getUtilizador() != null) {
+            servicoPontos.atribuirPontosViagem(viagem.getTitulo().getUtilizador().getId());
         }
 
         return ViagemMapper.toDTO(saved);
@@ -286,28 +275,7 @@ public class ViagemService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("ViagemVeiculo nao encontrado"));
     }
 
-    private Viagem findViagemHorarioAtual(Long trajetoId, LocalTime agora) {
-        List<Viagem> viagens = viagemRepository.findByTrajetoId(trajetoId);
-        if (viagens.isEmpty()) {
-            throw new RecursoNaoEncontradoException("Viagem nao encontrada");
-        }
 
-        return viagens.stream()
-                .filter(v -> v.getHoraPartida() != null)
-                .min(Comparator.comparingLong(v -> Math.abs(ChronoUnit.MINUTES.between(v.getHoraPartida(), agora))))
-                .orElse(viagens.get(0));
-    }
-
-    private List<Horario> getHorariosDaViagem(Viagem viagem) {
-        if (viagem == null || viagem.getTrajeto() == null || viagem.getServiceId() == null || viagem.getGtfsTripId() == null) {
-            return List.of();
-        }
-
-        return horarioRepository.findByTrajetoAndServico(viagem.getTrajeto().getId(), viagem.getServiceId()).stream()
-                .filter(h -> viagem.getGtfsTripId().equals(h.getGtfsTripId()))
-                .sorted(Comparator.comparingInt(h -> h.getPontoPassagem().getOrdem()))
-                .collect(Collectors.toList());
-    }
 
     private List<PontosDePassagem> getPontosComParagem(ViagemVeiculo viagem) {
         if (viagem.getTrajeto() == null || viagem.getTrajeto().getPontosDePassagem() == null) {

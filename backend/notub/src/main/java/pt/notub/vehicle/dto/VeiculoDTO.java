@@ -1,6 +1,7 @@
 package pt.notub.vehicle.dto;
 
 import pt.notub.network.dto.PointDTO;
+import pt.notub.vehicle.entity.TipoVeiculo;
 
 public class VeiculoDTO {
 
@@ -10,7 +11,7 @@ public class VeiculoDTO {
     private int lotacaoAtual;
     private Integer tempoAtraso;
     private PointDTO localizacaoAtual;
-    private String tipo;
+    private TipoVeiculo tipo;
     private Long linhaId;
     private String linhaNome;
 
@@ -28,8 +29,8 @@ public class VeiculoDTO {
     public void setTempoAtraso(Integer tempoAtraso) { this.tempoAtraso = tempoAtraso; }
     public PointDTO getLocalizacaoAtual() { return localizacaoAtual; }
     public void setLocalizacaoAtual(PointDTO localizacaoAtual) { this.localizacaoAtual = localizacaoAtual; }
-    public String getTipo() { return tipo; }
-    public void setTipo(String tipo) { this.tipo = tipo; }
+    public TipoVeiculo getTipo() { return tipo; }
+    public void setTipo(TipoVeiculo tipo) { this.tipo = tipo; }
     public Long getLinhaId() { return linhaId; }
     public void setLinhaId(Long linhaId) { this.linhaId = linhaId; }
     public String getLinhaNome() { return linhaNome; }

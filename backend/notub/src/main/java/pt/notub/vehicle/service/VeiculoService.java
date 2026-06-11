@@ -8,7 +8,7 @@ import pt.notub.network.repository.LinhaRepository;
 import pt.notub.vehicle.dto.VeiculoDTO;
 import pt.notub.vehicle.dto.UpdateLocalizacaoRequest;
 import pt.notub.vehicle.dto.VeiculoRequest;
-import pt.notub.vehicle.entity.Autocarro;
+import pt.notub.vehicle.entity.TipoVeiculo;
 import pt.notub.vehicle.entity.Point;
 import pt.notub.vehicle.entity.Veiculo;
 import pt.notub.vehicle.mapper.VeiculoMapper;
@@ -42,7 +42,8 @@ public class VeiculoService {
     }
 
     public VeiculoDTO createVeiculo(VeiculoRequest request) {
-        Veiculo veiculo = new Autocarro();
+        Veiculo veiculo = new Veiculo();
+        veiculo.setTipo(TipoVeiculo.AUTOCARRO);
         applyRequest(veiculo, request, true);
         return VeiculoMapper.toDTO(veiculoRepository.save(veiculo));
     }
