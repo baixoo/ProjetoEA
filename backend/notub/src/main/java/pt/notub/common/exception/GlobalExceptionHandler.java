@@ -54,6 +54,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> tratarFallback(Exception ex, HttpServletRequest request) {
+        ex.printStackTrace();
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", "Erro interno", request);
     }
 

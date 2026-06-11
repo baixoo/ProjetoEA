@@ -17,6 +17,9 @@ public class ViagemVeiculoDTO {
     private LocalDateTime startTime;
     private LocalDateTime finishTime;
 
+    private Long viagemPlaneadaId;
+    private Long pontoAtualId;
+
     public ViagemVeiculoDTO() {}
 
     public Long getId() { return id; }
@@ -34,4 +37,9 @@ public class ViagemVeiculoDTO {
     public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
     public LocalDateTime getFinishTime() { return finishTime; }
     public void setFinishTime(LocalDateTime finishTime) { this.finishTime = finishTime; }
+
+    public Long getViagemPlaneadaId() { return viagemPlaneadaId; }
+    public void setViagemPlaneadaId(Long viagemPlaneadaId) { this.viagemPlaneadaId = viagemPlaneadaId; }
+    public Long getPontoAtualId() { return pontoAtualId; }
+    public void setPontoAtualId(Long pontoAtualId) { this.pontoAtualId = pontoAtualId; }
 }

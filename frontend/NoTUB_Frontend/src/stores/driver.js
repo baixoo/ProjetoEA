@@ -17,6 +17,7 @@ export const useDriverStore = defineStore('driver', () => {
   const connected = ref(false)
   const loading = ref(false)
   const error = ref(null)
+  const scheduleOptions = ref([])
   let stompClient = null
 
   async function fetchVehicles() {
@@ -43,7 +44,9 @@ export const useDriverStore = defineStore('driver', () => {
         headers: { Authorization: `Bearer ${authStore.token}` }
       })
       if (!response.ok) throw new Error('Falha ao obter viagens')
-      activeTrips.value = await response.json()
+      const list = await response.json()
+      activeTrips.value = list
+      activeViagemVeiculo.value = list.find(t => t.startTime && !t.finishTime) || null
     } catch (e) {
       error.value = e.message
       console.error(e)
@@ -64,6 +67,23 @@ export const useDriverStore = defineStore('driver', () => {
     } catch (e) {
       error.value = e.message
       console.error(e)
+    }
+  }
+
+  async function fetchScheduleOptions(trajetoId) {
+    if (!authStore.token) return
+    loading.value = true
+    try {
+      const response = await fetch(`/api/driver/trajetos/${trajetoId}/horarios-disponiveis`, {
+        headers: { Authorization: `Bearer ${authStore.token}` }
+      })
+      if (!response.ok) throw new Error('Falha ao obter horários')
+      scheduleOptions.value = await response.json()
+    } catch (e) {
+      error.value = e.message
+      console.error(e)
+    } finally {
+      loading.value = false
     }
   }
 
@@ -118,9 +138,10 @@ export const useDriverStore = defineStore('driver', () => {
     activeTrips.value = []
     activeViagemVeiculo.value = null
     trajetos.value = []
+    scheduleOptions.value = []
   }
 
-  async function startViagem(veiculoId, trajetoId) {
+  async function startScheduledViagem(veiculoId, trajetoId, viagemId) {
     if (!authStore.token) return
     loading.value = true
     try {
@@ -130,14 +151,53 @@ export const useDriverStore = defineStore('driver', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authStore.token}`
         },
-        body: JSON.stringify({ veiculoId, trajetoId })
+        body: JSON.stringify({ veiculoId, trajetoId, viagemId })
       })
-      if (!response.ok) throw new Error('Falha ao iniciar viagem')
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(text || 'Falha ao iniciar viagem')
+      }
       activeViagemVeiculo.value = await response.json()
       $q.notify({ type: 'positive', message: 'Viagem iniciada!', position: 'top', timeout: 2000 })
     } catch (e) {
       error.value = e.message
       $q.notify({ type: 'negative', message: e.message, position: 'top', timeout: 3000 })
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function advanceStop() {
+    if (!authStore.token || !activeViagemVeiculo.value) return
+    loading.value = true
+    try {
+      const response = await fetch(`/api/driver/viagens/${activeViagemVeiculo.value.id}/avancar`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authStore.token}` }
+      })
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(text || 'Falha ao avançar paragem')
+      }
+      const data = await response.json()
+      
+      // Update local state
+      activeViagemVeiculo.value.pontoAtualId = data.pontoAtualId
+      if (activeViagemVeiculo.value.veiculo) {
+        activeViagemVeiculo.value.veiculo.tempoAtraso = data.tempoAtraso
+      }
+      
+      const v = vehicles.value.find(vh => vh.id === selectedVehicleId.value)
+      if (v) {
+        v.tempoAtraso = data.tempoAtraso
+      }
+      
+      return data
+    } catch (e) {
+      error.value = e.message
+      $q.notify({ type: 'negative', message: e.message, position: 'top', timeout: 3000 })
+      throw e
     } finally {
       loading.value = false
     }
@@ -152,6 +212,13 @@ export const useDriverStore = defineStore('driver', () => {
         headers: { Authorization: `Bearer ${authStore.token}` }
       })
       if (!response.ok) throw new Error('Falha ao terminar viagem')
+      
+      const v = vehicles.value.find(vh => vh.id === selectedVehicleId.value)
+      if (v) {
+        v.tempoAtraso = 0
+        v.lotacaoAtual = 0
+      }
+
       activeViagemVeiculo.value = null
       notifications.value = []
       $q.notify({ type: 'info', message: 'Viagem terminada', position: 'top', timeout: 2000 })
@@ -160,6 +227,26 @@ export const useDriverStore = defineStore('driver', () => {
       $q.notify({ type: 'negative', message: e.message, position: 'top', timeout: 3000 })
     } finally {
       loading.value = false
+    }
+  }
+
+  async function refreshVehicleMetrics() {
+    if (!authStore.token || !selectedVehicleId.value) return
+    try {
+      const response = await fetch(`/api/driver/veiculos/${selectedVehicleId.value}`, {
+        headers: { Authorization: `Bearer ${authStore.token}` }
+      })
+      if (response.ok) {
+        const v = await response.json()
+        const idx = vehicles.value.findIndex(vh => vh.id === v.id)
+        if (idx !== -1) {
+          vehicles.value[idx] = v
+        } else {
+          vehicles.value.push(v)
+        }
+      }
+    } catch (e) {
+      console.error('Error refreshing metrics:', e)
     }
   }
 
@@ -173,14 +260,18 @@ export const useDriverStore = defineStore('driver', () => {
     connected,
     loading,
     error,
+    scheduleOptions,
     fetchVehicles,
     fetchActiveTrips,
     fetchTrajetos,
-    startViagem,
+    fetchScheduleOptions,
+    startScheduledViagem,
+    advanceStop,
     endViagem,
     connectWebSocket,
     disconnectWebSocket,
     clearNotifications,
-    disconnect
+    disconnect,
+    refreshVehicleMetrics
   }
 })

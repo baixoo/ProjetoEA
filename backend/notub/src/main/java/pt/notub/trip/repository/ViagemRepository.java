@@ -16,6 +16,9 @@ public interface ViagemRepository extends JpaRepository<Viagem, Long> {
     @Query("SELECT v FROM Viagem v WHERE v.trajeto.id = :trajetoId AND v.serviceId = :serviceId ORDER BY v.horaPartida ASC")
     List<Viagem> findByTrajetoAndService(@Param("trajetoId") Long trajetoId, @Param("serviceId") String serviceId);
 
+    @Query("SELECT v FROM Viagem v WHERE v.trajeto.id = :trajetoId AND v.serviceId IN :serviceIds")
+    List<Viagem> findByTrajetoAndServices(@Param("trajetoId") Long trajetoId, @Param("serviceIds") List<String> serviceIds);
+
     @Query("SELECT DISTINCT v.serviceId FROM Viagem v WHERE v.trajeto.id = :trajetoId")
     List<String> findDistinctServiceIds(@Param("trajetoId") Long trajetoId);
 }

@@ -79,4 +79,6 @@ public interface HorarioRepository extends JpaRepository<Horario, Long> {
     List<Horario> findByTrajetoParagemAndServico(@Param("trajetoId") Long trajetoId,
                                                  @Param("paragemId") Long paragemId,
                                                  @Param("servicoNome") String servicoNome);
+
+    java.util.Optional<Horario> findByPontoPassagemIdAndGtfsTripId(Long pontoPassagemId, String gtfsTripId);
 }

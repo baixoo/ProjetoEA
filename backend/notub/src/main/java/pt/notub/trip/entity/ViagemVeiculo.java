@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import pt.notub.network.entity.Trajeto;
+import pt.notub.network.entity.PontosDePassagem;
 import pt.notub.vehicle.entity.Veiculo;
 
 
@@ -30,6 +31,14 @@ public class ViagemVeiculo {
     @JoinColumn(name = "trajeto_id")
     private Trajeto trajeto;
 
+    @ManyToOne
+    @JoinColumn(name = "viagem_planeada_id")
+    private Viagem viagemPlaneada;
+
+    @ManyToOne
+    @JoinColumn(name = "ponto_atual_id")
+    private PontosDePassagem pontoAtual;
+
     private LocalDateTime startTime;
     private LocalDateTime finishTime;
 
@@ -44,6 +53,10 @@ public class ViagemVeiculo {
     public void setVeiculo(Veiculo veiculo) { this.veiculo = veiculo; }
     public Trajeto getTrajeto() { return trajeto; }
     public void setTrajeto(Trajeto trajeto) { this.trajeto = trajeto; }
+    public Viagem getViagemPlaneada() { return viagemPlaneada; }
+    public void setViagemPlaneada(Viagem viagemPlaneada) { this.viagemPlaneada = viagemPlaneada; }
+    public PontosDePassagem getPontoAtual() { return pontoAtual; }
+    public void setPontoAtual(PontosDePassagem pontoAtual) { this.pontoAtual = pontoAtual; }
     public LocalDate getData() { return startTime != null ? startTime.toLocalDate() : null;
     }
     public void setData(LocalDate data) {

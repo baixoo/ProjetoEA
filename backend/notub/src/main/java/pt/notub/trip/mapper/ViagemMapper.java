@@ -46,6 +46,13 @@ public final class ViagemMapper {
         dto.setFinishTime(vv.getFinishTime());
         // dto.setTripId(vv.getTripId());
 
+        if (vv.getViagemPlaneada() != null) {
+            dto.setViagemPlaneadaId(vv.getViagemPlaneada().getId());
+        }
+        if (vv.getPontoAtual() != null) {
+            dto.setPontoAtualId(vv.getPontoAtual().getId());
+        }
+
         return dto;
     }
 
@@ -61,6 +68,17 @@ public final class ViagemMapper {
         // dto.setTripId(vv.getTripId());
         dto.setVeiculo(VeiculoMapper.toDTO(vv.getVeiculo()));
         dto.setTrajeto(TrajetoMapper.toDTO(vv.getTrajeto()));
+
+        dto.setData(vv.getData());
+        dto.setStartTime(vv.getStartTime());
+        dto.setFinishTime(vv.getFinishTime());
+
+        if (vv.getViagemPlaneada() != null) {
+            dto.setViagemPlaneadaId(vv.getViagemPlaneada().getId());
+        }
+        if (vv.getPontoAtual() != null) {
+            dto.setPontoAtualId(vv.getPontoAtual().getId());
+        }
         return dto;
     }
 

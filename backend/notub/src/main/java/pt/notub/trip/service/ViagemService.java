@@ -120,6 +120,14 @@ public class ViagemService {
 
         ViagemUtilizador saved = viagemUtilizadorRepository.save(viagem);
 
+        if (valido) {
+            Veiculo veiculo = viagemVeiculo.getVeiculo();
+            if (veiculo != null) {
+                veiculo.setLotacaoAtual(veiculo.getLotacaoAtual() + 1);
+                veiculoRepository.save(veiculo);
+            }
+        }
+
         String nomePassageiro = "";
         String tituloTipo = "";
         if (titulo instanceof Bilhete bilhete) {
@@ -152,6 +160,14 @@ public class ViagemService {
 
         ViagemUtilizador saved = viagemUtilizadorRepository.save(viagem);
 
+        ViagemVeiculo viagemVeiculo = viagem.getViagemVeiculo();
+        if (viagemVeiculo != null && viagemVeiculo.getVeiculo() != null) {
+            Veiculo veiculo = viagemVeiculo.getVeiculo();
+            int novaLotacao = Math.max(0, veiculo.getLotacaoAtual() - 1);
+            veiculo.setLotacaoAtual(novaLotacao);
+            veiculoRepository.save(veiculo);
+        }
+
         boolean concederPontos = viagem.getInicio() != null
                 && java.time.Duration.between(viagem.getInicio(), viagem.getFim()).toHours() <= MAX_HOURS_FOR_POINTS;
 
@@ -167,7 +183,7 @@ public class ViagemService {
     }
 
     public List<ViagemVeiculoDTO> getAllViagensVeiculo() {
-        return ViagemMapper.toVeiculoDTOList(viagemVeiculoRepository.findAll());
+        return ViagemMapper.toVeiculoDTOList(viagemVeiculoRepository.findActiveViagens());
     }
 
     public ViagemVeiculoDTO getViagemVeiculoById(Long id) {
@@ -175,7 +191,7 @@ public class ViagemService {
     }
 
     public List<ViagemVeiculoDTO> getViagensByVeiculo(Long veiculoId) {
-        return ViagemMapper.toVeiculoDTOList(viagemVeiculoRepository.findByVeiculoId(veiculoId));
+        return ViagemMapper.toVeiculoDTOList(viagemVeiculoRepository.findActiveByVeiculoId(veiculoId));
     }
 
     public List<ViagemVeiculoDTO> getViagensByTrajeto(Long trajetoId) {
