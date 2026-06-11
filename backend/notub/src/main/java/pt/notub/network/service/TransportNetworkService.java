@@ -1,5 +1,6 @@
 package pt.notub.network.service;
 
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
@@ -94,6 +95,7 @@ public class TransportNetworkService {
                 .collect(Collectors.groupingBy(t -> t.getLinha().getId()));
     }
 
+    @CacheEvict(value = "routingIndex", allEntries = true)
     public LinhaDTO createLinha(LinhaRequest pedido) {
         Linha linha = new Linha();
         if (pedido.nome() == null || pedido.nome().isBlank()) {
@@ -105,6 +107,7 @@ public class TransportNetworkService {
         return LinhaMapper.toDTO(saved, findTrajetosForLinha(saved.getId()));
     }
 
+    @CacheEvict(value = "routingIndex", allEntries = true)
     public LinhaDTO updateLinha(Long id, LinhaRequest updated) {
         Linha linha = findLinha(id);
         if (updated.nome() != null) {
@@ -116,42 +119,50 @@ public class TransportNetworkService {
         return LinhaMapper.toDTO(linhaRepository.save(linha), findTrajetosForLinha(id));
     }
 
+    @CacheEvict(value = "routingIndex", allEntries = true)
     public void deleteLinha(Long id) {
         linhaRepository.deleteById(id);
     }
 
+    @CacheEvict(value = "routingIndex", allEntries = true)
     public TrajetoDTO createTrajeto(TrajetoRequest pedido) {
         Trajeto trajeto = new Trajeto();
         applyTrajetoRequest(trajeto, pedido);
         return TrajetoMapper.toDTO(trajetoRepository.save(trajeto));
     }
 
+    @CacheEvict(value = "routingIndex", allEntries = true)
     public TrajetoDTO updateTrajeto(Long id, TrajetoRequest updated) {
         Trajeto trajeto = findTrajeto(id);
         applyTrajetoRequest(trajeto, updated);
         return TrajetoMapper.toDTO(trajetoRepository.save(trajeto));
     }
 
+    @CacheEvict(value = "routingIndex", allEntries = true)
     public void deleteTrajeto(Long id) {
         trajetoRepository.deleteById(id);
     }
 
+    @CacheEvict(value = "routingIndex", allEntries = true)
     public ParagemDTO createParagem(ParagemRequest pedido) {
         Paragem paragem = new Paragem();
         applyParagemRequest(paragem, pedido);
         return ParagemMapper.toDTO(paragemRepository.save(paragem));
     }
 
+    @CacheEvict(value = "routingIndex", allEntries = true)
     public ParagemDTO updateParagem(Long id, ParagemRequest updated) {
         Paragem paragem = findParagem(id);
         applyParagemRequest(paragem, updated);
         return ParagemMapper.toDTO(paragemRepository.save(paragem));
     }
 
+    @CacheEvict(value = "routingIndex", allEntries = true)
     public void deleteParagem(Long id) {
         paragemRepository.deleteById(id);
     }
 
+    @CacheEvict(value = "routingIndex", allEntries = true)
     public PontoPassagemDTO addPonto(Long trajetoId, PontoPassagemRequest pedido) {
         Trajeto trajeto = findTrajeto(trajetoId);
         PontosDePassagem ponto = new PontosDePassagem();
@@ -170,6 +181,7 @@ public class TransportNetworkService {
         return PontoPassagemMapper.toDTO(ponto);
     }
 
+    @CacheEvict(value = "routingIndex", allEntries = true)
     public void deletePonto(Long id) {
         pontosDePassagemRepository.deleteById(id);
     }

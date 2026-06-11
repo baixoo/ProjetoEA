@@ -143,17 +143,19 @@ const headerName = computed(() => {
   return `${code} - ${destStop}`
 })
 
-function formatTimes(horariosMap) {
-  if (!horariosMap || Object.keys(horariosMap).length === 0) return []
-  const hours = Object.keys(horariosMap).map(Number).sort((a, b) => a - b)
-  const times = []
-  for (const hr of hours) {
-    const mins = (horariosMap[hr] || []).sort((a, b) => a - b)
-    for (const m of mins) {
-      times.push(String(hr).padStart(2, '0') + ':' + String(m).padStart(2, '0'))
-    }
-  }
-  return times
+function formatTimes(horariosArr) {
+  if (!horariosArr || !Array.isArray(horariosArr) || horariosArr.length === 0) return []
+  return horariosArr
+    .map(h => {
+      const raw = h.hora || ''
+      // hora comes as "HH:mm:ss" or "HH:mm" from LocalTime
+      const parts = raw.split(':')
+      const hr = parseInt(parts[0] || '0', 10)
+      const min = parseInt(parts[1] || '0', 10)
+      return { hr, min }
+    })
+    .sort((a, b) => a.hr - b.hr || a.min - b.min)
+    .map(t => String(t.hr).padStart(2, '0') + ':' + String(t.min).padStart(2, '0'))
 }
 
 let allLinhas = []

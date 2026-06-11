@@ -5,18 +5,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import static org.mockito.Mockito.lenient;
 import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
 import pt.notub.network.repository.HorarioRepository;
+import pt.notub.network.repository.ParagemRepository;
 import pt.notub.network.repository.PontosDePassagemRepository;
 import pt.notub.network.repository.TrajetoRepository;
-import pt.notub.trip.repository.ViagemRepository;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class RoutePlanningServiceTest {
@@ -31,17 +30,26 @@ class RoutePlanningServiceTest {
     private HorarioRepository horarioRepository;
 
     @Mock
-    private ViagemRepository viagemRepository;
+    private ParagemRepository paragemRepository;
 
     private RoutePlanningService service;
 
     @BeforeEach
     void setUp() {
-        service = new RoutePlanningService(pontosRepository, trajetoRepository, horarioRepository, viagemRepository);
         lenient().when(pontosRepository.findAll()).thenReturn(List.of());
         lenient().when(trajetoRepository.findAll()).thenReturn(List.of());
         lenient().when(horarioRepository.findAll()).thenReturn(List.of());
-        lenient().when(viagemRepository.findAll()).thenReturn(List.of());
+        lenient().when(paragemRepository.findAll()).thenReturn(List.of());
+
+        RoutingIndexService indexService = new RoutingIndexService(
+                horarioRepository, paragemRepository, trajetoRepository, pontosRepository);
+        WalkingTransferPolicy walkingPolicy = new WalkingTransferPolicy();
+        RouteDtoAssembler assembler = new RouteDtoAssembler(walkingPolicy);
+        RouteSearchEngine searchEngine = new RouteSearchEngine(walkingPolicy, assembler);
+        ScheduleQueryService queryService = new ScheduleQueryService(
+                horarioRepository, paragemRepository, trajetoRepository, pontosRepository);
+
+        service = new RoutePlanningService(indexService, searchEngine, queryService);
     }
 
     @Test

@@ -51,4 +51,32 @@ public interface HorarioRepository extends JpaRepository<Horario, Long> {
             """)
     List<Horario> findByLinhaAndServico(@Param("linhaId") Long linhaId,
                                          @Param("servicoNome") String servicoNome);
+
+    @Query("""
+            SELECT h
+            FROM Horario h
+            JOIN FETCH h.pontoPassagem p
+            JOIN FETCH p.paragem pg
+            JOIN FETCH p.trajeto t
+            JOIN FETCH h.servico s
+            WHERE UPPER(s.nome) = UPPER(:servicoNome)
+            ORDER BY t.id, p.ordem, h.gtfsTripId, h.hora
+            """)
+    List<Horario> findByServicoNome(@Param("servicoNome") String servicoNome);
+
+    @Query("""
+            SELECT h
+            FROM Horario h
+            JOIN FETCH h.pontoPassagem p
+            JOIN FETCH p.paragem pg
+            JOIN FETCH p.trajeto t
+            JOIN FETCH h.servico s
+            WHERE t.id = :trajetoId
+              AND pg.id = :paragemId
+              AND UPPER(s.nome) = UPPER(:servicoNome)
+            ORDER BY h.hora ASC
+            """)
+    List<Horario> findByTrajetoParagemAndServico(@Param("trajetoId") Long trajetoId,
+                                                 @Param("paragemId") Long paragemId,
+                                                 @Param("servicoNome") String servicoNome);
 }
