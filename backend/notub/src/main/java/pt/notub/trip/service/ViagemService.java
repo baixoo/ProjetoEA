@@ -268,6 +268,7 @@ public class ViagemService {
             throw new RecursoNaoEncontradoException("Zonas nao encontradas");
         }
 
+        System.out.println("-> Zonas calculadas para ViagemVeiculo ID " + viagemVeiculoId + " a partir da Paragem ID " + paragemId + ": Min = " + zonas.getMin() + ", Max = " + zonas.getMax());
         return new ZonaMinMaxDTO(zonas.getMin(), zonas.getMax());
     }
 

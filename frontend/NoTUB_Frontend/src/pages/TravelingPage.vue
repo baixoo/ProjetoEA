@@ -70,7 +70,7 @@
             <div class="detail-col">
               <span class="detail-label">Título Utilizado</span>
               <span class="detail-value title-type">
-                {{ activeTrip.titulo?.tipo === 'PASSE' ? 'Passe Mensal' : 'Bilhete Simples' }}
+                {{ activeTrip.titulo?.tipo === 'PASSE' ? 'Passe' : 'Bilhete Simples' }}
               </span>
             </div>
             <div class="detail-col text-right">

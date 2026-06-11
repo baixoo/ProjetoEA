@@ -367,6 +367,7 @@
       const data = await viagensStore.fetchZonasVeiculo(props.viagemVeiculoId, props.paragemEntradaId)
       zonaMin.value = data.zonaMin
       zonaMax.value = data.zonaMax
+      console.log('Zonas carregadas:', zonaMin.value, zonaMax.value)
     } catch (e) {
       console.warn('Erro ao carregar zonas no ecrã:', e)
       zonaMin.value = null
