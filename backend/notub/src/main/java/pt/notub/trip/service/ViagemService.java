@@ -35,17 +35,27 @@ import pt.notub.trip.dto.ViagemDTO;
 import pt.notub.trip.dto.ViagemVeiculoDTO;
 import pt.notub.trip.dto.ZonaMinMaxDTO;
 import pt.notub.trip.entity.EstadoViagem;
+import pt.notub.trip.entity.Monitorizacao;
 import pt.notub.trip.entity.ViagemUtilizador;
 import pt.notub.trip.entity.ViagemVeiculo;
 import pt.notub.trip.mapper.ViagemMapper;
 import pt.notub.trip.repository.ViagemUtilizadorRepository;
 import pt.notub.trip.repository.ViagemVeiculoRepository;
+import pt.notub.trip.repository.MonitorizacaoRepository;
+import pt.notub.user.entity.Utilizador;
+import pt.notub.user.repository.UtilizadorRepository;
 import pt.notub.validation.service.GestorValidacao;
 import pt.notub.vehicle.entity.Veiculo;
 import pt.notub.vehicle.repository.VeiculoRepository;
 
+import pt.notub.trip.observerPattern.VehicleTripSubject;
+import pt.notub.trip.observerPattern.VehicleTripObserver;
+
+import jakarta.transaction.Transactional;
+
+
 @Service
-public class ViagemService {
+public class ViagemService implements VehicleTripSubject {
 
     private static final int MAX_HOURS_FOR_POINTS = 24;
 
@@ -56,6 +66,8 @@ public class ViagemService {
     private final TituloTransporteRepository tituloTransporteRepository;
     private final VeiculoRepository veiculoRepository;
     private final TrajetoRepository trajetoRepository;
+    private final MonitorizacaoRepository monitorizacaoRepository;
+    private final UtilizadorRepository utilizadorRepository;
     private final ServicoPontos servicoPontos;
     private final GestorValidacao gestorValidacao;
     private final NotificacaoValidacaoService notificacaoService;
@@ -67,6 +79,8 @@ public class ViagemService {
                          TituloTransporteRepository tituloTransporteRepository,
                          VeiculoRepository veiculoRepository,
                          TrajetoRepository trajetoRepository,
+                         MonitorizacaoRepository monitorizacaoRepository,
+                         UtilizadorRepository utilizadorRepository,
                          ServicoPontos servicoPontos,
                          GestorValidacao gestorValidacao,
                          NotificacaoValidacaoService notificacaoService) {
@@ -77,6 +91,8 @@ public class ViagemService {
         this.tituloTransporteRepository = tituloTransporteRepository;
         this.veiculoRepository = veiculoRepository;
         this.trajetoRepository = trajetoRepository;
+        this.monitorizacaoRepository = monitorizacaoRepository;
+        this.utilizadorRepository = utilizadorRepository;
         this.servicoPontos = servicoPontos;
         this.gestorValidacao = gestorValidacao;
         this.notificacaoService = notificacaoService;
@@ -121,6 +137,12 @@ public class ViagemService {
                 veiculo.setLotacaoAtual(veiculo.getLotacaoAtual() + 1);
                 veiculoRepository.save(veiculo);
             }
+
+            // Ao colocar o método aqui ele subscreve automaticamente
+            if (titulo.getUtilizador() != null) {
+            Long userId = titulo.getUtilizador().getId();
+            this.addSubscription(viagemVeiculoId, userId);
+        }
         }
 
         String nomePassageiro = "Desconhecido";
@@ -161,11 +183,20 @@ public class ViagemService {
             veiculoRepository.save(veiculo);
         }
 
+        
         boolean concederPontos = viagem.getInicio() != null
-                && java.time.Duration.between(viagem.getInicio(), viagem.getFim()).toHours() <= MAX_HOURS_FOR_POINTS;
-
+        && java.time.Duration.between(viagem.getInicio(), viagem.getFim()).toHours() <= MAX_HOURS_FOR_POINTS;
+        
         if (concederPontos && viagem.getTitulo().getUtilizador() != null) {
             servicoPontos.atribuirPontosViagem(viagem.getTitulo().getUtilizador().getId());
+        }
+
+        // Ao terminar a viagem, remove a subscrição do utilizador para essa viagem automaticamente
+        if (viagemVeiculo != null && viagem.getTitulo() != null && viagem.getTitulo().getUtilizador() != null) {
+            Long userId = viagem.getTitulo().getUtilizador().getId();
+            Long viagemVeiculoId = viagemVeiculo.getId();
+            
+            this.removeSubscription(viagemVeiculoId, userId);
         }
 
         return ViagemMapper.toDTO(saved);
@@ -275,8 +306,6 @@ public class ViagemService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("ViagemVeiculo nao encontrado"));
     }
 
-
-
     private List<PontosDePassagem> getPontosComParagem(ViagemVeiculo viagem) {
         if (viagem.getTrajeto() == null || viagem.getTrajeto().getPontosDePassagem() == null) {
             return List.of();
@@ -306,4 +335,43 @@ public class ViagemService {
         return paragemRepository.findById(paragemId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
     }
+
+    // ======== Implementação do padrão Observer ========
+
+    @Transactional
+    @Override
+    public void addSubscription(Long viagemVeiculoId, Long userId) {
+        Utilizador utilizador = utilizadorRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Utilizador não encontrado"));
+        
+        ViagemVeiculo viagemVeiculo = viagemVeiculoRepository.findById(viagemVeiculoId)
+                .orElseThrow(() -> new RuntimeException("Viagem não encontrada"));
+
+        Monitorizacao monitorizacao = new Monitorizacao();
+        monitorizacao.setUtilizador(utilizador);
+        monitorizacao.setViagemVeiculo(viagemVeiculo);
+
+        monitorizacaoRepository.save(monitorizacao);
+    }
+
+    @Transactional
+    @Override
+    public void removeSubscription(Long viagemVeiculoId, Long userId) {
+        System.out.println("Removendo subscrição para ViagemVeiculo ID " + viagemVeiculoId + " e User ID " + userId);
+        Monitorizacao monitorizacao = monitorizacaoRepository
+                .findByUtilizadorIdAndViagemVeiculoId(userId, viagemVeiculoId)
+                .orElseThrow(() -> new RuntimeException("Subscrição não encontrada"));
+
+        monitorizacaoRepository.delete(monitorizacao);
+    }
+// }
+
+    public void updateLocation(Long viagemId, Long novaParagemId) {
+        return;
+    }
+
+    public void finishTrip(Long viagemId) {
+        return;
+    }
+
 }

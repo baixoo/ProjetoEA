@@ -27,12 +27,16 @@ import pt.notub.vehicle.entity.TipoVeiculo;
 import pt.notub.vehicle.entity.Veiculo;
 import pt.notub.vehicle.repository.VeiculoRepository;
 
+import pt.notub.trip.service.ViagemService;
+
+
 import java.time.LocalTime;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,6 +54,9 @@ class DriverServiceTest {
     @Mock
     private HorarioRepository horarioRepository;
 
+    @Mock
+    private ViagemService viagemService;
+
     private DriverService service;
 
     @BeforeEach
@@ -58,7 +65,8 @@ class DriverServiceTest {
             veiculoRepository, 
             viagemVeiculoRepository, 
             trajetoRepository, 
-            horarioRepository
+            horarioRepository,
+            viagemService
         );
     }
 

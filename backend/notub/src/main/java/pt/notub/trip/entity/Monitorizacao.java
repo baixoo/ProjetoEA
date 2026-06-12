@@ -50,4 +50,8 @@ public class Monitorizacao {
     public void setUtilizador(Utilizador utilizador) {
         this.utilizador = utilizador;
     }
+
+    public void addSubscription() {
+        
+    }
 }

@@ -32,6 +32,8 @@ import pt.notub.vehicle.entity.Veiculo;
 import pt.notub.vehicle.mapper.VeiculoMapper;
 import pt.notub.vehicle.repository.VeiculoRepository;
 
+import pt.notub.trip.service.ViagemService;
+
 @Service
 public class DriverService {
 
@@ -40,14 +42,18 @@ public class DriverService {
     private final TrajetoRepository trajetoRepository;
     private final HorarioRepository horarioRepository;
 
+    private final ViagemService viagemService;
+
     public DriverService(VeiculoRepository veiculoRepository,
                          ViagemVeiculoRepository viagemVeiculoRepository,
                          TrajetoRepository trajetoRepository,
-                         HorarioRepository horarioRepository) {
+                         HorarioRepository horarioRepository,
+                         ViagemService viagemService) {
         this.veiculoRepository = veiculoRepository;
         this.viagemVeiculoRepository = viagemVeiculoRepository;
         this.trajetoRepository = trajetoRepository;
         this.horarioRepository = horarioRepository;
+        this.viagemService = viagemService;
     }
 
     public List<VeiculoDTO> getVeiculosComLinha() {
@@ -175,6 +181,7 @@ public class DriverService {
         return ViagemMapper.toVeiculoDTO(viagemVeiculoRepository.save(viagemVeiculo));
     }
 
+    //TODO: Apply Observer Logic Here
     public AvancarViagemResponseDTO avancarViagem(Long id) {
         ViagemVeiculo viagemVeiculo = viagemVeiculoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Viagem de veículo não encontrada"));
@@ -243,6 +250,7 @@ public class DriverService {
         }
 
         viagemVeiculoRepository.save(viagemVeiculo);
+        // viagemService.updateLocation(viagemVeiculo.getId(), pontoSeguinte.getId());
 
         PontosDePassagem pontoDepois = (nextIndex + 1 < sortedPontos.size()) ? sortedPontos.get(nextIndex + 1) : null;
 
@@ -256,11 +264,13 @@ public class DriverService {
         );
     }
 
+    // Apply Observer Logic Here
     public void endViagem(Long id) {
         ViagemVeiculo viagem = viagemVeiculoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Viagem nao encontrada"));
         viagem.setFinishTime(LocalDateTime.now());
         viagemVeiculoRepository.save(viagem);
+        // viagemService.finishTrip(viagem.getId());
 
         Veiculo veiculo = viagem.getVeiculo();
         if (veiculo != null) {
