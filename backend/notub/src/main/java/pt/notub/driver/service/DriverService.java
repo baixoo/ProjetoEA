@@ -24,6 +24,7 @@ import pt.notub.network.entity.Horario;
 import pt.notub.network.repository.TrajetoRepository;
 import pt.notub.network.repository.HorarioRepository;
 import pt.notub.trip.dto.ViagemVeiculoDTO;
+import pt.notub.trip.entity.Monitorizacao;
 import pt.notub.trip.entity.ViagemVeiculo;
 import pt.notub.trip.mapper.ViagemMapper;
 import pt.notub.trip.repository.ViagemVeiculoRepository;
@@ -31,8 +32,10 @@ import pt.notub.vehicle.dto.VeiculoDTO;
 import pt.notub.vehicle.entity.Veiculo;
 import pt.notub.vehicle.mapper.VeiculoMapper;
 import pt.notub.vehicle.repository.VeiculoRepository;
+import pt.notub.trip.repository.MonitorizacaoRepository;
 
 import pt.notub.trip.service.ViagemService;
+import pt.notub.user.entity.Utilizador;
 
 @Service
 public class DriverService {
@@ -43,17 +46,20 @@ public class DriverService {
     private final HorarioRepository horarioRepository;
 
     private final ViagemService viagemService;
+    private final MonitorizacaoRepository monitorizacaoRepository;
 
     public DriverService(VeiculoRepository veiculoRepository,
                          ViagemVeiculoRepository viagemVeiculoRepository,
                          TrajetoRepository trajetoRepository,
                          HorarioRepository horarioRepository,
-                         ViagemService viagemService) {
+                         ViagemService viagemService,
+                         MonitorizacaoRepository monitorizacaoRepository) {
         this.veiculoRepository = veiculoRepository;
         this.viagemVeiculoRepository = viagemVeiculoRepository;
         this.trajetoRepository = trajetoRepository;
         this.horarioRepository = horarioRepository;
         this.viagemService = viagemService;
+        this.monitorizacaoRepository = monitorizacaoRepository;
     }
 
     public List<VeiculoDTO> getVeiculosComLinha() {
@@ -250,9 +256,13 @@ public class DriverService {
         }
 
         viagemVeiculoRepository.save(viagemVeiculo);
-        // viagemService.updateLocation(viagemVeiculo.getId(), pontoSeguinte.getId());
+        
+        // FIXME: Atenção que esta chamada não está 100% correta e a inda é preciso fazer a chamada de quando a viagem termina
+        // Notify subscribed users about the location update
+        viagemService.notifySubscribers(viagemVeiculo.getId(), pontoSeguinte.getId());
 
         PontosDePassagem pontoDepois = (nextIndex + 1 < sortedPontos.size()) ? sortedPontos.get(nextIndex + 1) : null;
+
 
         return new AvancarViagemResponseDTO(
                 pontoSeguinte.getId(),

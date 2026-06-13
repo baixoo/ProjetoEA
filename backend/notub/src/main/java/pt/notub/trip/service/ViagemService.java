@@ -42,6 +42,8 @@ import pt.notub.trip.mapper.ViagemMapper;
 import pt.notub.trip.repository.ViagemUtilizadorRepository;
 import pt.notub.trip.repository.ViagemVeiculoRepository;
 import pt.notub.trip.repository.MonitorizacaoRepository;
+
+// Service
 import pt.notub.user.entity.Utilizador;
 import pt.notub.user.repository.UtilizadorRepository;
 import pt.notub.validation.service.GestorValidacao;
@@ -67,10 +69,12 @@ public class ViagemService implements VehicleTripSubject {
     private final VeiculoRepository veiculoRepository;
     private final TrajetoRepository trajetoRepository;
     private final MonitorizacaoRepository monitorizacaoRepository;
+    private final MonitorizacaoService monitorizacaoService;
     private final UtilizadorRepository utilizadorRepository;
     private final ServicoPontos servicoPontos;
     private final GestorValidacao gestorValidacao;
     private final NotificacaoValidacaoService notificacaoService;
+
 
     public ViagemService(ViagemUtilizadorRepository viagemUtilizadorRepository,
                          ViagemVeiculoRepository viagemVeiculoRepository,
@@ -80,6 +84,7 @@ public class ViagemService implements VehicleTripSubject {
                          VeiculoRepository veiculoRepository,
                          TrajetoRepository trajetoRepository,
                          MonitorizacaoRepository monitorizacaoRepository,
+                         MonitorizacaoService monitorizacaoService,
                          UtilizadorRepository utilizadorRepository,
                          ServicoPontos servicoPontos,
                          GestorValidacao gestorValidacao,
@@ -92,6 +97,7 @@ public class ViagemService implements VehicleTripSubject {
         this.veiculoRepository = veiculoRepository;
         this.trajetoRepository = trajetoRepository;
         this.monitorizacaoRepository = monitorizacaoRepository;
+        this.monitorizacaoService = monitorizacaoService;
         this.utilizadorRepository = utilizadorRepository;
         this.servicoPontos = servicoPontos;
         this.gestorValidacao = gestorValidacao;
@@ -142,7 +148,7 @@ public class ViagemService implements VehicleTripSubject {
             if (titulo.getUtilizador() != null) {
             Long userId = titulo.getUtilizador().getId();
             this.addSubscription(viagemVeiculoId, userId);
-        }
+            }
         }
 
         String nomePassageiro = "Desconhecido";
@@ -357,21 +363,28 @@ public class ViagemService implements VehicleTripSubject {
     @Transactional
     @Override
     public void removeSubscription(Long viagemVeiculoId, Long userId) {
-        System.out.println("Removendo subscrição para ViagemVeiculo ID " + viagemVeiculoId + " e User ID " + userId);
+        System.out.println("Removing subscription for ViagemVeiculo ID " + viagemVeiculoId + " and User ID " + userId);
         Monitorizacao monitorizacao = monitorizacaoRepository
                 .findByUtilizadorIdAndViagemVeiculoId(userId, viagemVeiculoId)
-                .orElseThrow(() -> new RuntimeException("Subscrição não encontrada"));
+                .orElseThrow(() -> new RuntimeException("Subscription not found"));
 
         monitorizacaoRepository.delete(monitorizacao);
     }
-// }
 
-    public void updateLocation(Long viagemId, Long novaParagemId) {
-        return;
+    public void notifySubscribers(Long viagemId, Long novaParagemId) {
+        List<Utilizador> utilizadores = monitorizacaoRepository.getSubscribedUsers(viagemId);
+        for (Utilizador u : utilizadores) {
+            monitorizacaoService.onLocationUpdate(viagemId, novaParagemId);
+            System.out.println("O utilizador " + u.getPrimeiroNome() + u.getUltimoNome() + " acabou de receber a atualização.");
+        }
     }
 
-    public void finishTrip(Long viagemId) {
-        return;
+    public void notifySubscribers(Long viagemId) {
+        List<Utilizador> utilizadores = monitorizacaoRepository.getSubscribedUsers(viagemId);
+        for (Utilizador u : utilizadores) {
+            monitorizacaoService.onTripFinished(viagemId);
+            System.out.println("O utilizador " + u.getPrimeiroNome() + u.getUltimoNome() + " acabou de receber a atualização.");
+        }
     }
 
 }

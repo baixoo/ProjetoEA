@@ -19,7 +19,6 @@ import pt.notub.ticket.repository.TituloTransporteRepository;
 import pt.notub.trip.dto.ParagemAtualDTO;
 import pt.notub.trip.dto.ZonaMinMaxDTO;
 import pt.notub.trip.entity.ViagemVeiculo;
-import pt.notub.trip.repository.MonitorizacaoRepository;
 import pt.notub.trip.repository.ViagemUtilizadorRepository;
 import pt.notub.trip.repository.ViagemVeiculoRepository;
 import pt.notub.user.repository.UtilizadorRepository;
@@ -28,6 +27,7 @@ import pt.notub.vehicle.repository.VeiculoRepository;
 import pt.notub.zone.entity.Zona;
 import pt.notub.zone.repository.ZonaRepository;
 import pt.notub.trip.repository.MonitorizacaoRepository;
+import pt.notub.trip.service.MonitorizacaoService;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -75,6 +75,9 @@ class ViagemServiceTest {
 
     @Mock
     private UtilizadorRepository utilizadorRepository;
+    
+    @Mock
+    private MonitorizacaoService monitorizacaoService;
 
     private ViagemService service;
 
@@ -89,6 +92,7 @@ class ViagemServiceTest {
                 veiculoRepository,
                 trajetoRepository,
                 monitorizacaoRepository,
+                monitorizacaoService,
                 utilizadorRepository,
                 servicoPontos,
                 gestorValidacao,

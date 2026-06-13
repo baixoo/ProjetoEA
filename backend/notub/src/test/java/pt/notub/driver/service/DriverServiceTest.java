@@ -28,7 +28,7 @@ import pt.notub.vehicle.entity.Veiculo;
 import pt.notub.vehicle.repository.VeiculoRepository;
 
 import pt.notub.trip.service.ViagemService;
-
+import pt.notub.trip.repository.MonitorizacaoRepository;
 
 import java.time.LocalTime;
 import java.time.LocalDateTime;
@@ -57,6 +57,9 @@ class DriverServiceTest {
     @Mock
     private ViagemService viagemService;
 
+    @Mock
+    private MonitorizacaoRepository monitorizacaoRepository;
+
     private DriverService service;
 
     @BeforeEach
@@ -66,7 +69,8 @@ class DriverServiceTest {
             viagemVeiculoRepository, 
             trajetoRepository, 
             horarioRepository,
-            viagemService
+            viagemService,
+            monitorizacaoRepository
         );
     }
 

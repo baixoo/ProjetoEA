@@ -39,6 +39,7 @@ public class MonitorizacaoService implements VehicleTripObserver {
         return ViagemMapper.toVeiculoDTO(findViagemVeiculo(id));
     }
 
+    // FIXME: Continuar implementação, o socket está errado, esta versão era para perceber a estrutura +-
     @Override
     public void onLocationUpdate(Long viagemId, Long novaParagemId) {
         
@@ -69,5 +70,4 @@ public class MonitorizacaoService implements VehicleTripObserver {
             }
         }
     }
-
 }

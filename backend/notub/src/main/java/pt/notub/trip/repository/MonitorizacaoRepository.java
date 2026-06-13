@@ -15,7 +15,7 @@ import java.util.Optional;
 public interface MonitorizacaoRepository extends JpaRepository<Monitorizacao, Long> {
     
     List<Monitorizacao> findByViagemVeiculoId(Long viagemVeiculoId);
-    List<Monitorizacao> findByUtilizadorId(Long userId);
+    Optional<Monitorizacao> findByUtilizadorId(Long userId);
  
     Optional<Monitorizacao> findByUtilizadorIdAndViagemVeiculoId(Long userId, Long viagemVeiculoId);
 
