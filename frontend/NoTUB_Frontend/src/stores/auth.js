@@ -7,6 +7,16 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!token.value)
 
+  async function parseErrorResponse(response, defaultMessage) {
+    try {
+      const data = await response.json()
+      return data.mensagem || data.message || data.error || defaultMessage
+    } catch {
+      const text = await response.text().catch(() => '')
+      return text || defaultMessage
+    }
+  }
+
   async function login(email, password) {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
@@ -14,8 +24,8 @@ export const useAuthStore = defineStore('auth', () => {
       body: JSON.stringify({ email, password })
     })
     if (!response.ok) {
-      const data = await response.json().catch(() => ({ message: 'Credenciais inválidas' }))
-      throw new Error(data.message || 'O login falhou')
+      const message = await parseErrorResponse(response, 'Credenciais inválidas.')
+      throw new Error(message)
     }
     const data = await response.json()
     token.value = data.token
@@ -30,8 +40,8 @@ export const useAuthStore = defineStore('auth', () => {
       body: JSON.stringify(userData)
     })
     if (!response.ok) {
-      const text = await response.text()
-      throw new Error(text || 'O registo falhou')
+      const message = await parseErrorResponse(response, 'O registo falhou.')
+      throw new Error(message)
     }
     const data = await response.json()
     // Se o backend retornar um token após registro
@@ -73,8 +83,8 @@ export const useAuthStore = defineStore('auth', () => {
       body: JSON.stringify(profileData)
     })
     if (!response.ok) {
-      const text = await response.text()
-      throw new Error(text || 'Erro ao atualizar perfil')
+      const message = await parseErrorResponse(response, 'Erro ao atualizar perfil')
+      throw new Error(message)
     }
     user.value = await response.json()
   }
@@ -86,8 +96,8 @@ export const useAuthStore = defineStore('auth', () => {
       body: JSON.stringify({ email })
     })
     if (!response.ok) {
-      const text = await response.text()
-      throw new Error(text || 'Erro ao solicitar recuperação')
+      const message = await parseErrorResponse(response, 'Erro ao solicitar recuperação')
+      throw new Error(message)
     }
   }
 
@@ -98,8 +108,8 @@ export const useAuthStore = defineStore('auth', () => {
       body: JSON.stringify({ token, novaPassword })
     })
     if (!response.ok) {
-      const text = await response.text()
-      throw new Error(text || 'Erro ao redefinir palavra-passe')
+      const message = await parseErrorResponse(response, 'Erro ao redefinir palavra-passe')
+      throw new Error(message)
     }
   }
 
