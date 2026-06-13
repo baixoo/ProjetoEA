@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useAuthStore } from './auth'
+import SockJS from 'sockjs-client/dist/sockjs'
+import { Client } from '@stomp/stompjs'
 
 export const useViagensStore = defineStore('viagens', () => {
   const authStore = useAuthStore()
@@ -10,6 +12,9 @@ export const useViagensStore = defineStore('viagens', () => {
   const zones = ref([])
   const loading = ref(false)
   const error = ref(null)
+
+  const passengerStompClient = ref(null)
+  const passengerConnected = ref(false)
 
   async function fetchActiveTrip() {
     if (!authStore.token) return null
@@ -164,6 +169,54 @@ export const useViagensStore = defineStore('viagens', () => {
     }
   }
 
+  function connectPassengerWebSocket() { 
+    disconnectPassengerWebSocket()
+
+    const viagemVeiculoId = activeTrip.value?.viagemVeiculo?.id 
+    
+    if (!viagemVeiculoId) {
+      console.warn('Não foi possível conectar ao WebSocket: Nenhuma viagem ativa encontrada na store.')
+      return
+    }
+
+    const socket = new SockJS('/ws') 
+    
+    passengerStompClient.value = new Client({
+      webSocketFactory: () => socket,
+      reconnectDelay: 5000,
+      debug: (str) => console.log(str),
+      onConnect: (frame) => {
+        passengerConnected.value = true
+        console.log(`Conectado ao WebSocket do passageiro para a viagem ${viagemVeiculoId}:`, frame)
+
+        passengerStompClient.value.subscribe(`/topic/bus.${viagemVeiculoId}.route`, (message) => {
+          const dados = JSON.parse(message.body)
+          if (activeTrip.value && activeTrip.value.viagemVeiculo) {
+            activeTrip.value.viagemVeiculo.pontoAtualId = dados.pontoAtualId
+          }
+        })
+      },
+      onDisconnect: () => {
+        passengerConnected.value = false 
+      },
+      onStompError: (frame) => {
+        console.error('Erro STOMP no passageiro:', frame)
+        passengerConnected.value = false 
+      }
+    })
+
+    passengerStompClient.value.activate()
+  }
+
+  function disconnectPassengerWebSocket() {
+    if (passengerStompClient.value) {
+      passengerStompClient.value.deactivate()
+      passengerStompClient.value = null 
+      passengerConnected.value = false
+      console.log('WebSocket desativado.')
+    }
+  }
+
   return {
     activeTrip,
     stops,
@@ -178,6 +231,8 @@ export const useViagensStore = defineStore('viagens', () => {
     startTrip,
     endTrip,
     validateTicket,
-    fetchZonasVeiculo
+    fetchZonasVeiculo,
+    connectPassengerWebSocket,
+    disconnectPassengerWebSocket
   }
 })

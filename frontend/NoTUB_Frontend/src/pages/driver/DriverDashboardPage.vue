@@ -439,7 +439,7 @@ function handlePressStart() {
       triggerAction()
       resetPress()
     }
-  }, 50) // 50 * 100 = 5000ms (5 seconds)
+  }, 30) // 30 * 100 = 3000ms (3 seconds)
 }
 
 function handlePressEnd() {

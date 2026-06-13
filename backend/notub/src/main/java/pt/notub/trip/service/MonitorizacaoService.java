@@ -1,6 +1,9 @@
 package pt.notub.trip.service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -39,21 +42,23 @@ public class MonitorizacaoService implements VehicleTripObserver {
         return ViagemMapper.toVeiculoDTO(findViagemVeiculo(id));
     }
 
-    // FIXME: Continuar implementação, o socket está errado, esta versão era para perceber a estrutura +-
+    // FIXME: Ele aqui não manda a nova Paragemid e sim o Índice - Corrigir mais tarde
     @Override
-    public void onLocationUpdate(Long viagemId, Long novaParagemId) {
+    public void onLocationUpdate(Long viagemId, Long novoPontoPassagemId) {
         
         List<Utilizador> utilizadores = monitorizacaoRepository.getSubscribedUsers(viagemId);
 
         if (!utilizadores.isEmpty()) {
+            String topicoItem = "/topic/bus." + viagemId + ".route";
+            System.out.println("Enviando atualização para o tópico: " + topicoItem);
             
-            String topicoItem = "/topic/viagem/" + viagemId;
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("pontoAtualId", novoPontoPassagemId);
             
-            messagingTemplate.convertAndSend(topicoItem, "Nova Paragem: " + novaParagemId);
-            
-            for (Utilizador u : utilizadores) {
-                System.out.println("O utilizador " + u.getPrimeiroNome() + u.getUltimoNome() + " acabou de receber a atualização.");
-            }
+            System.out.println("Payload a ser enviado: " + payload);
+
+            messagingTemplate.convertAndSend(topicoItem, (Object) payload);
+                
         }
     }
 
@@ -62,7 +67,7 @@ public class MonitorizacaoService implements VehicleTripObserver {
         List<Utilizador> utilizadores = monitorizacaoRepository.getSubscribedUsers(viagemId);
 
         if (!utilizadores.isEmpty()) {
-            String topicoItem = "/topic/viagem/" + viagemId;
+            String topicoItem = "/topic/bus." + viagemId + ".route";
             messagingTemplate.convertAndSend(topicoItem, "Viagem Finalizada");
             
             for (Utilizador u : utilizadores) {

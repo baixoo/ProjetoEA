@@ -1,6 +1,5 @@
 <template>
   <q-page class="traveling-page">
-    <!-- Validation Success Banner (Design 68:136) -->
     <transition name="slide-fade">
       <div v-if="showSuccessBanner" class="success-banner">
         <div class="banner-content">
@@ -15,20 +14,37 @@
     </transition>
 
     <div class="traveling-content">
-      <!-- Top Title and Status -->
       <div class="trip-status-header text-center q-pt-md">
         <h1 class="traveling-title">Em Viagem</h1>
-        <div class="pulse-indicator">
-          <span class="pulse-dot"></span>
-          <span class="pulse-text">Viagem Ativa em Tempo Real</span>
+        
+        <div class="q-px-lg q-mt-md row justify-center">
+          <div 
+            class="bg-white text-weight-bold text-h6 shadow-2 row items-center justify-center no-wrap"
+            style="
+              width: 100%; 
+              max-width: 340px; 
+              height: 60px; 
+              border-radius: 30px; 
+              border: 1px solid #e0e0e0;
+            "
+          >
+            <q-icon name="place" color="primary" size="sm" class="q-mr-sm flex-shrink-0" />
+            
+            <div class="ellipsis text-center q-pr-sm">
+              {{ currentStopName }}
+            </div>
+          </div>
+        </div>
+
+        <div class="row justify-center items-center q-mt-sm">
+          <q-badge color="positive" rounded class="q-mr-xs" />
+          <span class="text-caption text-grey-7">Viagem Ativa em Tempo Real</span>
         </div>
       </div>
 
-      <!-- Bus Parallax Window Illustration (Design 121:374) -->
       <div class="bus-illustration-container">
         <div class="bus-illustration">
           <div class="bus-body">
-            <!-- Repeating Parallax Landscape Layers -->
             <div class="parallax-layer layer-clouds"></div>
             <div class="parallax-layer layer-mountains"></div>
             <div class="parallax-layer layer-hills"></div>
@@ -37,12 +53,10 @@
               <div class="road-stripes"></div>
             </div>
           </div>
-          <!-- Bus Frame Overlay (Mask Group) -->
           <img src="/assets/mask-group.svg" alt="" class="bus-mask" />
         </div>
       </div>
 
-      <!-- Live Trip Details Dashboard -->
       <div v-if="activeTrip" class="trip-dashboard-card q-mx-md q-mb-md">
         <div class="dashboard-header">
           <div class="bus-badge">
@@ -88,7 +102,6 @@
         </div>
       </div>
 
-      <!-- Action Buttons -->
       <div class="action-buttons-container q-px-md q-pb-lg">
         <button class="btn-validate" @click="qrDialogOpen = true">
           <img src="/assets/icon-qr.svg" alt="" class="btn-validate__icon" />
@@ -102,7 +115,6 @@
       </div>
     </div>
 
-    <!-- Inspector QR Code Dialog (Design 97:384) -->
     <q-dialog v-model="qrDialogOpen">
       <q-card class="qr-dialog-card q-pa-lg text-center">
         <h3 class="qr-dialog-title">Código de Validação</h3>
@@ -110,7 +122,6 @@
         
         <div class="qr-container q-mx-auto q-my-md">
           <img src="/assets/icon-qr.svg" alt="QR Code" class="qr-image" />
-          <!-- Animated Green Scanner Line -->
           <div class="scanner-line"></div>
         </div>
 
@@ -133,7 +144,6 @@
       </q-card>
     </q-dialog>
 
-    <!-- End Trip Confirmation Dialog (Design 108:735) -->
     <q-dialog v-model="exitDialogOpen" position="bottom" transition-show="slide-up" transition-hide="slide-down">
       <div class="exit-sheet">
         <div class="drag-handle"></div>
@@ -171,7 +181,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useViagensStore } from 'src/stores/viagens'
 
@@ -188,29 +198,50 @@ const submitting = ref(false)
 
 const activeTrip = computed(() => viagensStore.activeTrip)
 
-watch(activeTrip, (newVal) => {
-  console.log('--- ESTRUTURA REAL DO ACTIVETRIP ---')
-  console.log(JSON.stringify(newVal, null, 2))
-}, { immediate: true })
-
 onMounted(async () => {
-  // Load active trip
   const active = await viagensStore.fetchActiveTrip()
   if (!active) {
-    // If no active trip, redirect to home
     router.push('/home')
     return
   }
 
-  // Load stops for exit selection
   await viagensStore.fetchStops()
 
-  // Display validation success banner for a few seconds
+  const veiculoId = active.viagemVeiculo?.veiculo?.id
+  if (veiculoId) {
+    console.log(`[TravellingPage] A ativar WebSocket real-time para o veículo ${veiculoId}...`)
+    viagensStore.connectPassengerWebSocket()
+  }
+
   showSuccessBanner.value = true
   setTimeout(() => {
     showSuccessBanner.value = false
   }, 4500)
 })
+
+onUnmounted(() => {
+  viagensStore.disconnectPassengerWebSocket()
+})
+
+function updateStopName() {
+  const atualId = viagensStore.activeTrip?.viagemVeiculo?.pontoAtualId
+  if (!atualId) {
+    currentStopName.value = 'A carregar paragem...'
+    return
+  }
+  
+  const stop = viagensStore.stops.find(s => s.id === atualId)
+  currentStopName.value = stop ? stop.nome : `Paragem ID: ${atualId}`
+}
+
+watch(
+  () => viagensStore.activeTrip,
+  () => {
+    console.log('O watch detetou uma mudança na viagem ativa!')
+    updateStopName() 
+  },
+  { deep: true } 
+)
 
 // Computeds
 const busPlate = computed(() => {
@@ -238,6 +269,27 @@ const stopOptions = computed(() => {
   }))
 })
 
+const sortedStops = computed(() => {
+  const pp = viagensStore.activeTrip?.viagemVeiculo?.trajeto?.pontosDePassagem || []
+  return [...pp].sort((a, b) => a.ordem - b.ordem)
+})
+
+const currentStopIndex = computed(() => {
+  if (!viagensStore.activeTrip?.viagemVeiculo) return -1
+  
+  const activePontoId = viagensStore.activeTrip.viagemVeiculo.pontoAtualId
+  if (!activePontoId) return -1
+  
+  return sortedStops.value.findIndex(p => p.id === activePontoId)
+})
+
+const currentStopName = computed(() => {
+  const idx = currentStopIndex.value
+  if (idx === -1) return entryStopName.value || 'Paragem Desconhecida'
+  return sortedStops.value[idx]?.paragem?.nome || 'Paragem Desconhecida'
+})
+
+
 // Formatter
 function formatTime(dateTimeStr) {
   if (!dateTimeStr) return ''
@@ -257,7 +309,6 @@ function openExitConfirmation() {
   exitError.value = ''
   selectedExitStop.value = null
   
-  // Set default exit stop to be a different one from entry if possible
   if (viagensStore.stops?.length > 0) {
     const entryId = activeTrip.value?.paragemEntrada?.id
     const otherStop = viagensStore.stops.find(s => s.id !== entryId)
@@ -274,6 +325,9 @@ async function confirmEndTrip() {
   exitError.value = ''
   try {
     await viagensStore.endTrip(activeTrip.value.id, selectedExitStop.value)
+
+    viagensStore.disconnectPassengerWebSocket()
+
     exitDialogOpen.value = false
     router.push('/home')
   } catch (err) {
@@ -285,6 +339,29 @@ async function confirmEndTrip() {
 </script>
 
 <style scoped>
+/* Estilos adicionados para a paragem atual */
+.current-stop-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  padding: 8px 18px;
+  border-radius: 30px;
+  border: 1px solid #e2e8f0;
+  max-width: 90%;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.current-stop-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .traveling-page {
   position: relative;
   min-height: 100vh;
@@ -297,7 +374,8 @@ async function confirmEndTrip() {
   align-items: center;
   justify-content: space-between;
   min-height: calc(100vh - var(--header-h, 42px) - var(--tabbar-h, 78px));
-  padding: calc(var(--header-h, 42px) + 44px) 0 calc(var(--tabbar-h, 78px) + 16px) 0;
+  /* Ajustado o padding-top de 44px para 24px para acomodar o novo bloco sem empurrar o layout */
+  padding: calc(var(--header-h, 42px) + 24px) 0 calc(var(--tabbar-h, 78px) + 16px) 0;
   width: 100%;
 }
 
@@ -426,7 +504,6 @@ async function confirmEndTrip() {
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  /* Gentle vibration shake simulating a moving vehicle */
   animation: bus-vibration 0.25s infinite linear;
 }
 
@@ -461,7 +538,7 @@ async function confirmEndTrip() {
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 300%; /* Triple width for smooth seamless repeat transitions */
+  width: 300%;
   height: 100%;
   background-position: bottom left;
   background-repeat: repeat-x;
@@ -503,7 +580,7 @@ async function confirmEndTrip() {
   animation: parallax-scroll 5.5s linear infinite;
 }
 
-/* Road Simulation at the bottom of the window */
+/* Road Simulation */
 .road-container {
   position: absolute;
   bottom: 0;
@@ -525,12 +602,8 @@ async function confirmEndTrip() {
 }
 
 @keyframes parallax-scroll {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-33.333%); /* shifts left by exactly one repeats width */
-  }
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-33.333%); }
 }
 
 /* Dashboard Card */
@@ -761,7 +834,6 @@ async function confirmEndTrip() {
   object-fit: contain;
 }
 
-/* Green Scanner laser animation */
 .scanner-line {
   position: absolute;
   left: 0;

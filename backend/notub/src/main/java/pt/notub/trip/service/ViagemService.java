@@ -371,20 +371,12 @@ public class ViagemService implements VehicleTripSubject {
         monitorizacaoRepository.delete(monitorizacao);
     }
 
-    public void notifySubscribers(Long viagemId, Long novaParagemId) {
-        List<Utilizador> utilizadores = monitorizacaoRepository.getSubscribedUsers(viagemId);
-        for (Utilizador u : utilizadores) {
-            monitorizacaoService.onLocationUpdate(viagemId, novaParagemId);
-            System.out.println("O utilizador " + u.getPrimeiroNome() + u.getUltimoNome() + " acabou de receber a atualização.");
-        }
+    public void notifySubscribers(Long viagemId, Long novoPontoPassagemId) {
+        monitorizacaoService.onLocationUpdate(viagemId, novoPontoPassagemId);
     }
 
     public void notifySubscribers(Long viagemId) {
-        List<Utilizador> utilizadores = monitorizacaoRepository.getSubscribedUsers(viagemId);
-        for (Utilizador u : utilizadores) {
-            monitorizacaoService.onTripFinished(viagemId);
-            System.out.println("O utilizador " + u.getPrimeiroNome() + u.getUltimoNome() + " acabou de receber a atualização.");
-        }
+        monitorizacaoService.onTripFinished(viagemId);
     }
 
 }
