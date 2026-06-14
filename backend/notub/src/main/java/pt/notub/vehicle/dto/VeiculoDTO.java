@@ -1,5 +1,6 @@
 package pt.notub.vehicle.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import pt.notub.network.dto.PointDTO;
 import pt.notub.vehicle.entity.TipoVeiculo;
 
@@ -21,8 +22,13 @@ public class VeiculoDTO {
     public void setId(Long id) { this.id = id; }
     public String getMatricula() { return matricula; }
     public void setMatricula(String matricula) { this.matricula = matricula; }
+
+    @JsonProperty("nLugares")
     public int getnLugares() { return nLugares; }
+
+    @JsonProperty("nLugares")
     public void setnLugares(int nLugares) { this.nLugares = nLugares; }
+
     public int getLotacaoAtual() { return lotacaoAtual; }
     public void setLotacaoAtual(int lotacaoAtual) { this.lotacaoAtual = lotacaoAtual; }
     public Integer getTempoAtraso() { return tempoAtraso; }

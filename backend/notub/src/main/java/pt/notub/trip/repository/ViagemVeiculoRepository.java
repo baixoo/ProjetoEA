@@ -18,4 +18,7 @@ public interface ViagemVeiculoRepository extends JpaRepository<ViagemVeiculo, Lo
 
     @Query("SELECT vv FROM ViagemVeiculo vv WHERE vv.veiculo.id = :veiculoId AND vv.startTime IS NOT NULL AND vv.finishTime IS NULL")
     List<ViagemVeiculo> findActiveByVeiculoId(@Param("veiculoId") Long veiculoId);
+
+    @Query("SELECT vv FROM ViagemVeiculo vv WHERE vv.startTime >= :start AND vv.startTime < :end")
+    List<ViagemVeiculo> findViagensIniciadasHoje(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
 }

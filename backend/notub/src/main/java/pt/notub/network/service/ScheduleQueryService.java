@@ -10,9 +10,12 @@ import pt.notub.network.repository.HorarioRepository;
 import pt.notub.network.repository.ParagemRepository;
 import pt.notub.network.repository.PontosDePassagemRepository;
 import pt.notub.network.repository.TrajetoRepository;
+import pt.notub.trip.entity.ViagemVeiculo;
+import pt.notub.trip.repository.ViagemVeiculoRepository;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -28,15 +31,18 @@ public class ScheduleQueryService {
     private final ParagemRepository paragemRepo;
     private final TrajetoRepository trajetoRepo;
     private final PontosDePassagemRepository pontosRepo;
+    private final ViagemVeiculoRepository viagemVeiculoRepo;
 
     public ScheduleQueryService(HorarioRepository horarioRepo,
                                 ParagemRepository paragemRepo,
                                 TrajetoRepository trajetoRepo,
-                                PontosDePassagemRepository pontosRepo) {
+                                PontosDePassagemRepository pontosRepo,
+                                ViagemVeiculoRepository viagemVeiculoRepo) {
         this.horarioRepo = horarioRepo;
         this.paragemRepo = paragemRepo;
         this.trajetoRepo = trajetoRepo;
         this.pontosRepo = pontosRepo;
+        this.viagemVeiculoRepo = viagemVeiculoRepo;
     }
 
     public List<HorarioDTO> findHorarios(Long linhaId, String serviceId) {
@@ -133,6 +139,12 @@ public class ScheduleQueryService {
     }
 
     public List<ProximoPasseDTO> findProximosPasses(Long trajetoId, Long paragemId, LocalTime queryTime, DayOfWeek dayOfWeek) {
+        LocalDate today = LocalDate.now();
+        List<ViagemVeiculo> viagensHoje = viagemVeiculoRepo.findViagensIniciadasHoje(today.atStartOfDay(), today.plusDays(1).atStartOfDay());
+        return findProximosPasses(trajetoId, paragemId, queryTime, dayOfWeek, viagensHoje);
+    }
+
+    public List<ProximoPasseDTO> findProximosPasses(Long trajetoId, Long paragemId, LocalTime queryTime, DayOfWeek dayOfWeek, List<ViagemVeiculo> activeViagens) {
         requireTrajeto(trajetoId);
         requireParagem(paragemId);
 
@@ -143,15 +155,75 @@ public class ScheduleQueryService {
         List<ProximoPasseDTO> result = new ArrayList<>();
 
         for (Horario h : schedules) {
-            int depTOD = h.getHora().getHour() * 60 + h.getHora().getMinute();
-            int wait = depTOD - queryMinutes;
-            if (wait < 0) wait += 1440;
+            ViagemVeiculo activeViagem = null;
+            if (activeViagens != null) {
+                for (ViagemVeiculo vv : activeViagens) {
+                    if (vv.getTrajeto() != null && vv.getTrajeto().getId().equals(trajetoId)
+                            && vv.getGtfsTripId() != null && vv.getGtfsTripId().equalsIgnoreCase(h.getGtfsTripId())
+                            && vv.getServiceId() != null && h.getServico() != null
+                            && vv.getServiceId().equalsIgnoreCase(h.getServico().getNome())) {
+                        activeViagem = vv;
+                        break;
+                    }
+                }
+            }
+
+            int wait;
+            String horaPrevistaStr = null;
+            Integer lotacaoAtual = null;
+            Integer nLugares = null;
+            Integer tempoAtraso = null;
+
+            if (activeViagem != null) {
+                // Check if the trip has finished
+                if (activeViagem.getFinishTime() != null) {
+                    continue;
+                }
+
+                // Check if the vehicle has already reached or passed this stop
+                if (activeViagem.getPontoAtual() != null && h.getPontoPassagem() != null) {
+                    if (activeViagem.getPontoAtual().getOrdem() >= h.getPontoPassagem().getOrdem()) {
+                        continue;
+                    }
+                }
+
+                // Copy occupancy, capacity, and delay
+                if (activeViagem.getVeiculo() != null) {
+                    lotacaoAtual = activeViagem.getVeiculo().getLotacaoAtual();
+                    nLugares = activeViagem.getVeiculo().getnLugares();
+                    tempoAtraso = activeViagem.getVeiculo().getTempoAtraso() != null ? activeViagem.getVeiculo().getTempoAtraso() : 0;
+                } else {
+                    tempoAtraso = 0;
+                }
+
+                // Calculate horaPrevista = hora + tempoAtraso
+                LocalTime horaPrev = h.getHora().plusMinutes(tempoAtraso);
+                horaPrevistaStr = horaPrev.format(TIME_FMT);
+
+                // Calculate wait minutes using expected time
+                int prevTOD = horaPrev.getHour() * 60 + horaPrev.getMinute();
+                wait = prevTOD - queryMinutes;
+                if (wait < 0) wait += 1440;
+            } else {
+                int depTOD = h.getHora().getHour() * 60 + h.getHora().getMinute();
+                wait = depTOD - queryMinutes;
+                if (wait < 0) wait += 1440;
+            }
+
             if (wait > MAX_WAIT_MINUTES) continue;
-            result.add(new ProximoPasseDTO(h.getHora().format(TIME_FMT), wait));
-            if (result.size() >= 10) break;
+
+            ProximoPasseDTO dto = new ProximoPasseDTO(h.getHora().format(TIME_FMT), wait);
+            dto.setHoraPrevista(horaPrevistaStr);
+            dto.setLotacaoAtual(lotacaoAtual);
+            dto.setnLugares(nLugares);
+            dto.setTempoAtraso(tempoAtraso);
+            result.add(dto);
         }
 
         result.sort(Comparator.comparingInt(ProximoPasseDTO::getEsperaMinutos));
+        if (result.size() > 10) {
+            result = new ArrayList<>(result.subList(0, 10));
+        }
         return result;
     }
 
@@ -164,6 +236,10 @@ public class ScheduleQueryService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Paragem nao encontrada"));
 
         List<PontosDePassagem> pontos = pontosRepo.findByParagemId(paragemId);
+
+        // Load today's viajes once per request
+        LocalDate today = LocalDate.now();
+        List<ViagemVeiculo> viagensHoje = viagemVeiculoRepo.findViagensIniciadasHoje(today.atStartOfDay(), today.plusDays(1).atStartOfDay());
 
         Map<Long, ParagemProximasPassagensDTO.LinhaProximasPassagensDTO> linhasById = new TreeMap<>();
         for (PontosDePassagem ponto : pontos) {
@@ -179,7 +255,7 @@ public class ScheduleQueryService {
             trajetoDTO.setTrajetoId(trajetoId);
             trajetoDTO.setDirecao(tObj.getDirecao() != null ? tObj.getDirecao().name() : "");
             trajetoDTO.setDestinoFinal(getDestinoFinal(trajetoId));
-            trajetoDTO.setProximosPasses(findProximosPasses(trajetoId, paragemId, queryTime, dayOfWeek));
+            trajetoDTO.setProximosPasses(findProximosPasses(trajetoId, paragemId, queryTime, dayOfWeek, viagensHoje));
 
             ParagemProximasPassagensDTO.LinhaProximasPassagensDTO linhaDTO = linhasById.computeIfAbsent(
                     tObj.getLinha().getId(),

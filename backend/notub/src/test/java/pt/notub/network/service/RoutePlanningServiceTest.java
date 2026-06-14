@@ -11,6 +11,7 @@ import pt.notub.network.repository.HorarioRepository;
 import pt.notub.network.repository.ParagemRepository;
 import pt.notub.network.repository.PontosDePassagemRepository;
 import pt.notub.network.repository.TrajetoRepository;
+import pt.notub.trip.repository.ViagemVeiculoRepository;
 
 import java.util.List;
 
@@ -32,6 +33,9 @@ class RoutePlanningServiceTest {
     @Mock
     private ParagemRepository paragemRepository;
 
+    @Mock
+    private ViagemVeiculoRepository viagemVeiculoRepository;
+
     private RoutePlanningService service;
 
     @BeforeEach
@@ -47,7 +51,7 @@ class RoutePlanningServiceTest {
         RouteDtoAssembler assembler = new RouteDtoAssembler(walkingPolicy);
         RouteSearchEngine searchEngine = new RouteSearchEngine(walkingPolicy, assembler);
         ScheduleQueryService queryService = new ScheduleQueryService(
-                horarioRepository, paragemRepository, trajetoRepository, pontosRepository);
+                horarioRepository, paragemRepository, trajetoRepository, pontosRepository, viagemVeiculoRepository);
 
         service = new RoutePlanningService(indexService, searchEngine, queryService);
     }
