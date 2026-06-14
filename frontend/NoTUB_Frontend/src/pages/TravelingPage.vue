@@ -94,12 +94,12 @@
           </div>
         </div>
         
-        <div class="dashboard-footer">
+        <!-- <div class="dashboard-footer">
           <span class="occupancy-info">
             <q-icon name="people" size="16px" color="grey-6" class="q-mr-xs" />
             Lotação aproximada: 23 pessoas
           </span>
-        </div>
+        </div> -->
       </div>
 
       <div class="action-buttons-container q-px-md q-pb-lg">
@@ -149,27 +149,14 @@
         <div class="drag-handle"></div>
 
         <h3 class="exit-title">Terminar Viagem</h3>
-        <p class="exit-subtitle">Por favor, selecione a paragem onde vai sair do autocarro.</p>
+        <p class="exit-subtitle">Tem a certeza que deseja encerrar a viagem atual?</p>
 
-        <div v-if="exitError" class="error-msg q-mb-sm">{{ exitError }}</div>
-
-        <div class="exit-field q-mb-md">
-          <q-select
-            v-model="selectedExitStop"
-            :options="stopOptions"
-            label="Paragem de Saída"
-            outlined
-            dense
-            color="primary"
-            emit-value
-            map-options
-          />
-        </div>
+        <div v-if="exitError" class="error-msg q-mb-md">{{ exitError }}</div>
 
         <div class="exit-actions">
-          <button class="btn-exit-confirm bg-negative" @click="confirmEndTrip" :disabled="submitting || !selectedExitStop">
+          <button class="btn-exit-confirm bg-negative" @click="confirmEndTrip" :disabled="submitting">
             <q-spinner v-if="submitting" size="18px" class="q-mr-xs" />
-            <span>Confirmar Saída</span>
+            <span>Confirmar Terminar Viagem</span>
           </button>
           <button class="btn-exit-cancel" @click="exitDialogOpen = false" :disabled="submitting">
             <span>Cancelar</span>
@@ -279,12 +266,13 @@ const formattedZones = computed(() => {
   return `Z${zona.num}`
 })
 
-const stopOptions = computed(() => {
-  return (viagensStore.stops || []).map(s => ({
-    label: s.nome,
-    value: s.id
-  }))
-})
+// TODO: REMOVE
+// const stopOptions = computed(() => {
+//   return (viagensStore.stops || []).map(s => ({
+//     label: s.nome,
+//     value: s.id
+//   }))
+// })
 
 const sortedStops = computed(() => {
   const pp = viagensStore.activeTrip?.viagemVeiculo?.trajeto?.pontosDePassagem || []
@@ -324,14 +312,11 @@ function formatTime(dateTimeStr) {
 // Exit action
 function openExitConfirmation() {
   exitError.value = ''
-  selectedExitStop.value = null
   
-  if (viagensStore.stops?.length > 0) {
-    const entryId = activeTrip.value?.paragemEntrada?.id
-    const otherStop = viagensStore.stops.find(s => s.id !== entryId)
-    selectedExitStop.value = otherStop ? otherStop.id : viagensStore.stops[0].id
-  }
+  const atualId = viagensStore.activeTrip?.viagemVeiculo?.pontoAtualId
+  const currStop = viagensStore.stops.find(s => s.id === atualId)
 
+  selectedExitStop.value = currStop ? currStop.id : null
   exitDialogOpen.value = true
 }
 
