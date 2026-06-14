@@ -278,10 +278,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useDriverStore } from 'src/stores/driver'
 
-const route = useRoute()
 const router = useRouter()
 const driverStore = useDriverStore()
 
@@ -300,12 +299,10 @@ let pressInterval = null
 
 onMounted(async () => {
   await driverStore.fetchVehicles()
+  const savedVehicleId = driverStore.selectedVehicleId
   
-  // Resolve vehicle from query parameter
-  const queryVeiculoId = route.query.veiculoId
-  if (queryVeiculoId) {
-    const vId = Number(queryVeiculoId)
-    selecionarVeiculo(vId)
+  if (savedVehicleId) {
+    selecionarVeiculo(Number(savedVehicleId))
   }
 })
 
