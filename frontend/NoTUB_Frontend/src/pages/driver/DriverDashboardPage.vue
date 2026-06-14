@@ -224,8 +224,7 @@
             </div>
           </div>
 
-          <!-- VALIDATION LIVE FEED -->
-          <div class="feed-card">
+          <!-- <div class="feed-card">
             <div class="feed-header">
               <q-icon name="wifi_tethering" size="18px" color="primary" />
               <span>Validações em tempo real</span>
@@ -261,17 +260,15 @@
                 LIMPAR FEED
               </button>
             </div>
-          </div>
+          </div> -->
 
         </div>
 
       </div>
 
-      <!-- FOOTER -->
-      <footer class="realtime-footer">
+      <!-- <footer class="realtime-footer">
         <span>Monitorização em tempo real. ✨</span>
-      </footer>
-
+      </footer> -->
     </div>
   </q-page>
 </template>
@@ -469,15 +466,6 @@ function formatTimeOnly(timeStr) {
   return `${parts[0]}:${parts[1]}`
 }
 
-function formatTime(timestamp) {
-  if (!timestamp) return ''
-  try {
-    const d = new Date(timestamp)
-    return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  } catch {
-    return ''
-  }
-}
 </script>
 
 <style scoped>

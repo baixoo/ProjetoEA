@@ -2,6 +2,50 @@
   <q-page class="admin-page" padding>
     <h2 class="page-title">Dashboard</h2>
 
+    <div class="nav-grid">
+    <q-btn
+      color="primary"
+      icon="people"
+      label="Utilizadores"
+      @click="$router.push('/admin/users')"
+    />
+
+    <q-btn
+      color="teal"
+      icon="directions_bus"
+      label="Veículos"
+      @click="$router.push('/admin/vehicles')"
+    />
+
+    <q-btn
+      color="orange"
+      icon="payments"
+      label="Tarifas"
+      @click="$router.push('/admin/tariffs')"
+    />
+
+    <q-btn
+      color="blue"
+      icon="map"
+      label="Zonas"
+      @click="$router.push('/admin/zones')"
+    />
+
+    <q-btn
+      color="purple"
+      icon="schedule"
+      label="Viagens"
+      @click="$router.push('/admin/trips')"
+    />
+
+    <q-btn
+      color="green"
+      icon="alt_route"
+      label="Rede"
+      @click="$router.push('/admin/network')"
+    />
+    </div>
+
     <div v-if="loading" class="text-center q-py-lg">
       <q-spinner color="primary" size="40px" />
     </div>
@@ -82,6 +126,17 @@ onMounted(async () => {
   font-weight: 700;
   color: #0e2d24;
   margin: 0 0 24px 0;
+}
+
+.nav-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.nav-grid .q-btn {
+  height: 56px;
 }
 
 .stats-grid {

@@ -1,6 +1,11 @@
 <template>
   <q-page class="admin-page" padding>
-    <h2 class="page-title">Rede de Transporte</h2>
+    <div class="page-header page-header--main">
+      <div class="header-title-container">
+        <q-btn flat round dense icon="arrow_back" color="primary" @click="$router.push('/admin')" class="q-mr-xs" />
+        <h2 class="page-title">Rede de Transporte</h2>
+      </div>
+    </div>
 
     <q-tabs v-model="activeTab" class="text-primary q-mb-md">
       <q-tab name="linhas" label="Linhas" icon="route" />
@@ -218,5 +223,7 @@ async function handleDeleteParagem(row) {
 <style scoped>
 .admin-page { max-width: 1200px; margin: 0 auto; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.page-title { font-size: 22px; font-weight: 700; color: #0e2d24; margin: 0 0 16px 0; }
+.page-header--main { margin-bottom: 8px; }
+.header-title-container { display: flex; align-items: center; gap: 8px; }
+.page-title { font-size: 22px; font-weight: 700; color: #0e2d24; margin: 0; }
 </style>
