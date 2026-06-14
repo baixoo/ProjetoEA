@@ -42,7 +42,6 @@ public class MonitorizacaoService implements VehicleTripObserver {
         return ViagemMapper.toVeiculoDTO(findViagemVeiculo(id));
     }
 
-    // FIXME: Ele aqui não manda a nova Paragemid e sim o Índice - Corrigir mais tarde
     @Override
     public void onLocationUpdate(Long viagemId, Long novoPontoPassagemId) {
         
@@ -68,11 +67,14 @@ public class MonitorizacaoService implements VehicleTripObserver {
 
         if (!utilizadores.isEmpty()) {
             String topicoItem = "/topic/bus." + viagemId + ".route";
-            messagingTemplate.convertAndSend(topicoItem, "Viagem Finalizada");
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("viagemStatus", "END");
             
-            for (Utilizador u : utilizadores) {
-                System.out.println("O utilizador " + u.getPrimeiroNome() + u.getUltimoNome() + " acabou de receber a notificação de viagem finalizada.");
-            }
+            System.out.println("Payload a ser enviado: " + payload);
+
+            messagingTemplate.convertAndSend(topicoItem, (Object) payload);
+            
         }
     }
 }

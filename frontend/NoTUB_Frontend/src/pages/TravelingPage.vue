@@ -234,11 +234,28 @@ function updateStopName() {
   currentStopName.value = stop ? stop.nome : `Paragem ID: ${atualId}`
 }
 
+function updateStopId() {
+  const atualId = viagensStore.activeTrip?.viagemVeiculo?.pontoAtualId
+  if (!atualId) {
+    selectedExitStop.value = null
+    return
+  }
+  
+  const stop = viagensStore.stops.find(s => s.id === atualId)
+  selectedExitStop.value = stop ? stop.id : null
+}
+
 watch(
   () => viagensStore.activeTrip,
   () => {
     console.log('O watch detetou uma mudança na viagem ativa!')
-    updateStopName() 
+    if (activeTrip.value.estado !== 'END') {
+      updateStopName() 
+      updateStopId()
+    } else {
+      console.log('A viagem ativa foi removida. A redirecionar para a página inicial...')
+      confirmEndTrip(true)
+    }
   },
   { deep: true } 
 )
@@ -318,12 +335,21 @@ function openExitConfirmation() {
   exitDialogOpen.value = true
 }
 
-async function confirmEndTrip() {
-  if (!selectedExitStop.value || !activeTrip.value) return
-  
+// Quero muitos logs nesta função para debug
+async function confirmEndTrip(isForcedByDriver = false) {
+
+  if (!isForcedByDriver) {
+    if (!selectedExitStop.value || !activeTrip.value) {
+      return 
+    }
+  }
+
   submitting.value = true
   exitError.value = ''
+  
   try {
+
+    console.log(`[confirmEndTrip] A terminar viagem para o passageiro na paragem ID: ${selectedExitStop.value}...`)
     await viagensStore.endTrip(activeTrip.value.id, selectedExitStop.value)
 
     viagensStore.disconnectPassengerWebSocket()
@@ -336,6 +362,7 @@ async function confirmEndTrip() {
     submitting.value = false
   }
 }
+
 </script>
 
 <style scoped>

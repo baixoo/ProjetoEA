@@ -257,7 +257,6 @@ public class DriverService {
 
         viagemVeiculoRepository.save(viagemVeiculo);
         
-        // FIXME: Atenção que esta chamada não está 100% correta e a inda é preciso fazer a chamada de quando a viagem termina
         // Notify subscribed users about the location update
         viagemService.notifySubscribers(viagemVeiculo.getId(), pontoSeguinte.getId());
 
@@ -280,7 +279,8 @@ public class DriverService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Viagem nao encontrada"));
         viagem.setFinishTime(LocalDateTime.now());
         viagemVeiculoRepository.save(viagem);
-        // viagemService.finishTrip(viagem.getId());
+    
+        viagemService.notifySubscribers(viagem.getId());
 
         Veiculo veiculo = viagem.getVeiculo();
         if (veiculo != null) {

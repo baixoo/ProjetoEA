@@ -117,7 +117,7 @@ export const useViagensStore = defineStore('viagens', () => {
         throw new Error(text || 'Falha ao terminar viagem')
       }
       const trip = await response.json()
-      activeTrip.value = null
+      // activeTrip.value.estado = 'END'
       return trip
     } catch (e) {
       error.value = e.message
@@ -191,8 +191,19 @@ export const useViagensStore = defineStore('viagens', () => {
 
         passengerStompClient.value.subscribe(`/topic/bus.${viagemVeiculoId}.route`, (message) => {
           const dados = JSON.parse(message.body)
-          if (activeTrip.value && activeTrip.value.viagemVeiculo) {
-            activeTrip.value.viagemVeiculo.pontoAtualId = dados.pontoAtualId
+          
+          if (dados.pontoAtualId !== undefined) {
+            if (activeTrip.value && activeTrip.value.viagemVeiculo) {
+              activeTrip.value.viagemVeiculo.pontoAtualId = Number(dados.pontoAtualId)
+            }
+          } 
+          
+          else if (dados.viagemStatus === 'END') {
+            console.log('[WebSocket] O motorista terminou o circuito. A encerrar viagem do passageiro...')
+            
+            activeTrip.value.estado = 'END'
+            console.log('Estado da viagem atualizado para : ', activeTrip.value.estado)
+            disconnectPassengerWebSocket()
           }
         })
       },
