@@ -111,13 +111,6 @@
               <span class="status-label">Zonas:</span>
               <span class="status-badge badge--active">{{ activePassZoneLabel }}</span>
             </div>
-            <div class="status-item points-item">
-              <span class="status-label">Pontos Acumulados:</span>
-              <span class="points-badge">
-                <q-icon name="stars" size="16px" color="amber-8" />
-                {{ pointsBalance }} Pts
-              </span>
-            </div>
           </div>
         </div>
       </div> 
@@ -165,7 +158,6 @@ const ignoredScanText = ref('')
 const tripErrorMsg = ref('')
 let html5QrcodeInstance = null
 
-const pointsBalance = computed(() => authStore.user?.nrPontos ?? 0)
 const unusedTicketsCount = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado).length)
 const activePassName = computed(() => {
   if (!ticketsStore.activePass) return null

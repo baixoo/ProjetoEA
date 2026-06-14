@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
@@ -50,6 +51,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> tratarNaoEncontrado(
             RecursoNaoEncontradoException ex, HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiErrorResponse> tratarCredenciaisInvalidas(
+            BadCredentialsException ex,
+            HttpServletRequest request) {
+        return build(
+                HttpStatus.UNAUTHORIZED,
+                "Unauthorized",
+                "Credenciais inválidas",
+                request
+        );
     }
 
     @ExceptionHandler(Exception.class)
