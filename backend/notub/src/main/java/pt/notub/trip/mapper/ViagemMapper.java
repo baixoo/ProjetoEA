@@ -20,6 +20,7 @@ public final class ViagemMapper {
         if (vu == null) return null;
         ViagemDTO dto = new ViagemDTO();
         dto.setId(vu.getId());
+        dto.setUtilizadorId(vu.getUtilizador().getId());
         dto.setInicio(vu.getInicio());
         dto.setFim(vu.getFim());
         dto.setEstado(vu.getEstado());

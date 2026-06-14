@@ -238,6 +238,7 @@ def main():
     lines.append("DROP TABLE IF EXISTS pontos_de_passagem CASCADE;")
     lines.append("DROP TABLE IF EXISTS servico CASCADE;")
     lines.append("DROP TABLE IF EXISTS viagem CASCADE;")
+    lines.append("DROP TABLE IF EXISTS viagem_utilizador CASCADE;")
     lines.append("DROP TABLE IF EXISTS autocarro CASCADE;")
     lines.append(
         "CREATE TABLE IF NOT EXISTS servico ("

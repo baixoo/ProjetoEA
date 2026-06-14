@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import pt.notub.common.exception.ConflitoException;
 import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
+import pt.notub.common.security.AuthenticatedUser;
+import pt.notub.common.security.AuthenticatedUserContext;
 import pt.notub.driver.dto.NotificacaoValidacaoDTO;
 import pt.notub.driver.service.NotificacaoValidacaoService;
 import pt.notub.network.entity.Horario;
@@ -55,6 +57,8 @@ import pt.notub.trip.observerPattern.VehicleTripObserver;
 
 import jakarta.transaction.Transactional;
 
+import pt.notub.common.security.AuthenticatedUser;
+import pt.notub.common.security.AuthenticatedUserContext;
 
 @Service
 public class ViagemService implements VehicleTripSubject {
@@ -134,6 +138,7 @@ public class ViagemService implements VehicleTripSubject {
         viagem.setViagemVeiculo(viagemVeiculo);
         viagem.setInicio(LocalDateTime.now());
         viagem.setEstado(EstadoViagem.ATIVA);
+        if (titulo.getUtilizador() != null) viagem.setUtilizador(titulo.getUtilizador());
 
         ViagemUtilizador saved = viagemUtilizadorRepository.save(viagem);
 

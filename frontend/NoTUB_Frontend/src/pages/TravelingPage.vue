@@ -349,7 +349,6 @@ async function confirmEndTrip(isForcedByDriver = false) {
   
   try {
 
-    console.log(`[confirmEndTrip] A terminar viagem para o passageiro na paragem ID: ${selectedExitStop.value}...`)
     await viagensStore.endTrip(activeTrip.value.id, selectedExitStop.value)
 
     viagensStore.disconnectPassengerWebSocket()
