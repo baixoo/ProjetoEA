@@ -1,4 +1,4 @@
 package pt.notub.trip.dto;
 
-public record IniciarViagemRequest(Long tituloId, Long paragemEntradaId, Long viagemVeiculoId) {
+public record IniciarViagemRequest(String tipoTitulo, Long quantidade, Long paragemEntradaId, Long viagemVeiculoId) {
 }

@@ -29,6 +29,7 @@ import pt.notub.network.repository.TrajetoRepository;
 import pt.notub.points.service.ServicoPontos;
 import pt.notub.ticket.entity.Bilhete;
 import pt.notub.ticket.entity.Passe;
+import pt.notub.ticket.entity.TipoTituloTransporte;
 import pt.notub.ticket.entity.TituloTransporte;
 import pt.notub.ticket.repository.TituloTransporteRepository;
 import pt.notub.trip.dto.CreateViagemVeiculoRequest;
@@ -124,57 +125,109 @@ public class ViagemService implements VehicleTripSubject {
         return ViagemMapper.toDTO(findViagemUtilizador(id));
     }
 
-    public ViagemDTO iniciarViagem(Long tituloId, Long paragemEntradaId, Long viagemVeiculoId) {
-        TituloTransporte titulo = findTitulo(tituloId);
-        Paragem paragemEntrada = findParagem(paragemEntradaId);
-        ViagemVeiculo viagemVeiculo = findViagemVeiculo(viagemVeiculoId);
+    private List<TituloTransporte> getValidTitulos(Long utilizadorId, String tipoTitulo, Long quantidade, Integer paragemZona) {
 
-        boolean valido = gestorValidacao.validarTitulo(tituloId);
+        TipoTituloTransporte tipoEnum = TipoTituloTransporte.valueOf(tipoTitulo.toUpperCase());
+        List<TituloTransporte> titulos = tituloTransporteRepository.findByTipoAndUtilizadorId(tipoEnum, utilizadorId);
 
-        if (titulo instanceof Bilhete bilhete && valido) {
-            bilhete.setUsado(true);
-            tituloTransporteRepository.save(bilhete);
+        if (titulos == null || titulos.isEmpty()) {
+            throw new RecursoNaoEncontradoException("Nenhum título de transporte encontrado para o utilizador e tipo fornecidos");
         }
 
+        if (paragemZona != null) {
+            titulos = titulos.stream()
+                    .filter(t -> t.getZona() != null && t.getZona().getNum() >= paragemZona)
+                    .filter(t -> {
+                        if (t instanceof Bilhete) {
+                            return !((Bilhete) t).isUsado();
+                        }
+                        return true; 
+                    })
+                    .sorted(Comparator.comparingInt(t -> t.getZona().getNum()))
+                    .toList();
+        }
+
+        if (titulos.isEmpty()) {
+            throw new RecursoNaoEncontradoException("Nenhum título de transporte válido encontrado para os critérios fornecidos");
+        }
+
+        if (titulos.size() < quantidade) {
+            throw new RecursoNaoEncontradoException(
+                String.format("Títulos válidos insuficientes. Pedidos: %d, Disponíveis: %d", quantidade, titulos.size())
+            );
+        }
+
+        return titulos.stream().limit(quantidade).toList();
+    }
+
+    public ViagemDTO iniciarViagem(Long utilizadorId, String tipoTitulo, Long quantidade, Long paragemEntradaId, Long viagemVeiculoId) {
+        Paragem paragemEntrada = findParagem(paragemEntradaId);
+        Integer paragemZona = paragemEntrada.getZona() != null ? paragemEntrada.getZona().getNum() : null;
+        
+        List<TituloTransporte> titulosAValidar = getValidTitulos(utilizadorId, tipoTitulo, quantidade, paragemZona);
+        ViagemVeiculo viagemVeiculo = findViagemVeiculo(viagemVeiculoId);
+        
+        boolean todosValidos = true;
+
+        for (TituloTransporte titulo : titulosAValidar) {
+            boolean valido = gestorValidacao.validarTitulo(titulo.getId());
+            
+            if (!valido) {
+                todosValidos = false;
+                throw new RuntimeException("Falha ao validar o título com ID: " + titulo.getId());
+            }
+            
+            if (titulo instanceof Bilhete) {
+                ((Bilhete) titulo).setUsado(true);
+                tituloTransporteRepository.save(titulo);
+            }
+        }
+
+        TituloTransporte tituloPrincipal = titulosAValidar.get(0);
+
         ViagemUtilizador viagem = new ViagemUtilizador();
-        viagem.setTitulo(titulo);
+        viagem.setTitulo(tituloPrincipal); 
         viagem.setParagemEntrada(paragemEntrada);
         viagem.setViagemVeiculo(viagemVeiculo);
         viagem.setInicio(LocalDateTime.now());
         viagem.setEstado(EstadoViagem.ATIVA);
-        if (titulo.getUtilizador() != null) viagem.setUtilizador(titulo.getUtilizador());
+        
+        if (tituloPrincipal.getUtilizador() != null) {
+            viagem.setUtilizador(tituloPrincipal.getUtilizador());
+        }
 
         ViagemUtilizador saved = viagemUtilizadorRepository.save(viagem);
 
-        if (valido) {
-            Veiculo veiculo = viagemVeiculo.getVeiculo();
-            if (veiculo != null) {
-                veiculo.setLotacaoAtual(veiculo.getLotacaoAtual() + 1);
-                veiculoRepository.save(veiculo);
-            }
+        Veiculo veiculo = viagemVeiculo.getVeiculo();
+        if (veiculo != null) {
+            veiculo.setLotacaoAtual(veiculo.getLotacaoAtual() + quantidade.intValue());
+            veiculoRepository.save(veiculo);
+        }
 
-            // Ao colocar o método aqui ele subscreve automaticamente
-            if (titulo.getUtilizador() != null) {
-            Long userId = titulo.getUtilizador().getId();
+        if (tituloPrincipal.getUtilizador() != null) {
+            Long userId = tituloPrincipal.getUtilizador().getId();
             this.addSubscription(viagemVeiculoId, userId);
-            }
         }
 
         String nomePassageiro = "Desconhecido";
-        if (titulo.getUtilizador() != null) {
-            nomePassageiro = titulo.getUtilizador().getPrimeiroNome() + " " + titulo.getUtilizador().getUltimoNome();
+        if (tituloPrincipal.getUtilizador() != null) {
+            nomePassageiro = tituloPrincipal.getUtilizador().getPrimeiroNome() + " " + tituloPrincipal.getUtilizador().getUltimoNome();
+        }
+
+        if (quantidade > 1) {
+            nomePassageiro += " (Grupo de " + quantidade + ")";
         }
 
         String tituloTipo = "";
-        if (titulo.getTipo() == pt.notub.ticket.entity.TipoTituloTransporte.BILHETE) {
+        if (tituloPrincipal instanceof Bilhete) {
             tituloTipo = "Bilhete";
-        } else if (titulo instanceof Passe passe) {
-            tituloTipo = "Passe " + passe.getModalidade().name();
+        } else if (tituloPrincipal instanceof Passe passe) {
+            tituloTipo = "Passe " + passe.getModalidade().name(); 
         }
 
         Long veiculoId = viagemVeiculo.getVeiculo() != null ? viagemVeiculo.getVeiculo().getId() : null;
         NotificacaoValidacaoDTO notificacao = new NotificacaoValidacaoDTO(
-                valido, nomePassageiro, tituloTipo, veiculoId, LocalDateTime.now());
+                todosValidos, nomePassageiro, tituloTipo, veiculoId, LocalDateTime.now());
         notificacaoService.notificarMotorista(notificacao);
 
         return ViagemMapper.toDTO(saved);

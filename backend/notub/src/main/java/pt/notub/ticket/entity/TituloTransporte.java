@@ -6,6 +6,7 @@ import pt.notub.user.entity.Utilizador;
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "titulo_transporte")
 @Inheritance(strategy = InheritanceType.JOINED)
 public abstract class TituloTransporte {
 
@@ -34,4 +35,7 @@ public abstract class TituloTransporte {
     public void setTipo(TipoTituloTransporte tipo) { this.tipo = tipo; }
     public Utilizador getUtilizador() { return utilizador; }
     public void setUtilizador(Utilizador utilizador) { this.utilizador = utilizador; }
+    
 }
+
+

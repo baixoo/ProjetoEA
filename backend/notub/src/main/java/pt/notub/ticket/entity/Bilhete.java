@@ -3,6 +3,7 @@ package pt.notub.ticket.entity;
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "bilhete")
 public class Bilhete extends TituloTransporte {
 
     private boolean usado;
