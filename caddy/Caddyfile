@@ -3,7 +3,26 @@
 	acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
 }
 
-{$CADDY_DOMAIN} {
+http://localhost {
+	route {
+		reverse_proxy /api/* backend:8080
+		reverse_proxy /oauth2/authorization/* backend:8080
+		reverse_proxy /login/oauth2/* backend:8080
+		reverse_proxy /ws/* backend:8080
+		reverse_proxy /v3/api-docs* backend:8080
+		reverse_proxy /swagger-ui/* backend:8080
+		reverse_proxy /swagger-ui.html backend:8080
+
+		root * /srv/frontend
+		try_files {path} /index.html
+		file_server
+
+		header /sw.js Cache-Control "no-cache, no-store, must-revalidate"
+		header /manifest.json Cache-Control "public, max-age=604800"
+	}
+}
+
+https://{$CADDY_DOMAIN} {
 	route {
 		reverse_proxy /api/* backend:8080
 		reverse_proxy /oauth2/authorization/* backend:8080
