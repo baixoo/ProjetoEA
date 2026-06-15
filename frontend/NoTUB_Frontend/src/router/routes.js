@@ -114,10 +114,22 @@ const routes = [
   },
   {
     path: '/driver',
-    component: () => import('layouts/DriverLayout.vue'),
-    meta: { requiresAuth: true, requiresDriver: true },
+    component: () => import('layouts/DriverLayout.vue'), 
+    meta: { requiresAuth: true, requiresDriver: true }, 
     children: [
-      { path: '', name: 'driver-dashboard', component: () => import('pages/driver/DriverDashboardPage.vue') }
+      { 
+        path: 'trips',         
+        component: () => import('pages/TripsPage.vue')  // FIXME: ALTERAR para página certa
+      },
+      { 
+        path: 'scan',        
+        component: () => import('pages/driver/ScanDriverPage.vue') // FIXME: ALTERAR para página certa
+      },
+      { 
+        path: 'dashboard',     
+        component: () => import('pages/driver/DriverDashboardPage.vue') 
+        
+      }
     ]
   },
   {

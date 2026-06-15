@@ -1,7 +1,7 @@
 package pt.notub.trip.entity;
 
 import pt.notub.ticket.entity.TituloTransporte;
-
+import pt.notub.user.entity.Utilizador;
 import pt.notub.network.entity.Paragem;
 
 import jakarta.persistence.*;
@@ -13,6 +13,10 @@ public class ViagemUtilizador {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "utilizador_id") 
+    private Utilizador utilizador;
 
     private LocalDateTime inicio;
     private LocalDateTime fim;
@@ -40,6 +44,8 @@ public class ViagemUtilizador {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Utilizador getUtilizador() { return utilizador; }
+    public void setUtilizador(Utilizador utilizador) { this.utilizador = utilizador; }
     public LocalDateTime getInicio() { return inicio; }
     public void setInicio(LocalDateTime inicio) { this.inicio = inicio; }
     public LocalDateTime getFim() { return fim; }

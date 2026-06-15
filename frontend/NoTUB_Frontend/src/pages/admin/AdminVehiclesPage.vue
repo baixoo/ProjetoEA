@@ -1,7 +1,10 @@
 <template>
   <q-page class="admin-page" padding>
     <div class="page-header">
-      <h2 class="page-title">Veiculos</h2>
+      <div class="header-title-container">
+        <q-btn flat round dense icon="arrow_back" color="primary" @click="$router.push('/admin')" class="q-mr-xs" />
+        <h2 class="page-title">Veículos</h2>
+      </div>
       <q-btn icon="add" label="Novo Veiculo" color="primary" @click="openCreate" />
     </div>
 
@@ -101,5 +104,6 @@ async function handleDelete(row) {
 <style scoped>
 .admin-page { max-width: 1200px; margin: 0 auto; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.header-title-container { display: flex; align-items: center; gap: 8px; }
 .page-title { font-size: 22px; font-weight: 700; color: #0e2d24; margin: 0; }
 </style>

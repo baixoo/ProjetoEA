@@ -102,7 +102,17 @@ async function handleLogin() {
   loading.value = true
   try {
     await authStore.login(email.value, password.value)
-    await router.replace({ name: 'home' })
+    const userRole = authStore.user?.role 
+
+    if (userRole === 'MOTORISTA') {
+      await router.replace('/driver/scan')
+      
+    // } else if (userRole === 'ADMIN') {
+    //   await router.replace({ name: 'admin-dashboard' }) 
+      
+    } else {
+      await router.replace({ name: 'home' })
+    }
   } catch (e) {
     error.value = e.message || 'Erro ao iniciar sessao'
   } finally {

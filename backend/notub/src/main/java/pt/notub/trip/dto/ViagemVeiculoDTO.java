@@ -2,6 +2,7 @@ package pt.notub.trip.dto;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import pt.notub.network.dto.TrajetoDTO;
 import pt.notub.vehicle.dto.VeiculoDTO;
@@ -17,7 +18,9 @@ public class ViagemVeiculoDTO {
     private LocalDateTime startTime;
     private LocalDateTime finishTime;
 
-    private Long viagemPlaneadaId;
+    private String serviceId;
+    private String gtfsTripId;
+    private LocalTime horaPartidaPlaneada;
     private Long pontoAtualId;
 
     public ViagemVeiculoDTO() {}
@@ -38,8 +41,12 @@ public class ViagemVeiculoDTO {
     public LocalDateTime getFinishTime() { return finishTime; }
     public void setFinishTime(LocalDateTime finishTime) { this.finishTime = finishTime; }
 
-    public Long getViagemPlaneadaId() { return viagemPlaneadaId; }
-    public void setViagemPlaneadaId(Long viagemPlaneadaId) { this.viagemPlaneadaId = viagemPlaneadaId; }
+    public String getServiceId() { return serviceId; }
+    public void setServiceId(String serviceId) { this.serviceId = serviceId; }
+    public String getGtfsTripId() { return gtfsTripId; }
+    public void setGtfsTripId(String gtfsTripId) { this.gtfsTripId = gtfsTripId; }
+    public LocalTime getHoraPartidaPlaneada() { return horaPartidaPlaneada; }
+    public void setHoraPartidaPlaneada(LocalTime horaPartidaPlaneada) { this.horaPartidaPlaneada = horaPartidaPlaneada; }
     public Long getPontoAtualId() { return pontoAtualId; }
     public void setPontoAtualId(Long pontoAtualId) { this.pontoAtualId = pontoAtualId; }
 }

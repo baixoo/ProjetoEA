@@ -111,13 +111,6 @@
               <span class="status-label">Zonas:</span>
               <span class="status-badge badge--active">{{ activePassZoneLabel }}</span>
             </div>
-            <div class="status-item points-item">
-              <span class="status-label">Pontos Acumulados:</span>
-              <span class="points-badge">
-                <q-icon name="stars" size="16px" color="amber-8" />
-                {{ pointsBalance }} Pts
-              </span>
-            </div>
           </div>
         </div>
       </div> 
@@ -153,6 +146,7 @@ const authStore = useAuthStore()
 const boardingOpen = ref(false)
 const selectedVehicleTrip = ref(null)
 const selectedStop = ref(null)
+const newPlateRead = ref(null)
 const titlesDialogOpen = ref(false)
 
 const scannerRunning = ref(false)
@@ -164,7 +158,6 @@ const ignoredScanText = ref('')
 const tripErrorMsg = ref('')
 let html5QrcodeInstance = null
 
-const pointsBalance = computed(() => authStore.user?.nrPontos ?? 0)
 const unusedTicketsCount = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado).length)
 const activePassName = computed(() => {
   if (!ticketsStore.activePass) return null
@@ -185,11 +178,6 @@ const activePassZoneLabel = computed(() => {
 
 onMounted(async () => {
   await authStore.fetchUser()
-
-  if (authStore.user?.role === 'MOTORISTA') {
-    startScanner()
-    return
-  }
 
   // Check if we are already in an active trip
   const active = await viagensStore.fetchActiveTrip()
@@ -304,57 +292,11 @@ async function handleScannedCode(text) {
   if (ignoredScanText.value && ignoredScanText.value === text) return
   scanLocked.value = true
 
-  if (authStore.user?.role === 'MOTORISTA') {
-    let veiculoId = null
-    let matricula = null
-    
-    try {
-      const data = JSON.parse(text)
-      veiculoId = data.veiculoId || data.viagemVeiculoId
-      matricula = data.matricula
-    } catch {
-      matricula = text.trim()
-    }
-    
-    try {
-      scanStatus.value = 'A validar veículo...'
-      const response = await fetch('/api/driver/veiculos', {
-        headers: { Authorization: `Bearer ${authStore.token}` }
-      })
-      if (response.ok) {
-        const vehicles = await response.json()
-        let matched = null
-        if (veiculoId) {
-          matched = vehicles.find(v => Number(v.id) === Number(veiculoId))
-        }
-        if (!matched && matricula) {
-          const cleanMat = matricula.toLowerCase().trim()
-          matched = vehicles.find(v => v.matricula?.toLowerCase().trim() === cleanMat)
-        }
-        
-        if (matched) {
-          await stopScanner()
-          router.push(`/driver?veiculoId=${matched.id}`)
-          return
-        }
-      }
-      
-      scanStatus.value = 'Veículo não encontrado'
-      scanLocked.value = false
-    } catch (e) {
-      console.error(e)
-      scanStatus.value = 'Erro ao processar'
-      scanLocked.value = false
-    }
-    return
-  }
-
   await viagensStore.fetchVehicleTrips()
 
   lastScannedText.value = text
   let tripMatched = false
 
-  // 1. Tentar JSON
   try {
     const data = JSON.parse(text)
     console.log('Trying match on JSON...')
@@ -366,7 +308,10 @@ async function handleScannedCode(text) {
       selectedVehicleTrip.value = tripMatch.id
       tripMatched = true
       const stopMatch = (viagensStore.stops || []).find(s => Number(s.id) === Number(sId))
-      if (stopMatch) selectedStop.value = stopMatch.id
+      if (stopMatch) {
+        selectedStop.value = stopMatch.id
+        console.log('✅ JSON match found. VehicleTrip ID:', tripMatch.id, 'Stop ID:', stopMatch.id)
+      }
     }
   } catch { 
     console.log('Not Json...') 
@@ -387,6 +332,7 @@ async function handleScannedCode(text) {
     if (tripByPlate) {
       console.log('✅ Match on plate found:', tripByPlate.veiculo.matricula);
       selectedVehicleTrip.value = tripByPlate.id;
+      newPlateRead.value = true;
       tripMatched = true;
     }
   }
@@ -419,34 +365,32 @@ const selectedBusNumber = computed(() => {
   return trip?.veiculo?.matricula || '728'
 })
 
-function triggerBoarding() {
-  console.log('triggerBoarding chamado', {
-    selectedVehicleTrip: selectedVehicleTrip.value,
-    hasTickets: unusedTicketsCount.value > 0,
-    hasPass: !!activePassName.value,
-    selectedStop: selectedStop.value
-  })
-
+async function triggerBoarding() {
   if (!selectedVehicleTrip.value) return
-
+  
   const hasTickets = unusedTicketsCount.value > 0
   const hasPass = !!activePassName.value
-
+  
   if (!hasTickets && !hasPass) {
     ignoredScanText.value = lastScannedText.value
     titlesDialogOpen.value = true
     stopScanner()
     return
   }
-
-  if (!selectedStop.value) {
-    console.log('Sem paragem, a detetar...')
-    detectNearestStop()
-    return
+  
+  if (newPlateRead.value) {
+    await detectCurrentStop()
+    newPlateRead.value = false
   }
 
-  console.log('A abrir boardingOpen!')
   boardingOpen.value = true
+
+  console.log('triggerBoarding chamado', {
+    selectedVehicleTrip: selectedVehicleTrip.value,
+    hasTickets: hasTickets,
+    hasPass: hasPass,
+    selectedStop: selectedStop.value 
+  })
 }
 
 function cancelTitlesDialog() {
@@ -462,7 +406,8 @@ function goToTicketsFromDialog() {
   router.push('/tickets')
 }
 
-async function detectNearestStop() {
+async function detectCurrentStop() {
+  console.log('Detecting current stop for VehicleTrip ID:', selectedVehicleTrip.value)
   try {
     const resp = await fetch(`/api/viagens/veiculo/${selectedVehicleTrip.value}/paragem-atual`, {
       headers: { Authorization: `Bearer ${authStore.token}` }
@@ -482,9 +427,11 @@ async function detectNearestStop() {
 
     const data = await resp.json()
     selectedStop.value = data.paragemId
+    console.log('DetectCurrentStop paragem atual detectada:', data)
     boardingOpen.value = true
 
   } catch {
+    console.error('Erro ao detectar paragem atual, a usar fallback')
     fallbackStop()
   }
 }
@@ -494,6 +441,7 @@ function fallbackStop() {
   const primeiro = trip?.trajeto?.pontosDePassagem?.[0]
   if (primeiro?.paragem?.id) {
     selectedStop.value = primeiro.paragem.id
+    console.log('FallbackStop: Usando primeira paragem do trajeto:', primeiro.paragem.nome)
   }
   boardingOpen.value = true
 }

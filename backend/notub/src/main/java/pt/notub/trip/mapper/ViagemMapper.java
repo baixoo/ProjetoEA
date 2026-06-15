@@ -20,6 +20,7 @@ public final class ViagemMapper {
         if (vu == null) return null;
         ViagemDTO dto = new ViagemDTO();
         dto.setId(vu.getId());
+        dto.setUtilizadorId(vu.getUtilizador().getId());
         dto.setInicio(vu.getInicio());
         dto.setFim(vu.getFim());
         dto.setEstado(vu.getEstado());
@@ -46,9 +47,10 @@ public final class ViagemMapper {
         dto.setFinishTime(vv.getFinishTime());
         // dto.setTripId(vv.getTripId());
 
-        if (vv.getViagemPlaneada() != null) {
-            dto.setViagemPlaneadaId(vv.getViagemPlaneada().getId());
-        }
+        dto.setServiceId(vv.getServiceId());
+        dto.setGtfsTripId(vv.getGtfsTripId());
+        dto.setHoraPartidaPlaneada(vv.getHoraPartidaPlaneada());
+
         if (vv.getPontoAtual() != null) {
             dto.setPontoAtualId(vv.getPontoAtual().getId());
         }
@@ -73,9 +75,10 @@ public final class ViagemMapper {
         dto.setStartTime(vv.getStartTime());
         dto.setFinishTime(vv.getFinishTime());
 
-        if (vv.getViagemPlaneada() != null) {
-            dto.setViagemPlaneadaId(vv.getViagemPlaneada().getId());
-        }
+        dto.setServiceId(vv.getServiceId());
+        dto.setGtfsTripId(vv.getGtfsTripId());
+        dto.setHoraPartidaPlaneada(vv.getHoraPartidaPlaneada());
+
         if (vv.getPontoAtual() != null) {
             dto.setPontoAtualId(vv.getPontoAtual().getId());
         }

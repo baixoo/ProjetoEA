@@ -21,6 +21,7 @@
             @focus="stopFocused = true"
             @blur="handleBlur"
             @input="onInput"
+            @click="onInputClick"
             autocomplete="off"
           />
           <button v-if="selectedStopId" class="clear-btn" @click="clearStop">&times;</button>
@@ -57,48 +58,67 @@
         </div>
 
         <template v-if="data.linhas.length > 0">
-          <div class="direction-toggle">
-            <button
-              class="dir-btn"
-              :class="{ 'dir-btn--active': selectedDirection === 'IDA' }"
-              @click="selectedDirection = 'IDA'"
-            >Ida</button>
-            <button
-              class="dir-btn"
-              :class="{ 'dir-btn--active': selectedDirection === 'VOLTA' }"
-              @click="selectedDirection = 'VOLTA'"
-            >Volta</button>
+          <div v-if="displayRoutes.length === 0" class="no-results">
+            <p>Sem trajetos disponiveis.</p>
           </div>
 
-          <div v-if="filteredLinhas.length === 0" class="no-results">
-            <p>Sem trajetos disponiveis para {{ selectedDirection === 'IDA' ? 'Ida' : 'Volta' }}.</p>
-          </div>
-
-          <div v-for="linha in filteredLinhas" :key="linha.linhaId" class="linha-card">
-            <div class="linha-card-header" @click="toggleLinha(linha.linhaId)">
+          <div v-for="route in displayRoutes" :key="route.key" class="linha-card">
+            <div class="linha-card-header" @click="toggleLinha(route.key)">
               <div class="linha-info">
                 <q-icon name="directions_bus" size="18px" color="primary" />
-                <span class="linha-nome">{{ linha.linhaNome }}</span>
-                <span class="linha-destino">- {{ linha.trajetos[0].destinoFinal }}</span>
+                <span class="linha-nome">{{ route.displayName }}</span>
               </div>
               <q-icon
-                :name="expandedLinhas[linha.linhaId] ? 'expand_less' : 'expand_more'"
+                :name="expandedLinhas[route.key] ? 'expand_less' : 'expand_more'"
                 size="20px"
                 color="grey-6"
               />
             </div>
 
-            <div v-if="expandedLinhas[linha.linhaId]" class="linha-card-body">
-              <div v-if="linha.trajetos[0].proximosPasses.length === 0" class="no-passes">
+            <div v-if="expandedLinhas[route.key]" class="linha-card-body">
+              <div v-if="route.proximosPasses.length === 0" class="no-passes">
                 Sem proximas passagens disponiveis
               </div>
               <div
-                v-for="(passe, pIdx) in linha.trajetos[0].proximosPasses"
-                :key="pIdx"
+                v-for="(passe, pIdx) in route.proximosPasses"
+                :key="`${route.key}-${passe.hora}-${pIdx}`"
                 class="passe-item"
+                :class="{ 'passe-item--delayed': passe.tempoAtraso > 0 }"
               >
-                <span class="passe-time">{{ passe.hora }}</span>
-                <span class="passe-wait">{{ passe.esperaMinutos }} min</span>
+                <!-- Left: wait (hero) + absolute time group -->
+                <div class="passe-time-group">
+                  <span class="passe-wait">{{ formatWait(passe.esperaMinutos) }}</span>
+                  <div class="passe-abs-group">
+                    <!-- If delayed: show new time in red -->
+                    <span
+                      class="passe-abs"
+                      :class="{ 'passe-abs--delayed': passe.tempoAtraso > 0 }"
+                    >{{ passe.horaPrevista || passe.hora }}</span>
+                    <!-- If delayed: show original planned time struck through -->
+                    <span
+                      v-if="passe.horaPrevista && passe.horaPrevista !== passe.hora"
+                      class="passe-abs-planned"
+                    >{{ passe.hora }}</span>
+                  </div>
+                </div>
+
+                <!-- Right: status badge + occupancy, strictly right-aligned -->
+                <div class="passe-right">
+                  <span
+                    v-if="hasDelayInfo(passe)"
+                    class="passe-status"
+                    :class="passe.tempoAtraso > 0 ? 'passe-status--delayed' : 'passe-status--on-time'"
+                  >
+                    {{ passe.tempoAtraso > 0 ? `+${passe.tempoAtraso} min` : 'A horas' }}
+                  </span>
+                  <span
+                    class="passe-occupancy"
+                    :class="{ 'passe-occupancy--unavailable': !hasOccupancy(passe) }"
+                  >
+                    <q-icon name="people" size="14px" />
+                    {{ occupancyLabel(passe) }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -114,9 +134,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
+import {
+  buildDisplayRoutes,
+  formatWait,
+  hasDelayInfo,
+  hasOccupancy,
+  occupancyLabel
+} from 'src/utils/stopSchedule'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -127,22 +154,13 @@ const stopFocused = ref(false)
 const loading = ref(false)
 const searched = ref(false)
 const data = ref(null)
-const selectedDirection = ref('IDA')
 const expandedLinhas = reactive({})
 
 let allStops = []
+let refreshTimer = null
 const filteredOptions = ref([])
 
-const filteredLinhas = computed(() => {
-  if (!data.value) return []
-  return data.value.linhas.filter(linha => {
-    const trajeto = linha.trajetos.find(t => t.direcao === selectedDirection.value)
-    return !!trajeto
-  }).map(linha => {
-    const trajeto = linha.trajetos.find(t => t.direcao === selectedDirection.value)
-    return { ...linha, trajetos: [trajeto] }
-  })
-})
+const displayRoutes = computed(() => buildDisplayRoutes(data.value))
 
 onMounted(async () => {
   try {
@@ -156,15 +174,35 @@ onMounted(async () => {
   } catch (e) {
     console.error(e)
   }
+
+  refreshTimer = setInterval(() => {
+    if (selectedStopId.value && !loading.value) {
+      loadProximosPasses(selectedStopId.value, true)
+    }
+  }, 30000)
 })
+
+onBeforeUnmount(() => clearInterval(refreshTimer))
 
 function onInput() {
   if (selectedStopId.value) {
+    // User started typing again after a selection — reset and reopen dropdown
     selectedStopId.value = null
     data.value = null
     searched.value = false
+    for (const key in expandedLinhas) {
+      delete expandedLinhas[key]
+    }
   }
+  stopFocused.value = true   // always reopen dropdown while typing
   filterOptions()
+}
+
+// Re-open dropdown when input is clicked while a stop is already selected
+function onInputClick() {
+  if (selectedStopId.value) {
+    stopFocused.value = true
+  }
 }
 
 function filterOptions() {
@@ -184,6 +222,9 @@ function selectStop(opt) {
   stopQuery.value = opt.label
   selectedStopId.value = opt.value
   stopFocused.value = false
+  for (const key in expandedLinhas) {
+    delete expandedLinhas[key]
+  }
   loadProximosPasses(opt.value)
 }
 
@@ -192,6 +233,9 @@ function clearStop() {
   selectedStopId.value = null
   data.value = null
   searched.value = false
+  for (const key in expandedLinhas) {
+    delete expandedLinhas[key]
+  }
   filterOptions()
 }
 
@@ -199,12 +243,13 @@ function handleBlur() {
   setTimeout(() => { stopFocused.value = false }, 150)
 }
 
-function toggleLinha(linhaId) {
-  expandedLinhas[linhaId] = !expandedLinhas[linhaId]
+// toggleLinha now expands or collapses by route.key
+function toggleLinha(routeKey) {
+  expandedLinhas[routeKey] = !expandedLinhas[routeKey]
 }
 
-async function loadProximosPasses(stopId) {
-  loading.value = true
+async function loadProximosPasses(stopId, silent = false) {
+  if (!silent) loading.value = true
   searched.value = true
 
   try {
@@ -219,17 +264,20 @@ async function loadProximosPasses(stopId) {
     if (response.ok) {
       data.value = await response.json()
       if (data.value) {
-        const hasIda = data.value.linhas.some(l => l.trajetos.some(t => t.direcao === 'IDA'))
-        selectedDirection.value = hasIda ? 'IDA' : 'VOLTA'
         for (const linha of data.value.linhas) {
-          expandedLinhas[linha.linhaId] = true
+          for (const trajeto of linha.trajetos) {
+            const key = `${linha.linhaId}-${trajeto.trajetoId}`
+            if (expandedLinhas[key] === undefined) {
+              expandedLinhas[key] = true
+            }
+          }
         }
       }
     }
   } catch (e) {
     console.error(e)
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 </script>
@@ -386,36 +434,6 @@ async function loadProximosPasses(stopId) {
   border: 1px solid #e2e8f0;
 }
 
-.direction-toggle {
-  display: flex;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
-  margin-bottom: 12px;
-}
-
-.dir-btn {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  background: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
-  cursor: pointer;
-  border-right: 1px solid #e2e8f0;
-  transition: all 0.15s;
-}
-
-.dir-btn:last-child {
-  border-right: none;
-}
-
-.dir-btn--active {
-  background: #0369a1;
-  color: #fff;
-}
-
 .linha-card {
   background: #fff;
   border-radius: 12px;
@@ -449,15 +467,9 @@ async function loadProximosPasses(stopId) {
   font-size: 15px;
   font-weight: 700;
   color: #1e293b;
-  white-space: nowrap;
-}
-
-.linha-destino {
-  font-size: 13px;
-  color: #64748b;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .linha-card-body {
@@ -471,28 +483,126 @@ async function loadProximosPasses(stopId) {
   gap: 6px;
 }
 
+/* ── passe row ────────────────────────────────────────── */
 .passe-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  gap: 10px;
+  padding: 11px 14px;
   background: #f8fafc;
-  border-radius: 8px;
+  border-radius: 10px;
+  border-left: 3px solid transparent;
+  transition: border-color 0.15s;
 }
 
-.passe-time {
-  font-size: 16px;
-  font-weight: 700;
-  color: #0369a1;
+.passe-item + .passe-item {
+  margin-top: 7px;
+}
+
+.passe-item--delayed {
+  border-left-color: #ef4444;
+  background: #fff8f8;
+}
+
+/* ── left block: wait hero + absolute time ──────────── */
+.passe-time-group {
+  display: flex;
+  align-items: center;   /* centre the whole left block vertically */
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
 }
 
 .passe-wait {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1e293b;        /* neutral – no semantic colour by default */
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+
+.passe-abs-group {
+  display: flex;
+  align-items: center;   /* centre normal and strikethrough times on the same axis */
+  gap: 5px;
+  line-height: 1;
+}
+
+.passe-abs {
   font-size: 13px;
   font-weight: 600;
-  color: #028e5c;
-  background: #f0fdf4;
-  padding: 4px 10px;
-  border-radius: 12px;
+  color: #64748b;
+}
+
+/* Red absolute time when the bus is delayed */
+.passe-abs--delayed {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* Strikethrough for original planned time */
+.passe-abs-planned {
+  font-size: 12px;
+  color: #94a3b8;
+  text-decoration: line-through;
+  text-decoration-color: #94a3b8;
+}
+
+/* ── right block: status badge + occupancy ──────────── */
+.passe-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.passe-status,
+.passe-occupancy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.passe-status--delayed {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.passe-status--on-time {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+/* Occupancy always right-aligned */
+.passe-occupancy {
+  color: #334155;
+  background: #e2e8f0;
+}
+
+.passe-occupancy--unavailable {
+  color: #94a3b8;
+  background: #f1f5f9;
+  font-style: italic;
+}
+
+@media (max-width: 360px) {
+  .passe-time-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .passe-right {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
 }
 
 .no-passes {

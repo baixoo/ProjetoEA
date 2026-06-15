@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class ViagemDTO {
 
     private Long id;
+    private Long utilizadorId;
     private LocalDateTime inicio;
     private LocalDateTime fim;
     private EstadoViagem estado;
@@ -22,6 +23,8 @@ public class ViagemDTO {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Long getUtilizadorId() { return utilizadorId; }
+    public void setUtilizadorId(Long utilizadorId) { this.utilizadorId = utilizadorId; }
     public LocalDateTime getInicio() { return inicio; }
     public void setInicio(LocalDateTime inicio) { this.inicio = inicio; }
     public LocalDateTime getFim() { return fim; }

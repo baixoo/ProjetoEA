@@ -6,36 +6,66 @@
           <img src="/assets/logo.png" alt="NoTUB" class="driver-logo" />
           <span class="driver-title-text">Painel do Motorista</span>
         </q-toolbar-title>
+        
         <div class="driver-status" v-if="driverStore.selectedVehicleId">
           <span class="status-dot" :class="driverStore.connected ? 'connected' : 'disconnected'"></span>
           <span class="status-text">{{ driverStore.connected ? 'Conectado' : 'Desconectado' }}</span>
         </div>
-        <q-btn flat dense icon="home" label="Sair" @click="sair" />
+
+        <q-btn flat dense icon="logout" label="Sair" @click="handleLogout" />
       </q-toolbar>
     </q-header>
 
-    <q-page-container>
+    <q-page-container class="driver-container">
       <router-view />
     </q-page-container>
+
+    <q-footer class="bg-transparent">
+      <AppTabBarDriver :active-tab="activeTab" />
+    </q-footer>
   </q-layout>
 </template>
 
 <script setup>
+
+// import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDriverStore } from 'src/stores/driver'
+import { useAuthStore } from 'src/stores/auth'
+
+import AppTabBarDriver from 'components/AppTabBarDriver.vue'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const driverStore = useDriverStore()
 
-function sair() {
-  driverStore.disconnect()
-  router.push('/home')
+// const isVehicleActive = computed(() => {
+//   return driverStore.connected || !!driverStore.selectedVehicleId
+// })
+
+function handleLogout() {
+
+  if (typeof driverStore.clearVehicle === 'function') {
+    driverStore.clearVehicle()
+  } else {
+    driverStore.selectedVehicleId = null
+    driverStore.matriculaAtiva = null
+    localStorage.removeItem('driver_veiculo_id')
+    localStorage.removeItem('driver_matricula')
+  }
+
+  authStore.logout()
+  router.push('/signin')
 }
 </script>
 
 <style scoped>
 .driver-header {
   background: #0e2d24;
+}
+
+.driver-container {
+  padding-bottom: 60px !important; 
 }
 
 .driver-toolbar-title {

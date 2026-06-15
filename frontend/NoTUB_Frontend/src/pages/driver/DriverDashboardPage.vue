@@ -88,6 +88,19 @@
             </div>
           </div>
 
+          <!-- Stops list preview -->
+          <div v-if="selectedTrajeto && selectedTrajeto.paragens" class="setup-section paragens-preview animate-fade">
+            <span class="section-label">Paragens do Trajeto ({{ selectedTrajeto.paragens.length }})</span>
+            <div class="paragens-list-inline">
+              <div v-for="(p, idx) in selectedTrajeto.paragens" :key="p.pontoPassagemId" class="paragem-inline-item">
+                <span class="paragem-ordem">{{ p.ordem + 1 }}.</span>
+                <span class="paragem-nome">{{ p.nome }}</span>
+                <q-badge color="grey-3" text-color="grey-8" class="q-ml-xs" style="font-size: 9px; padding: 2px 4px;">Z{{ p.zona }}</q-badge>
+                <q-icon v-if="idx < selectedTrajeto.paragens.length - 1" name="arrow_forward" size="12px" color="grey-4" class="q-mx-xs" />
+              </div>
+            </div>
+          </div>
+
           <!-- Schedule selection -->
           <div v-if="selectedTrajetoId" class="setup-section animate-fade">
             <span class="section-label">Partida Programada (Janela 2h)</span>
@@ -100,10 +113,10 @@
             <div v-else class="schedule-grid">
               <button
                 v-for="sched in driverStore.scheduleOptions"
-                :key="sched.id"
+                :key="sched.gtfsTripId"
                 class="schedule-btn"
-                :class="{ 'schedule-btn--selected': selectedViagemId === sched.id }"
-                @click="selectedViagemId = sched.id"
+                :class="{ 'schedule-btn--selected': selectedGtfsTripId === sched.gtfsTripId }"
+                @click="selectedGtfsTripId = sched.gtfsTripId; selectedServiceId = sched.serviceId"
               >
                 <q-icon name="schedule" size="16px" />
                 <span>{{ formatTimeOnly(sched.horaPartida) }}</span>
@@ -115,7 +128,7 @@
           <!-- Start Button -->
           <button
             class="btn-start"
-            :disabled="!selectedTrajetoId || !selectedViagemId || driverStore.loading"
+            :disabled="!selectedTrajetoId || !selectedGtfsTripId || driverStore.loading"
             @click="startTrip"
           >
             <q-spinner v-if="driverStore.loading" size="20px" class="q-mr-sm" />
@@ -210,70 +223,27 @@
               <div class="metric-label">Lotação Atual</div>
             </div>
           </div>
-
-          <!-- VALIDATION LIVE FEED -->
-          <div class="feed-card">
-            <div class="feed-header">
-              <q-icon name="wifi_tethering" size="18px" color="primary" />
-              <span>Validações em tempo real</span>
-            </div>
-
-            <div class="feed-body">
-              <transition-group name="feed-slide" tag="div" class="feed-list">
-                <div
-                  v-for="n in driverStore.notifications"
-                  :key="n.id"
-                  class="feed-item"
-                  :class="n.valido ? 'feed-valid' : 'feed-invalid'"
-                >
-                  <div class="feed-dot" :class="n.valido ? 'green' : 'red'"></div>
-                  <div class="feed-details">
-                    <span class="feed-passenger">{{ n.nomePassageiro }}</span>
-                    <span class="feed-ticket">{{ n.tituloTipo }}</span>
-                  </div>
-                  <div class="feed-time">
-                    {{ formatTime(n.timestamp) }}
-                  </div>
-                </div>
-              </transition-group>
-
-              <div v-if="driverStore.notifications.length === 0" class="feed-empty">
-                <q-icon name="sensors" size="36px" color="grey-4" />
-                <p>A aguardar validações a bordo...</p>
-              </div>
-            </div>
-
-            <div class="feed-footer" v-if="driverStore.notifications.length > 0">
-              <button class="clear-feed-btn" @click="driverStore.clearNotifications()">
-                LIMPAR FEED
-              </button>
-            </div>
-          </div>
-
         </div>
-
       </div>
-
-      <!-- FOOTER -->
-      <footer class="realtime-footer">
-        <span>Monitorização em tempo real. ✨</span>
-      </footer>
-
     </div>
   </q-page>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useDriverStore } from 'src/stores/driver'
 
-const route = useRoute()
 const router = useRouter()
 const driverStore = useDriverStore()
 
 const selectedTrajetoId = ref(null)
-const selectedViagemId = ref(null)
+const selectedGtfsTripId = ref(null)
+const selectedServiceId = ref(null)
+
+const selectedTrajeto = computed(() => {
+  return driverStore.trajetos.find(t => t.id === selectedTrajetoId.value)
+})
 
 // Long press refs
 const isPressing = ref(false)
@@ -282,12 +252,10 @@ let pressInterval = null
 
 onMounted(async () => {
   await driverStore.fetchVehicles()
+  const savedVehicleId = driverStore.selectedVehicleId
   
-  // Resolve vehicle from query parameter
-  const queryVeiculoId = route.query.veiculoId
-  if (queryVeiculoId) {
-    const vId = Number(queryVeiculoId)
-    selecionarVeiculo(vId)
+  if (savedVehicleId) {
+    selecionarVeiculo(Number(savedVehicleId))
   }
 })
 
@@ -357,7 +325,8 @@ const isFinalStop = computed(() => {
 watch(selectedTrajetoId, async (newId) => {
   if (newId) {
     await driverStore.fetchScheduleOptions(newId)
-    selectedViagemId.value = null
+    selectedGtfsTripId.value = null
+    selectedServiceId.value = null
   } else {
     driverStore.scheduleOptions = []
   }
@@ -395,14 +364,15 @@ function trocarBus() {
   stopMetricsPolling()
   driverStore.disconnect()
   selectedTrajetoId.value = null
-  selectedViagemId.value = null
+  selectedGtfsTripId.value = null
+  selectedServiceId.value = null
   // Clear query params
   router.replace('/driver')
 }
 
 async function startTrip() {
-  if (!selectedTrajetoId.value || !selectedViagemId.value || !driverStore.selectedVehicleId) return
-  await driverStore.startScheduledViagem(driverStore.selectedVehicleId, selectedTrajetoId.value, selectedViagemId.value)
+  if (!selectedTrajetoId.value || !selectedGtfsTripId.value || !selectedServiceId.value || !driverStore.selectedVehicleId) return
+  await driverStore.startScheduledViagem(driverStore.selectedVehicleId, selectedTrajetoId.value, selectedServiceId.value, selectedGtfsTripId.value)
 }
 
 // Long press button handling
@@ -419,7 +389,7 @@ function handlePressStart() {
       triggerAction()
       resetPress()
     }
-  }, 50) // 50 * 100 = 5000ms (5 seconds)
+  }, 30) // 30 * 100 = 3000ms (3 seconds)
 }
 
 function handlePressEnd() {
@@ -439,7 +409,8 @@ async function triggerAction() {
   if (isFinalStop.value) {
     await driverStore.endViagem()
     selectedTrajetoId.value = null
-    selectedViagemId.value = null
+    selectedGtfsTripId.value = null
+    selectedServiceId.value = null
   } else {
     await driverStore.advanceStop()
   }
@@ -451,15 +422,6 @@ function formatTimeOnly(timeStr) {
   return `${parts[0]}:${parts[1]}`
 }
 
-function formatTime(timestamp) {
-  if (!timestamp) return ''
-  try {
-    const d = new Date(timestamp)
-    return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  } catch {
-    return ''
-  }
-}
 </script>
 
 <style scoped>
@@ -1244,6 +1206,31 @@ function formatTime(timestamp) {
 }
 
 /* Footer */
+.paragens-list-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.paragem-inline-item {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.paragem-ordem {
+  font-weight: 700;
+  color: #028e5c;
+  margin-right: 2px;
+}
+
 .realtime-footer {
   text-align: center;
   color: #94a3b8;

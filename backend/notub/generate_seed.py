@@ -238,6 +238,8 @@ def main():
     lines.append("DROP TABLE IF EXISTS pontos_de_passagem CASCADE;")
     lines.append("DROP TABLE IF EXISTS servico CASCADE;")
     lines.append("DROP TABLE IF EXISTS viagem CASCADE;")
+    lines.append("DROP TABLE IF EXISTS viagem_utilizador CASCADE;")
+    lines.append("DROP TABLE IF EXISTS autocarro CASCADE;")
     lines.append(
         "CREATE TABLE IF NOT EXISTS servico ("
         "id BIGSERIAL PRIMARY KEY, "
@@ -259,15 +261,6 @@ def main():
         "ponto_passagem_id BIGINT NOT NULL REFERENCES ponto_passagem(id) ON DELETE CASCADE, "
         "servico_id BIGINT NOT NULL REFERENCES servico(id), "
         "gtfs_trip_id VARCHAR(255) NOT NULL"
-        ");"
-    )
-    lines.append(
-        "CREATE TABLE IF NOT EXISTS viagem ("
-        "id BIGSERIAL PRIMARY KEY, "
-        "trajeto_id BIGINT NOT NULL REFERENCES trajeto(id) ON DELETE CASCADE, "
-        "service_id VARCHAR(255) NOT NULL, "
-        "hora_partida TIME NOT NULL, "
-        "gtfs_trip_id VARCHAR(255) NOT NULL UNIQUE"
         ");"
     )
     lines.append("")
@@ -321,11 +314,9 @@ def main():
     trajeto_id = 0
     pdp_id = 0
     autocarro_id = 0
-    viagem_id = 0
     horario_id = 0
     linhas_usadas = 0
     trajetos_usados = 0
-    total_viagens = 0
     total_horarios = 0
 
     for route_id in sorted(routes.keys()):
@@ -404,13 +395,6 @@ def main():
                     linha_viagens_uteis += 1
 
                 first_dep_secs = time_to_seconds(stop_times[tid][0]["departure"])
-                viagem_id += 1
-                total_viagens += 1
-                lines.append(
-                    f"INSERT INTO viagem (id, trajeto_id, service_id, hora_partida, gtfs_trip_id) "
-                    f"VALUES ({viagem_id}, {this_trajeto_id}, '{sql_escape(service_id)}', "
-                    f"'{seconds_to_time(first_dep_secs)}', '{sql_escape(tid)}') ON CONFLICT (id) DO NOTHING;"
-                )
 
                 for current_pdp_id, diff_secs in trajeto_pdps:
                     horario_id += 1
@@ -433,11 +417,8 @@ def main():
             matricula = f"PT-{short[:3].upper()}-{autocarro_id:02d}"
             nlugares = random.choice([40, 50, 60])
             lines.append(
-                f"INSERT INTO veiculo (id, matricula, n_lugares, lotacao_atual, tempo_atraso, dtype, linha_id) "
-                f"VALUES ({autocarro_id}, '{matricula}', {nlugares}, 0, 0, 'Autocarro', {linha_id}) ON CONFLICT (id) DO NOTHING;"
-            )
-            lines.append(
-                f"INSERT INTO autocarro (id) VALUES ({autocarro_id}) ON CONFLICT (id) DO NOTHING;"
+                f"INSERT INTO veiculo (id, matricula, n_lugares, lotacao_atual, tempo_atraso, tipo, linha_id) "
+                f"VALUES ({autocarro_id}, '{matricula}', {nlugares}, 0, 0, 'AUTOCARRO', {linha_id}) ON CONFLICT (id) DO NOTHING;"
             )
 
     lines.append("")
@@ -491,8 +472,6 @@ def main():
     lines.append(f"SELECT setval('linha_id_seq', {linhas_usadas});")
     lines.append(f"SELECT setval('trajeto_id_seq', {trajetos_usados});")
     lines.append(f"SELECT setval('ponto_passagem_id_seq', {pdp_id});")
-    lines.append(f"SELECT setval('viagem_id_seq', {viagem_id});")
-    lines.append(f"SELECT setval('horario_id_seq', {horario_id});")
     lines.append(f"SELECT setval('veiculo_id_seq', {autocarro_id});")
     lines.append(f"SELECT setval('tarifa_id_seq', {tarifa_id});")
     lines.append("")
@@ -509,7 +488,6 @@ def main():
     print(f"  Linhas:     {linhas_usadas}")
     print(f"  Trajetos:   {trajetos_usados}")
     print(f"  Pontos:     {pdp_id}")
-    print(f"  Viagens:    {total_viagens}")
     print(f"  Horários:   {total_horarios}")
     print(f"  Autocarros: {autocarro_id}")
     print(f"  Tarifas:    {tarifa_id}")

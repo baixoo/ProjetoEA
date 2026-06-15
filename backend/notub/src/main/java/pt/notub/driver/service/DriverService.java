@@ -24,15 +24,18 @@ import pt.notub.network.entity.Horario;
 import pt.notub.network.repository.TrajetoRepository;
 import pt.notub.network.repository.HorarioRepository;
 import pt.notub.trip.dto.ViagemVeiculoDTO;
-import pt.notub.trip.entity.Viagem;
+import pt.notub.trip.entity.Monitorizacao;
 import pt.notub.trip.entity.ViagemVeiculo;
 import pt.notub.trip.mapper.ViagemMapper;
 import pt.notub.trip.repository.ViagemVeiculoRepository;
-import pt.notub.trip.repository.ViagemRepository;
 import pt.notub.vehicle.dto.VeiculoDTO;
 import pt.notub.vehicle.entity.Veiculo;
 import pt.notub.vehicle.mapper.VeiculoMapper;
 import pt.notub.vehicle.repository.VeiculoRepository;
+import pt.notub.trip.repository.MonitorizacaoRepository;
+
+import pt.notub.trip.service.ViagemService;
+import pt.notub.user.entity.Utilizador;
 
 @Service
 public class DriverService {
@@ -40,19 +43,23 @@ public class DriverService {
     private final VeiculoRepository veiculoRepository;
     private final ViagemVeiculoRepository viagemVeiculoRepository;
     private final TrajetoRepository trajetoRepository;
-    private final ViagemRepository viagemRepository;
     private final HorarioRepository horarioRepository;
+
+    private final ViagemService viagemService;
+    private final MonitorizacaoRepository monitorizacaoRepository;
 
     public DriverService(VeiculoRepository veiculoRepository,
                          ViagemVeiculoRepository viagemVeiculoRepository,
                          TrajetoRepository trajetoRepository,
-                         ViagemRepository viagemRepository,
-                         HorarioRepository horarioRepository) {
+                         HorarioRepository horarioRepository,
+                         ViagemService viagemService,
+                         MonitorizacaoRepository monitorizacaoRepository) {
         this.veiculoRepository = veiculoRepository;
         this.viagemVeiculoRepository = viagemVeiculoRepository;
         this.trajetoRepository = trajetoRepository;
-        this.viagemRepository = viagemRepository;
         this.horarioRepository = horarioRepository;
+        this.viagemService = viagemService;
+        this.monitorizacaoRepository = monitorizacaoRepository;
     }
 
     public List<VeiculoDTO> getVeiculosComLinha() {
@@ -89,14 +96,33 @@ public class DriverService {
             serviceIds = List.of("UTEIS", "ELECUTEIS");
         }
 
-        List<Viagem> all = viagemRepository.findByTrajetoAndServices(trajetoId, serviceIds);
+        List<Horario> horarios = horarioRepository.findByTrajetoAndServicos(trajetoId, serviceIds);
+
+        java.util.Map<String, List<Horario>> grouped = horarios.stream()
+                .collect(java.util.stream.Collectors.groupingBy(Horario::getGtfsTripId));
+
+        java.util.List<ViagemScheduleDTO> result = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<String, List<Horario>> entry : grouped.entrySet()) {
+            String gtfsTripId = entry.getKey();
+            List<Horario> tripHorarios = entry.getValue();
+            if (tripHorarios.isEmpty()) continue;
+
+            Horario firstHorario = tripHorarios.stream()
+                    .min(Comparator.comparingInt(h -> h.getPontoPassagem().getOrdem()))
+                    .orElse(tripHorarios.get(0));
+
+            LocalTime horaPartida = firstHorario.getHora();
+            String serviceId = firstHorario.getServico().getNome();
+
+            result.add(new ViagemScheduleDTO(horaPartida, gtfsTripId, serviceId));
+        }
 
         LocalTime start = now.minusHours(2);
         LocalTime end = now.plusMinutes(15);
 
-        return all.stream()
-                .filter(v -> {
-                    LocalTime time = v.getHoraPartida();
+        return result.stream()
+                .filter(dto -> {
+                    LocalTime time = dto.horaPartida();
                     if (time == null) return false;
                     if (start.isBefore(end)) {
                         return !time.isBefore(start) && !time.isAfter(end);
@@ -104,8 +130,7 @@ public class DriverService {
                         return !time.isBefore(start) || !time.isAfter(end);
                     }
                 })
-                .sorted(Comparator.comparing(Viagem::getHoraPartida))
-                .map(v -> new ViagemScheduleDTO(v.getId(), v.getHoraPartida(), v.getGtfsTripId(), v.getServiceId()))
+                .sorted(Comparator.comparing(ViagemScheduleDTO::horaPartida))
                 .toList();
     }
 
@@ -114,16 +139,11 @@ public class DriverService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Veiculo nao encontrado"));
         Trajeto trajeto = trajetoRepository.findById(request.trajetoId())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Trajeto nao encontrado"));
-        Viagem viagem = viagemRepository.findById(request.viagemId())
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Viagem nao encontrada"));
 
-        // Validate vehicle line matches trajeto line, and scheduled run matches trajeto
+        // Validate vehicle line matches trajeto line
         if (veiculo.getLinha() == null || trajeto.getLinha() == null ||
                 !veiculo.getLinha().getId().equals(trajeto.getLinha().getId())) {
             throw new PedidoInvalidoException("A linha do veículo não coincide com a linha do trajeto.");
-        }
-        if (viagem.getTrajeto() == null || !viagem.getTrajeto().getId().equals(trajeto.getId())) {
-            throw new PedidoInvalidoException("A viagem agendada não coincide com o trajeto.");
         }
 
         // Get first stop of trajeto
@@ -134,6 +154,14 @@ public class DriverService {
                 .min(Comparator.comparingInt(PontosDePassagem::getOrdem))
                 .orElseThrow(() -> new PedidoInvalidoException("O trajeto não tem pontos de passagem."));
 
+        // Validate scheduling info against Horario for the first stop
+        Horario firstHorario = horarioRepository.findByPontoPassagemIdAndGtfsTripId(firstPonto.getId(), request.gtfsTripId())
+                .orElseThrow(() -> new PedidoInvalidoException("Horário não encontrado para esta viagem agendada no ponto inicial."));
+
+        if (!firstHorario.getServico().getNome().equalsIgnoreCase(request.serviceId())) {
+            throw new PedidoInvalidoException("O serviço solicitado não corresponde ao horário encontrado.");
+        }
+
         // Ensure there is no active run for this vehicle
         List<ViagemVeiculo> active = viagemVeiculoRepository.findActiveByVeiculoId(request.veiculoId());
         if (!active.isEmpty()) {
@@ -143,13 +171,15 @@ public class DriverService {
         ViagemVeiculo viagemVeiculo = new ViagemVeiculo();
         viagemVeiculo.setVeiculo(veiculo);
         viagemVeiculo.setTrajeto(trajeto);
-        viagemVeiculo.setViagemPlaneada(viagem);
+        viagemVeiculo.setServiceId(request.serviceId());
+        viagemVeiculo.setGtfsTripId(request.gtfsTripId());
+        viagemVeiculo.setHoraPartidaPlaneada(firstHorario.getHora());
         viagemVeiculo.setPontoAtual(firstPonto);
         viagemVeiculo.setStartTime(LocalDateTime.now());
 
-        // Calculate initial delay: click time vs viagem.horaPartida
+        // Calculate initial delay: click time vs firstHorario.getHora()
         LocalTime clickTime = LocalTime.now();
-        long diffMinutos = ChronoUnit.MINUTES.between(viagem.getHoraPartida(), clickTime);
+        long diffMinutos = ChronoUnit.MINUTES.between(firstHorario.getHora(), clickTime);
         int delay = (int) Math.max(0, diffMinutos);
         veiculo.setTempoAtraso(delay);
         veiculoRepository.save(veiculo);
@@ -157,6 +187,7 @@ public class DriverService {
         return ViagemMapper.toVeiculoDTO(viagemVeiculoRepository.save(viagemVeiculo));
     }
 
+    //TODO: Apply Observer Logic Here
     public AvancarViagemResponseDTO avancarViagem(Long id) {
         ViagemVeiculo viagemVeiculo = viagemVeiculoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Viagem de veículo não encontrada"));
@@ -209,9 +240,8 @@ public class DriverService {
 
         // Calculate delay for this next stop
         int delay = 0;
-        Viagem viagemPlaneada = viagemVeiculo.getViagemPlaneada();
-        if (viagemPlaneada != null && viagemPlaneada.getGtfsTripId() != null) {
-            Optional<Horario> horarioOpt = horarioRepository.findByPontoPassagemIdAndGtfsTripId(pontoSeguinte.getId(), viagemPlaneada.getGtfsTripId());
+        if (viagemVeiculo.getGtfsTripId() != null) {
+            Optional<Horario> horarioOpt = horarioRepository.findByPontoPassagemIdAndGtfsTripId(pontoSeguinte.getId(), viagemVeiculo.getGtfsTripId());
             if (horarioOpt.isPresent()) {
                 LocalTime clickTime = LocalTime.now();
                 long diffMinutos = ChronoUnit.MINUTES.between(horarioOpt.get().getHora(), clickTime);
@@ -226,8 +256,12 @@ public class DriverService {
         }
 
         viagemVeiculoRepository.save(viagemVeiculo);
+        
+        // Notify subscribed users about the location update
+        viagemService.notifySubscribers(viagemVeiculo.getId(), pontoSeguinte.getId());
 
         PontosDePassagem pontoDepois = (nextIndex + 1 < sortedPontos.size()) ? sortedPontos.get(nextIndex + 1) : null;
+
 
         return new AvancarViagemResponseDTO(
                 pontoSeguinte.getId(),
@@ -239,11 +273,14 @@ public class DriverService {
         );
     }
 
+    // Apply Observer Logic Here
     public void endViagem(Long id) {
         ViagemVeiculo viagem = viagemVeiculoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Viagem nao encontrada"));
         viagem.setFinishTime(LocalDateTime.now());
         viagemVeiculoRepository.save(viagem);
+    
+        viagemService.notifySubscribers(viagem.getId());
 
         Veiculo veiculo = viagem.getVeiculo();
         if (veiculo != null) {
@@ -258,6 +295,7 @@ public class DriverService {
         String direcao = trajeto.getDirecao() != null ? trajeto.getDirecao().name() : "?";
         String primeiraParagem = "";
         String ultimaParagem = "";
+        List<DriverTrajetoDTO.DriverParagemInfo> paragensList = List.of();
 
         if (trajeto.getPontosDePassagem() != null && !trajeto.getPontosDePassagem().isEmpty()) {
             List<PontosDePassagem> sorted = trajeto.getPontosDePassagem().stream()
@@ -269,8 +307,17 @@ public class DriverService {
             if (sorted.getLast().getParagem() != null) {
                 ultimaParagem = sorted.getLast().getParagem().getNome();
             }
+            paragensList = sorted.stream()
+                    .map(p -> new DriverTrajetoDTO.DriverParagemInfo(
+                            p.getId(),
+                            p.getOrdem(),
+                            p.getParagem() != null ? p.getParagem().getId() : null,
+                            p.getParagem() != null ? p.getParagem().getNome() : "",
+                            p.getParagem() != null && p.getParagem().getZona() != null ? p.getParagem().getZona().getNum() : null
+                    ))
+                    .toList();
         }
 
-        return new DriverTrajetoDTO(trajeto.getId(), linhaNome, direcao, primeiraParagem, ultimaParagem);
+        return new DriverTrajetoDTO(trajeto.getId(), linhaNome, direcao, primeiraParagem, ultimaParagem, paragensList);
     }
 }

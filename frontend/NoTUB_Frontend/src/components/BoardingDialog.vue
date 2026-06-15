@@ -43,12 +43,20 @@
           <div class="route-preview-rail">
             <template v-for="(item, index) in routePreviewItems" :key="item.key">
               <div v-if="item.type === 'ellipsis'" class="route-connector route-stop-ellipsis"></div>
-              <div v-else class="route-stop" :class="{
-                'route-stop--first': item.kind === 'first',
-                'route-stop--current': item.kind === 'current',
-                'route-stop--last': item.kind === 'last',
-                'route-stop--middle': item.kind === 'middle'
-              }">
+              
+              <div 
+                v-else 
+                class="route-stop" 
+                :class="[
+                  routePreviewItems.filter(i => i.type !== 'ellipsis').indexOf(item) % 2 === 0 ? 'node--up' : 'node--down',
+                  {
+                    'route-stop--first': item.kind === 'first',
+                    'route-stop--current': item.kind === 'current',
+                    'route-stop--last': item.kind === 'last',
+                    'route-stop--middle': item.kind === 'middle'
+                  }
+                ]"
+              >
                 <div class="route-stop__dot"></div>
                 <span class="route-stop__name">{{ item.name }}</span>
               </div>
@@ -359,6 +367,7 @@
       const data = await viagensStore.fetchZonasVeiculo(props.viagemVeiculoId, props.paragemEntradaId)
       zonaMin.value = data.zonaMin
       zonaMax.value = data.zonaMax
+      console.log('Zonas carregadas:', zonaMin.value, zonaMax.value)
     } catch (e) {
       console.warn('Erro ao carregar zonas no ecrã:', e)
       zonaMin.value = null
@@ -667,13 +676,12 @@ export default { name: 'BoardingDialog' }
   margin: 0 0 12px 0;
 }
 
-/* Botão de Destaque para a Loja */
 .btn-shop {
   width: 100%;
   height: 42px;
   border-radius: 10px;
   border: none;
-  background: #028e5c; /* Mantém a cor principal verde do teu ecru */
+  background: #028e5c;
   color: #fff;
   font-family: 'Inter', sans-serif;
   font-size: 14px;
@@ -721,10 +729,10 @@ export default { name: 'BoardingDialog' }
   display: flex;
   align-items: center;
   overflow-x: auto;
-  padding-top: 10px;
-  padding-bottom: 25px; 
-  padding-left: 20px;   
-  padding-right: 20px;  
+  padding-top: 42px;    
+  padding-bottom: 42px; 
+  padding-left: 45px;   
+  padding-right: 45px;  
   margin-bottom: 16px;
   gap: 0;
   scrollbar-width: none;
@@ -732,14 +740,6 @@ export default { name: 'BoardingDialog' }
 
 .route-preview-rail::-webkit-scrollbar {
   display: none;
-}
-
-.route-stop {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-  flex-shrink: 0;
 }
 
 .route-stop__dot {
@@ -751,21 +751,48 @@ export default { name: 'BoardingDialog' }
   z-index: 2;
 }
 
+.route-stop {
+  display: flex;
+  align-items: center;
+  justify-content: center;  
+  position: relative;
+  flex-shrink: 0;
+  width: 14px; 
+  height: 14px;          
+}
+
 .route-stop__name {
   position: absolute;
-  top: 22px;
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  white-space: nowrap;
+  width: 92px;
   text-align: center;
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: normal;
+  left: 50%;
+  transform: translateX(-50%);
 }
+
+.route-stop.node--up .route-stop__name   { bottom: 22px; top: auto; }
+.route-stop.node--down .route-stop__name { top: 22px; bottom: auto; }
 
 .route-connector {
   flex-shrink: 0;
   height: 3px;
-  width: 28px;
+  width: 30px; 
   background: #028e5c;
   z-index: 1;
+}
+
+.route-connector.route-stop-ellipsis {
+  background: transparent; 
+  background-image: linear-gradient(to right, #028e5c 60%, transparent 40%);
+  background-size: 6px 3px; 
+  background-repeat: repeat-x;
+  width: 25px; 
+  height: 3px;
+  flex-shrink: 0;
+  z-index: 1;
+  margin: 0 2px; 
 }
 
 .route-stop--first .route-stop__dot,
@@ -790,14 +817,6 @@ export default { name: 'BoardingDialog' }
 .route-stop--last .route-stop__name {
   font-weight: 600;
   color: #028e5c;
-}
-
-.route-connector.route-stop-ellipsis {
-  background: transparent; 
-  
-  background-image: linear-gradient(to right, #028e5c 60%, transparent 40%);
-  background-size: 10px 10px;
-  background-repeat: repeat-x;
 }
 
 .route-preview-actions {
@@ -879,7 +898,6 @@ export default { name: 'BoardingDialog' }
   margin-top: 2px;
 }
 
-/* Caixa do Contador de Pessoas do Grupo */
 .group-qty-box {
   display: flex;
   align-items: center;
@@ -890,7 +908,6 @@ export default { name: 'BoardingDialog' }
   border: 1px solid #e9ecef;
 }
 
-/* Indicador de Modo Ativo no topo dos bilhetes */
 .mode-indicator {
   display: flex;
   align-items: center;
@@ -905,7 +922,6 @@ export default { name: 'BoardingDialog' }
   margin-bottom: 8px;
 }
 
-/* Classes utilitárias adicionadas */
 .gap-sm { gap: 8px; }
 .mb-sm { margin-bottom: 8px; }
 </style>

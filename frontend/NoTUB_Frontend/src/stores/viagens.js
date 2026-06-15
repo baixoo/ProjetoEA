@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useAuthStore } from './auth'
+import SockJS from 'sockjs-client/dist/sockjs'
+import { Client } from '@stomp/stompjs'
 
 export const useViagensStore = defineStore('viagens', () => {
   const authStore = useAuthStore()
@@ -10,6 +12,9 @@ export const useViagensStore = defineStore('viagens', () => {
   const zones = ref([])
   const loading = ref(false)
   const error = ref(null)
+
+  const passengerStompClient = ref(null)
+  const passengerConnected = ref(false)
 
   async function fetchActiveTrip() {
     if (!authStore.token) return null
@@ -94,7 +99,7 @@ export const useViagensStore = defineStore('viagens', () => {
     }
   }
 
-  async function endTrip(tripId, paragemSaidaId) {
+  async function endTrip(tripId, pontoPassagemSaidaId) {
     if (!authStore.token) throw new Error('Não autenticado')
     loading.value = true
     error.value = null
@@ -105,14 +110,13 @@ export const useViagensStore = defineStore('viagens', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authStore.token}`
         },
-        body: JSON.stringify({ paragemSaidaId })
+        body: JSON.stringify({ pontoPassagemSaidaId })
       })
       if (!response.ok) {
         const text = await response.text()
         throw new Error(text || 'Falha ao terminar viagem')
       }
       const trip = await response.json()
-      activeTrip.value = null
       return trip
     } catch (e) {
       error.value = e.message
@@ -164,6 +168,65 @@ export const useViagensStore = defineStore('viagens', () => {
     }
   }
 
+  function connectPassengerWebSocket() { 
+    disconnectPassengerWebSocket()
+
+    const viagemVeiculoId = activeTrip.value?.viagemVeiculo?.id 
+    
+    if (!viagemVeiculoId) {
+      console.warn('Não foi possível conectar ao WebSocket: Nenhuma viagem ativa encontrada na store.')
+      return
+    }
+
+    const socket = new SockJS('/ws') 
+    
+    passengerStompClient.value = new Client({
+      webSocketFactory: () => socket,
+      reconnectDelay: 5000,
+      debug: (str) => console.log(str),
+      onConnect: (frame) => {
+        passengerConnected.value = true
+        console.log(`Conectado ao WebSocket do passageiro para a viagem ${viagemVeiculoId}:`, frame)
+
+        passengerStompClient.value.subscribe(`/topic/bus.${viagemVeiculoId}.route`, (message) => {
+          const dados = JSON.parse(message.body)
+          
+          if (dados.pontoAtualId !== undefined) {
+            if (activeTrip.value && activeTrip.value.viagemVeiculo) {
+              activeTrip.value.viagemVeiculo.pontoAtualId = Number(dados.pontoAtualId)
+            }
+          } 
+          
+          else if (dados.viagemStatus === 'END') {
+            console.log('[WebSocket] O motorista terminou o circuito. A encerrar viagem do passageiro...')
+            
+            activeTrip.value.estado = 'END'
+            console.log('Estado da viagem atualizado para : ', activeTrip.value.estado)
+            disconnectPassengerWebSocket()
+          }
+        })
+      },
+      onDisconnect: () => {
+        passengerConnected.value = false 
+      },
+      onStompError: (frame) => {
+        console.error('Erro STOMP no passageiro:', frame)
+        passengerConnected.value = false 
+      }
+    })
+
+    passengerStompClient.value.activate()
+  }
+
+  function disconnectPassengerWebSocket() {
+    if (passengerStompClient.value) {
+      passengerStompClient.value.deactivate()
+      passengerStompClient.value = null 
+      passengerConnected.value = false
+      console.log('WebSocket desativado.')
+    }
+  }
+
   return {
     activeTrip,
     stops,
@@ -178,6 +241,8 @@ export const useViagensStore = defineStore('viagens', () => {
     startTrip,
     endTrip,
     validateTicket,
-    fetchZonasVeiculo
+    fetchZonasVeiculo,
+    connectPassengerWebSocket,
+    disconnectPassengerWebSocket
   }
 })

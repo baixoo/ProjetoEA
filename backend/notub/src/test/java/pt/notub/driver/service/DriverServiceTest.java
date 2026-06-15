@@ -20,22 +20,23 @@ import pt.notub.network.entity.Horario;
 import pt.notub.network.repository.TrajetoRepository;
 import pt.notub.network.repository.HorarioRepository;
 import pt.notub.trip.dto.ViagemVeiculoDTO;
-import pt.notub.trip.entity.Viagem;
 import pt.notub.trip.entity.ViagemVeiculo;
 import pt.notub.trip.repository.ViagemVeiculoRepository;
-import pt.notub.trip.repository.ViagemRepository;
 import pt.notub.vehicle.dto.VeiculoDTO;
-import pt.notub.vehicle.entity.Autocarro;
+import pt.notub.vehicle.entity.TipoVeiculo;
 import pt.notub.vehicle.entity.Veiculo;
 import pt.notub.vehicle.repository.VeiculoRepository;
 
+import pt.notub.trip.service.ViagemService;
+import pt.notub.trip.repository.MonitorizacaoRepository;
+
 import java.time.LocalTime;
 import java.time.LocalDateTime;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,10 +52,13 @@ class DriverServiceTest {
     private TrajetoRepository trajetoRepository;
 
     @Mock
-    private ViagemRepository viagemRepository;
+    private HorarioRepository horarioRepository;
 
     @Mock
-    private HorarioRepository horarioRepository;
+    private ViagemService viagemService;
+
+    @Mock
+    private MonitorizacaoRepository monitorizacaoRepository;
 
     private DriverService service;
 
@@ -64,8 +68,9 @@ class DriverServiceTest {
             veiculoRepository, 
             viagemVeiculoRepository, 
             trajetoRepository, 
-            viagemRepository, 
-            horarioRepository
+            horarioRepository,
+            viagemService,
+            monitorizacaoRepository
         );
     }
 
@@ -75,12 +80,13 @@ class DriverServiceTest {
         linha.setId(1L);
         linha.setNome("Linha 1");
 
-        Autocarro autocarro = new Autocarro();
-        autocarro.setId(10L);
-        autocarro.setMatricula("AA-11-BB");
-        autocarro.setLinha(linha);
+        Veiculo veiculo = new Veiculo();
+        veiculo.setId(10L);
+        veiculo.setMatricula("AA-11-BB");
+        veiculo.setLinha(linha);
+        veiculo.setTipo(TipoVeiculo.AUTOCARRO);
 
-        when(veiculoRepository.findByLinhaIsNotNull()).thenReturn(List.of(autocarro));
+        when(veiculoRepository.findByLinhaIsNotNull()).thenReturn(List.of(veiculo));
 
         List<VeiculoDTO> result = service.getVeiculosComLinha();
 
@@ -134,23 +140,19 @@ class DriverServiceTest {
         Linha l1 = new Linha(); l1.setId(1L);
         Linha l2 = new Linha(); l2.setId(2L);
 
-        Autocarro v = new Autocarro();
+        Veiculo v = new Veiculo();
         v.setId(10L);
         v.setLinha(l1);
+        v.setTipo(TipoVeiculo.AUTOCARRO);
 
         Trajeto t = new Trajeto();
         t.setId(20L);
         t.setLinha(l2);
 
-        Viagem vg = new Viagem();
-        vg.setId(30L);
-        vg.setTrajeto(t);
-
         when(veiculoRepository.findById(10L)).thenReturn(Optional.of(v));
         when(trajetoRepository.findById(20L)).thenReturn(Optional.of(t));
-        when(viagemRepository.findById(30L)).thenReturn(Optional.of(vg));
 
-        StartViagemRequest req = new StartViagemRequest(10L, 20L, 30L);
+        StartViagemRequest req = new StartViagemRequest(10L, 20L, "UTEIS", "GTFS-TRIP-123");
 
         assertThrows(PedidoInvalidoException.class, () -> service.startViagem(req));
     }
@@ -159,9 +161,10 @@ class DriverServiceTest {
     void startViagem_correctlySetsPontoAtualAndDelay() {
         Linha l1 = new Linha(); l1.setId(1L);
 
-        Autocarro v = new Autocarro();
+        Veiculo v = new Veiculo();
         v.setId(10L);
         v.setLinha(l1);
+        v.setTipo(TipoVeiculo.AUTOCARRO);
 
         Paragem p1 = new Paragem(); p1.setId(100L); p1.setNome("Start");
         PontosDePassagem pp1 = new PontosDePassagem();
@@ -176,27 +179,34 @@ class DriverServiceTest {
 
         // Viagem departure scheduled for 10 minutes ago
         LocalTime scheduledTime = LocalTime.now().minusMinutes(10);
-        Viagem vg = new Viagem();
-        vg.setId(30L);
-        vg.setTrajeto(t);
-        vg.setHoraPartida(scheduledTime);
+        pt.notub.network.entity.Servico servico = new pt.notub.network.entity.Servico();
+        servico.setNome("UTEIS");
+        Horario h1 = new Horario();
+        h1.setId(1000L);
+        h1.setPontoPassagem(pp1);
+        h1.setGtfsTripId("GTFS-TRIP-123");
+        h1.setServico(servico);
+        h1.setHora(scheduledTime);
 
         when(veiculoRepository.findById(10L)).thenReturn(Optional.of(v));
         when(trajetoRepository.findById(20L)).thenReturn(Optional.of(t));
-        when(viagemRepository.findById(30L)).thenReturn(Optional.of(vg));
+        when(horarioRepository.findByPontoPassagemIdAndGtfsTripId(50L, "GTFS-TRIP-123"))
+                .thenReturn(Optional.of(h1));
         when(viagemVeiculoRepository.findActiveByVeiculoId(10L)).thenReturn(List.of());
 
         ViagemVeiculo savedEntity = new ViagemVeiculo();
         savedEntity.setId(500L);
         savedEntity.setVeiculo(v);
         savedEntity.setTrajeto(t);
-        savedEntity.setViagemPlaneada(vg);
+        savedEntity.setServiceId("UTEIS");
+        savedEntity.setGtfsTripId("GTFS-TRIP-123");
+        savedEntity.setHoraPartidaPlaneada(scheduledTime);
         savedEntity.setPontoAtual(pp1);
         savedEntity.setStartTime(LocalDateTime.now());
 
         when(viagemVeiculoRepository.save(any(ViagemVeiculo.class))).thenReturn(savedEntity);
 
-        StartViagemRequest req = new StartViagemRequest(10L, 20L, 30L);
+        StartViagemRequest req = new StartViagemRequest(10L, 20L, "UTEIS", "GTFS-TRIP-123");
         ViagemVeiculoDTO result = service.startViagem(req);
 
         assertNotNull(result);
@@ -207,9 +217,10 @@ class DriverServiceTest {
 
     @Test
     void avancarViagem_progressesToNextStopAndUpdatesDelay() {
-        Autocarro v = new Autocarro();
+        Veiculo v = new Veiculo();
         v.setId(10L);
         v.setTempoAtraso(0);
+        v.setTipo(TipoVeiculo.AUTOCARRO);
 
         Paragem p1 = new Paragem(); p1.setId(100L); p1.setNome("Start");
         PontosDePassagem pp1 = new PontosDePassagem();
@@ -227,15 +238,12 @@ class DriverServiceTest {
         t.setId(20L);
         t.setPontosDePassagem(List.of(pp1, pp2));
 
-        Viagem vg = new Viagem();
-        vg.setId(30L);
-        vg.setGtfsTripId("GTFS-TRIP-123");
-
         ViagemVeiculo vv = new ViagemVeiculo();
         vv.setId(500L);
         vv.setVeiculo(v);
         vv.setTrajeto(t);
-        vv.setViagemPlaneada(vg);
+        vv.setGtfsTripId("GTFS-TRIP-123");
+        vv.setServiceId("UTEIS");
         vv.setPontoAtual(pp1);
         vv.setStartTime(LocalDateTime.now());
 
@@ -260,10 +268,11 @@ class DriverServiceTest {
 
     @Test
     void endViagem_updatesFinishTimeAndResetsDelay() {
-        Autocarro v = new Autocarro();
+        Veiculo v = new Veiculo();
         v.setId(10L);
         v.setTempoAtraso(12);
         v.setLotacaoAtual(5);
+        v.setTipo(TipoVeiculo.AUTOCARRO);
 
         ViagemVeiculo vv = new ViagemVeiculo();
         vv.setId(500L);

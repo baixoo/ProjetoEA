@@ -11,6 +11,7 @@ import pt.notub.network.repository.HorarioRepository;
 import pt.notub.network.repository.ParagemRepository;
 import pt.notub.network.repository.PontosDePassagemRepository;
 import pt.notub.network.repository.TrajetoRepository;
+import pt.notub.trip.repository.ViagemVeiculoRepository;
 import pt.notub.vehicle.entity.Point;
 import pt.notub.zone.entity.Zona;
 
@@ -40,6 +41,9 @@ class RoutingRefactorTest {
     @Mock
     private PontosDePassagemRepository pontosRepository;
 
+    @Mock
+    private ViagemVeiculoRepository viagemVeiculoRepository;
+
     private RoutingIndexService indexService;
     private WalkingTransferPolicy walkingPolicy;
     private RouteDtoAssembler assembler;
@@ -62,7 +66,7 @@ class RoutingRefactorTest {
         walkingPolicy = new WalkingTransferPolicy();
         assembler = new RouteDtoAssembler(walkingPolicy);
         searchEngine = new RouteSearchEngine(walkingPolicy, assembler);
-        queryService = new ScheduleQueryService(horarioRepository, paragemRepository, trajetoRepository, pontosRepository);
+        queryService = new ScheduleQueryService(horarioRepository, paragemRepository, trajetoRepository, pontosRepository, viagemVeiculoRepository);
 
         Zona z1 = new Zona();
         z1.setId(1L);

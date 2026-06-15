@@ -18,15 +18,19 @@ import pt.notub.points.service.ServicoPontos;
 import pt.notub.ticket.repository.TituloTransporteRepository;
 import pt.notub.trip.dto.ParagemAtualDTO;
 import pt.notub.trip.dto.ZonaMinMaxDTO;
-import pt.notub.trip.entity.Viagem;
 import pt.notub.trip.entity.ViagemVeiculo;
 import pt.notub.trip.repository.ViagemUtilizadorRepository;
 import pt.notub.trip.repository.ViagemVeiculoRepository;
-import pt.notub.trip.repository.ViagemRepository;
+import pt.notub.user.repository.UtilizadorRepository;
 import pt.notub.validation.service.GestorValidacao;
 import pt.notub.vehicle.repository.VeiculoRepository;
 import pt.notub.zone.entity.Zona;
+import pt.notub.zone.repository.ZonaRepository;
+import pt.notub.trip.repository.MonitorizacaoRepository;
+import pt.notub.trip.service.MonitorizacaoService;
+import pt.notub.network.repository.PontosDePassagemRepository;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -59,7 +63,7 @@ class ViagemServiceTest {
     private TrajetoRepository trajetoRepository;
 
     @Mock
-    private ViagemRepository viagemRepository;
+    private MonitorizacaoRepository monitorizacaoRepository;
 
     @Mock
     private ServicoPontos servicoPontos;
@@ -69,6 +73,15 @@ class ViagemServiceTest {
 
     @Mock
     private NotificacaoValidacaoService notificacaoService;
+
+    @Mock
+    private UtilizadorRepository utilizadorRepository;
+    
+    @Mock
+    private MonitorizacaoService monitorizacaoService;
+
+    @Mock
+    private PontosDePassagemRepository pontosDePassagemRepository;
 
     private ViagemService service;
 
@@ -82,39 +95,28 @@ class ViagemServiceTest {
                 tituloTransporteRepository,
                 veiculoRepository,
                 trajetoRepository,
-                viagemRepository,
+                monitorizacaoRepository,
+                monitorizacaoService,
+                utilizadorRepository,
                 servicoPontos,
                 gestorValidacao,
-                notificacaoService);
+                notificacaoService,
+                pontosDePassagemRepository);
     }
 
     @Test
-    void getParagemAtual_returnsNearestStopDuringTrip() {
-        LocalTime agora = LocalTime.now();
-        String serviceId = "UTEIS";
-        String tripId = "trip-1";
-        ViagemVeiculo viagem = viagemComPontos(
-                ponto(1, 10L, 1),
-                ponto(2, 20L, 2),
-                ponto(3, 30L, 3));
+    void getParagemAtual_returnsCurrentStop() {
+        ViagemVeiculo viagem = new ViagemVeiculo();
+        viagem.setStartTime(LocalDateTime.now().minusMinutes(5));
+        
+        PontosDePassagem ponto = ponto(1, 10L, 1);
+        viagem.setPontoAtual(ponto);
+        
         when(viagemVeiculoRepository.findById(1L)).thenReturn(Optional.of(viagem));
-
-        Trajeto trajeto = viagem.getTrajeto();
-        Viagem schedule = new Viagem();
-        schedule.setTrajeto(trajeto);
-        schedule.setServiceId(serviceId);
-        schedule.setHoraPartida(agora.minusMinutes(20));
-        schedule.setGtfsTripId(tripId);
-        when(viagemRepository.findByTrajetoId(trajeto.getId())).thenReturn(List.of(schedule));
-        when(horarioRepository.findByTrajetoAndServico(trajeto.getId(), serviceId)).thenReturn(List.of(
-                horario(1, 10L, 1, agora.minusMinutes(20), tripId),
-                horario(2, 20L, 2, agora.minusMinutes(1), tripId),
-                horario(3, 30L, 3, agora.plusMinutes(20), tripId)
-        ));
 
         ParagemAtualDTO result = service.getParagemAtual(1L);
 
-        assertEquals(20L, result.paragemId());
+        assertEquals(10L, result.paragemId());
     }
 
     @Test
@@ -167,31 +169,5 @@ class ViagemServiceTest {
 
     private PontosDePassagem ponto(int ordem, Long paragemId, int zonaNum, LocalTime ignoredHora) {
         return ponto(ordem, paragemId, zonaNum);
-    }
-
-    private Horario horario(int ordem, Long paragemId, int zonaNum, LocalTime hora, String tripId) {
-        Horario horario = new Horario();
-        horario.setId((long) ordem);
-        horario.setHora(hora);
-        horario.setGtfsTripId(tripId);
-
-        Trajeto trajeto = new Trajeto();
-        trajeto.setId(100L);
-
-        Zona zona = new Zona();
-        zona.setNum(zonaNum);
-
-        Paragem paragem = new Paragem();
-        paragem.setId(paragemId);
-        paragem.setZona(zona);
-
-        PontosDePassagem ponto = new PontosDePassagem();
-        ponto.setId((long) ordem);
-        ponto.setOrdem(ordem);
-        ponto.setTrajeto(trajeto);
-        ponto.setParagem(paragem);
-
-        horario.setPontoPassagem(ponto);
-        return horario;
     }
 }

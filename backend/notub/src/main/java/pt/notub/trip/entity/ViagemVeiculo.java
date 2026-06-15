@@ -31,9 +31,14 @@ public class ViagemVeiculo {
     @JoinColumn(name = "trajeto_id")
     private Trajeto trajeto;
 
-    @ManyToOne
-    @JoinColumn(name = "viagem_planeada_id")
-    private Viagem viagemPlaneada;
+    @jakarta.persistence.Column(name = "service_id")
+    private String serviceId;
+
+    @jakarta.persistence.Column(name = "gtfs_trip_id")
+    private String gtfsTripId;
+
+    @jakarta.persistence.Column(name = "hora_partida_planeada")
+    private java.time.LocalTime horaPartidaPlaneada;
 
     @ManyToOne
     @JoinColumn(name = "ponto_atual_id")
@@ -53,8 +58,12 @@ public class ViagemVeiculo {
     public void setVeiculo(Veiculo veiculo) { this.veiculo = veiculo; }
     public Trajeto getTrajeto() { return trajeto; }
     public void setTrajeto(Trajeto trajeto) { this.trajeto = trajeto; }
-    public Viagem getViagemPlaneada() { return viagemPlaneada; }
-    public void setViagemPlaneada(Viagem viagemPlaneada) { this.viagemPlaneada = viagemPlaneada; }
+    public String getServiceId() { return serviceId; }
+    public void setServiceId(String serviceId) { this.serviceId = serviceId; }
+    public String getGtfsTripId() { return gtfsTripId; }
+    public void setGtfsTripId(String gtfsTripId) { this.gtfsTripId = gtfsTripId; }
+    public java.time.LocalTime getHoraPartidaPlaneada() { return horaPartidaPlaneada; }
+    public void setHoraPartidaPlaneada(java.time.LocalTime horaPartidaPlaneada) { this.horaPartidaPlaneada = horaPartidaPlaneada; }
     public PontosDePassagem getPontoAtual() { return pontoAtual; }
     public void setPontoAtual(PontosDePassagem pontoAtual) { this.pontoAtual = pontoAtual; }
     public LocalDate getData() { return startTime != null ? startTime.toLocalDate() : null;

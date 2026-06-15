@@ -17,6 +17,7 @@ public final class PasseMapper {
         dto.setFim(p.getFim());
         dto.setModalidade(p.getModalidade());
         dto.setZona(ZonaMapper.toDTO(p.getZona()));
+        dto.setTipo(p.getTipo());
         return dto;
     }
 }
