@@ -6,7 +6,7 @@
           <img src="/assets/logo.png" alt="NoTUB" class="admin-logo" />
           <span class="admin-title-text">Painel de Administracao</span>
         </q-toolbar-title>
-        <q-btn flat dense icon="home" label="Voltar ao Site" @click="$router.push('/home')" />
+        <q-btn flat dense icon="logout" label="Sair" @click="handleLogout" />
       </q-toolbar>
     </q-header>
 
@@ -38,7 +38,11 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from 'src/stores/auth'
 
+const router = useRouter()
+const authStore = useAuthStore()
 const drawerOpen = ref(true)
 
 const menuItems = [
@@ -50,6 +54,11 @@ const menuItems = [
   { route: '/admin/trips', icon: 'schedule', label: 'Viagens' },
   { route: '/admin/network', icon: 'alt_route', label: 'Rede' }
 ]
+
+function handleLogout() {
+  authStore.logout()
+  router.push('/signin')
+}
 </script>
 
 <style scoped>

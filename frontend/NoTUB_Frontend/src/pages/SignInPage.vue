@@ -107,8 +107,8 @@ async function handleLogin() {
     if (userRole === 'MOTORISTA') {
       await router.replace('/driver/scan')
       
-    // } else if (userRole === 'ADMIN') {
-    //   await router.replace({ name: 'admin-dashboard' }) 
+    } else if (userRole === 'ADMINISTRADOR') {
+      await router.replace('/admin') 
       
     } else {
       await router.replace({ name: 'home' })
