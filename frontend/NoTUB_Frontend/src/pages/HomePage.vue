@@ -1,7 +1,7 @@
 <template>
   <q-page class="home-page">
     <div class="home-content">
-      <!-- Personalized Green Card (Design 162:357) -->
+      <!-- Personalized Green Card -->
       <div class="user-card">
         <h2 class="user-card__greeting">Olá, {{ firstName }}!</h2>
         <p class="user-card__sub">Pronto para a sua viagem?</p>
@@ -14,7 +14,6 @@
           </div>
         </div>
 
-        <!-- Bus Icon (Design 162:374) -->
         <div class="bus-icon-container">
           <q-icon name="directions_bus" class="bus-icon" />
         </div>
@@ -23,26 +22,44 @@
       <div class="section-summary">
         <p class="section-title">Os seus Títulos</p>
 
-        <div class="titles-card">
-          <div class="title-item">
-            <span class="title-label">Passe ativo</span>
-            <span class="title-value">
-              {{ activePassName || 'Sem passe ativo' }}
-            </span>
-            <span v-if="activePassZoneLabel" class="title-meta">{{ activePassZoneLabel }}</span>
-            <span v-if="activePassExpiryLabel" class="title-meta">Data de extinção: {{ activePassExpiryLabel }}</span>
+        <div class="info-card titles-card">
+          <div class="card-header">
+            <q-icon name="confirmation_number" size="20px" class="card-icon" />
+            <span class="card-title">Os Seus Títulos</span>
           </div>
+          
+          <div class="card-content">
+            <div class="section-title text-green q-mt-sm">
+              Bilhetes <q-icon name="local_activity" size="18px" class="q-ml-xs" />
+            </div>
+            
+            <div 
+              v-for="zona in bilhetesPorZona" 
+              :key="zona.numero" 
+              class="status-item"
+              :class="{ 'text-grey-6': zona.quantidade === 0, 'text-green font-bold': zona.quantidade > 0 }"
+            >
+              <span class="status-label">Zona {{ zona.numero }}:</span>
+              <span class="status-value">{{ zona.quantidade }}</span>
+            </div>
 
-          <div class="title-item">
-            <span class="title-label">Bilhetes por usar</span>
-            <div class="title-value">
-              <div v-if="unusedTicketZoneGroups.length === 0">Sem bilhetes por usar</div>
-              <div v-else class="zone-list">
-                <div class="zone-row" v-for="group in unusedTicketZoneGroups" :key="group.zoneLabel">
-                  <span>{{ group.zoneLabel }}</span>
-                  <span class="zone-count">{{ group.count }} {{ group.count === 1 ? 'bilhete' : 'bilhetes' }}</span>
-                </div>
-              </div>
+            <q-separator class="q-my-md bg-green-2" />
+
+            <div v-if="activePassName" class="section-title text-green">
+              {{ activePassName }}
+            </div>
+
+            <div v-else class="section-title text-green">
+              Passe
+            </div>
+            
+            <div v-if="dadosPasse && dadosPasse.ativo" class="status-item text-green font-bold">
+              <span class="status-label">Zona: {{ dadosPasse.zona }}</span>
+              <span class="status-value">Válido até: {{ dadosPasse.validade }}</span>
+            </div>
+            
+            <div v-else class="status-item text-grey-6">
+              <span class="status-label">Não possui passe</span>
             </div>
           </div>
         </div>
@@ -52,7 +69,6 @@
       <div class="action-section">
         <p class="section-title">Para onde vamos?</p>
 
-        <!-- Destination Selector -->
         <div class="destination-box" @click="router.push('/routes')">
           <div class="destination-search">
             <q-icon name="search" class="search-icon" />
@@ -60,7 +76,6 @@
           </div>
         </div>
 
-        <!-- Boarding Options Simulator -->
         <div class="boarding-simulator q-mt-md">
           <p class="simulator-label">Simulador de Embarque Rápido</p>
           
@@ -90,14 +105,12 @@
           </div>
         </div>
 
-        <!-- Iniciar Button -->
         <button class="btn-start q-mt-lg" @click="triggerBoarding">
           <span>Iniciar Viagem</span>
         </button>
       </div>
     </div>
 
-    <!-- Boarding Dialog / Bottom Sheet (Design 120:804) -->
     <BoardingDialog
       v-model="boardingOpen"
       :bus-number="selectedBusNumber"
@@ -124,9 +137,46 @@ const boardingOpen = ref(false)
 const selectedVehicleTrip = ref(null)
 const selectedStop = ref(null)
 
-const firstName = computed(() => {
-  if (authStore.user?.primeiroNome) return authStore.user.primeiroNome
-  return ''
+const bilhetesPorZona = computed(() => {
+  const zonasMap = {
+    '1': { numero: '1', quantidade: 0 },
+    '2': { numero: '2', quantidade: 0 },
+    '3': { numero: '3', quantidade: 0 }
+  }
+
+  const listaTickets = ticketsStore.tickets || []
+  listaTickets.forEach(t => {
+    if (t.tipo === 'BILHETE' && !t.usado) {
+      const zonaNum = String(t.zona?.num) 
+      
+      if (zonasMap[zonaNum]) {
+        zonasMap[zonaNum].quantidade++
+      } else if (t.zona?.num) {
+        zonasMap[zonaNum] = { numero: zonaNum, quantidade: 1 }
+      }
+    }
+  })
+
+  return Object.values(zonasMap).sort((a, b) => Number(a.numero) - Number(b.numero))
+})
+
+const dadosPasse = computed(() => {
+  if (!ticketsStore.activePass) return { ativo: false }
+
+  const validadePasse = ticketsStore.activePass.fim
+  const zonaPasse = ticketsStore.activePass.zona 
+
+  let dataFormatada = 'Não definida'
+  if (validadePasse) {
+    const d = new Date(validadePasse)
+    dataFormatada = d.toLocaleDateString('pt-PT') 
+  }
+
+  return {
+    ativo: true,
+    zona: zonaPasse?.num || 'X', 
+    validade: dataFormatada
+  }
 })
 
 const activePassName = computed(() => {
@@ -141,33 +191,52 @@ const activePassName = computed(() => {
   return 'Passe Ativo'
 })
 
-const activePassZoneLabel = computed(() => {
-  if (!ticketsStore.activePass?.zona) return null
-  return `Zona ${ticketsStore.activePass.zona.num}`
+
+const firstName = computed(() => {
+  if (authStore.user?.primeiroNome) return authStore.user.primeiroNome
+  return ''
 })
 
-const activePassExpiryLabel = computed(() => {
-  const expiry = ticketsStore.activePass?.fim
-  if (!expiry) return null
-  const date = new Date(expiry)
-  if (Number.isNaN(date.getTime())) return null
-  return new Intl.DateTimeFormat('pt-PT', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  }).format(date)
-})
+// const activePassName = computed(() => {
+//   if (!ticketsStore.activePass) return null
+//   const modalidade = ticketsStore.activePass.modalidade
+//   if (modalidade === 'MENSAL') return 'Passe Mensal'
+//   if (modalidade === 'SEMANAL') return 'Passe Semanal'
+//   if (modalidade === 'ANUAL') return 'Passe Anual'
+//   if (modalidade === 'H24') return 'Passe 24H'
+//   if (modalidade === 'H48') return 'Passe 48H'
+//   if (modalidade === 'H72') return 'Passe 72H'
+//   return 'Passe Ativo'
+// })
 
-const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
-const unusedTicketZoneGroups = computed(() => {
-  const counts = {}
-  unusedTickets.value.forEach(ticket => {
-    const zoneNum = ticket?.zona?.num
-    const zoneLabel = zoneNum != null ? `Zona ${zoneNum}` : 'Zona -'
-    counts[zoneLabel] = (counts[zoneLabel] || 0) + 1
-  })
-  return Object.entries(counts).map(([zoneLabel, count]) => ({ zoneLabel, count }))
-})
+// const activePassZoneLabel = computed(() => {
+//   if (!ticketsStore.activePass?.zona) return null
+//   return `Zona ${ticketsStore.activePass.zona.num}`
+// })
+
+// const activePassExpiryLabel = computed(() => {
+//   const expiry = ticketsStore.activePass?.fim
+//   if (!expiry) return null
+//   const date = new Date(expiry)
+//   if (Number.isNaN(date.getTime())) return null
+//   return new Intl.DateTimeFormat('pt-PT', {
+//     day: '2-digit',
+//     month: '2-digit',
+//     year: 'numeric'
+//   }).format(date)
+// })
+
+// const unusedTicketZoneGroups = computed(() => {
+//   const counts = {}
+//   unusedTickets.value.forEach(ticket => {
+//     const zoneNum = ticket?.zona?.num
+//     const zoneLabel = zoneNum != null ? `Zona ${zoneNum}` : 'Zona -'
+//     counts[zoneLabel] = (counts[zoneLabel] || 0) + 1
+//   })
+//   return Object.entries(counts).map(([zoneLabel, count]) => ({ zoneLabel, count }))
+// })
+
+// const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
 
 onMounted(async () => {
   // Check if we are already in an active trip
@@ -238,6 +307,58 @@ function triggerBoarding() {
   align-items: center;
   gap: 20px;
   width: 100%;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 8px;
+}
+
+.card-icon {
+  color: #01bc74;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #121212;
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #616161;
+}
+
+.info-card .status-label {
+  color: #757575;
+  font-weight: 500;
+  font-size: 13px;
+  text-transform: none;
+}
+
+.status-value {
+  font-weight: 600;
+  font-size: 13px;
 }
 
 .user-card {

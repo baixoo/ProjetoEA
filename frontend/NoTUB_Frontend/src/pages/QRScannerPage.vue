@@ -94,22 +94,39 @@
             <q-icon name="confirmation_number" size="20px" class="card-icon" />
             <span class="card-title">Os Seus Títulos</span>
           </div>
+          
           <div class="card-content">
-            <div class="status-item">
-              <span class="status-label">Bilhetes Simples:</span>
-              <span class="status-badge" :class="unusedTicketsCount > 0 ? 'badge--active' : 'badge--inactive'">
-                {{ unusedTicketsCount }} {{ unusedTicketsCount === 1 ? 'bilhete' : 'bilhetes' }}
-              </span>
+            <div class="section-title text-green q-mt-sm">
+              Bilhetes <q-icon name="local_activity" size="18px" class="q-ml-xs" />
             </div>
-            <div class="status-item">
-              <span class="status-label">Passe:</span>
-              <span class="status-badge" :class="activePassName ? 'badge--active' : 'badge--inactive'">
-                {{ activePassName || 'Não ativo' }}
-              </span>
+            
+            <div 
+              v-for="zona in bilhetesPorZona" 
+              :key="zona.numero" 
+              class="status-item"
+              :class="{ 'text-grey-6': zona.quantidade === 0, 'text-green font-bold': zona.quantidade > 0 }"
+            >
+              <span class="status-label">Zona {{ zona.numero }}:</span>
+              <span class="status-value">{{ zona.quantidade }}</span>
             </div>
-            <div v-if="activePassZoneLabel" class="status-item pass-zone-item">
-              <span class="status-label">Zonas:</span>
-              <span class="status-badge badge--active">{{ activePassZoneLabel }}</span>
+
+            <q-separator class="q-my-md bg-green-2" />
+
+           <div v-if="activePassName" class="section-title text-green">
+              {{ activePassName }}
+            </div>
+
+            <div v-else class="section-title text-green">
+              Passe
+            </div>
+            
+            <div v-if="dadosPasse && dadosPasse.ativo" class="status-item text-green font-bold">
+              <span class="status-label">Zona: {{ dadosPasse.zona }}</span>
+              <span class="status-value">Válido até: {{ dadosPasse.validade }}</span>
+            </div>
+            
+            <div v-else class="status-item text-grey-6">
+              <span class="status-label">Não possui passe</span>
             </div>
           </div>
         </div>
@@ -168,10 +185,52 @@ const activePassName = computed(() => {
   return 'Passe Ativo'
 })
 
-const activePassZoneLabel = computed(() => {
-  if (!ticketsStore.activePass?.zona) return null
-  return `Zona ${ticketsStore.activePass.zona.num}`
+const bilhetesPorZona = computed(() => {
+  const zonasMap = {
+    '1': { numero: '1', quantidade: 0 },
+    '2': { numero: '2', quantidade: 0 },
+    '3': { numero: '3', quantidade: 0 }
+  }
+
+  const listaTickets = ticketsStore.tickets || []
+  listaTickets.forEach(t => {
+    if (t.tipo === 'BILHETE' && !t.usado) {
+      const zonaNum = String(t.zona?.num) 
+      
+      if (zonasMap[zonaNum]) {
+        zonasMap[zonaNum].quantidade++
+      } else if (t.zona?.num) {
+        zonasMap[zonaNum] = { numero: zonaNum, quantidade: 1 }
+      }
+    }
+  })
+
+  return Object.values(zonasMap).sort((a, b) => Number(a.numero) - Number(b.numero))
 })
+
+const dadosPasse = computed(() => {
+  if (!ticketsStore.activePass) return { ativo: false }
+
+  const validadePasse = ticketsStore.activePass.fim
+  const zonaPasse = ticketsStore.activePass.zona 
+
+  let dataFormatada = 'Não definida'
+  if (validadePasse) {
+    const d = new Date(validadePasse)
+    dataFormatada = d.toLocaleDateString('pt-PT') 
+  }
+
+  return {
+    ativo: true,
+    zona: zonaPasse?.num || 'X', 
+    validade: dataFormatada
+  }
+})
+
+// const activePassZoneLabel = computed(() => {
+//   if (!ticketsStore.activePass?.zona) return null
+//   return `Zona ${ticketsStore.activePass.zona.num}`
+// })
 
 onMounted(async () => {
   await authStore.fetchUser()
