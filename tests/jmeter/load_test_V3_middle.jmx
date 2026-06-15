@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="NoTUB - Teste de Stress (Encontrar Limite)">
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="NoTUB - Plano de Carga">
       <boolProp name="TestPlan.serialize_threadgroups">true</boolProp>
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments">
         <collectionProp name="Arguments.arguments">
@@ -63,7 +63,8 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&#xd; &quot;email&quot;: &quot;admin@notub.pt&quot;,&#xd; &quot;password&quot;: &quot;admin123&quot;&#xd;}</stringProp>
+                <stringProp name="Argument.value">{&#xd; &quot;email&quot;:&#xd;
+                  &quot;admin@notub.pt&quot;,&#xd; &quot;password&quot;: &quot;admin123&quot;&#xd;}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
@@ -78,7 +79,8 @@
           <hashTree/>
           <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Cria Propriedade Global" enabled="true">
             <stringProp name="cacheKey">true</stringProp>
-            <stringProp name="script">props.put(&quot;global_jwt&quot;, vars.get(&quot;jwt_token&quot;));</stringProp>
+            <stringProp name="script">props.put(&quot;global_jwt&quot;,
+              vars.get(&quot;jwt_token&quot;));</stringProp>
             <stringProp name="scriptLanguage">groovy</stringProp>
             <stringProp name="parameters"></stringProp>
             <stringProp name="filename"></stringProp>
@@ -86,9 +88,9 @@
           <hashTree/>
         </hashTree>
       </hashTree>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="2. Consulta Paragens (Stress - 500 subidas)" enabled="true">
-        <intProp name="ThreadGroup.num_threads">500</intProp>
-        <intProp name="ThreadGroup.ramp_time">30</intProp>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="2. Consulta Paragens (Intermédio - 250 subidas)">
+        <intProp name="ThreadGroup.num_threads">250</intProp>
+        <intProp name="ThreadGroup.ramp_time">20</intProp>
         <longProp name="ThreadGroup.duration">300</longProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
@@ -117,10 +119,19 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/network/trajetos" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/network/trajetos</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
       </hashTree>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="3. Consulta Viagens (Stress - 150 subidas)" enabled="true">
-        <intProp name="ThreadGroup.num_threads">150</intProp>
-        <intProp name="ThreadGroup.ramp_time">20</intProp>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="3. Consulta Viagens (Intermédio - 75 subidas)">
+        <intProp name="ThreadGroup.num_threads">75</intProp>
+        <intProp name="ThreadGroup.ramp_time">15</intProp>
         <longProp name="ThreadGroup.duration">300</longProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
@@ -140,7 +151,7 @@
           </collectionProp>
         </HeaderManager>
         <hashTree/>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/viagens/utilizador" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/viagens/utilizador">
           <stringProp name="HTTPSampler.path">/api/viagens/utilizador</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
@@ -149,7 +160,7 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/viagens/veiculo" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/viagens/veiculo">
           <stringProp name="HTTPSampler.path">/api/viagens/veiculo</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
@@ -159,9 +170,9 @@
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="4. Validacao Titulos (Stress Máximo - 800 subidas)" enabled="true">
-        <intProp name="ThreadGroup.num_threads">800</intProp>
-        <intProp name="ThreadGroup.ramp_time">40</intProp>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="4. Validacao Titulos (Intermédio - 400 subidas)">
+        <intProp name="ThreadGroup.num_threads">400</intProp>
+        <intProp name="ThreadGroup.ramp_time">25</intProp>
         <longProp name="ThreadGroup.duration">300</longProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
@@ -193,7 +204,8 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&#xd;  &quot;quantidade&quot;: 1,&#xd;  &quot;zonaId&quot;: 1&#xd;}</stringProp>
+                <stringProp name="Argument.value">{&#xd; &quot;quantidade&quot;: 1,&#xd;
+                  &quot;zonaId&quot;: 1&#xd;}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
@@ -217,9 +229,9 @@
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="5. Planeamento de Rota (Stress - 100 subidas)">
-        <intProp name="ThreadGroup.num_threads">100</intProp>
-        <intProp name="ThreadGroup.ramp_time">15</intProp>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="5. Planeamento de Rota (Intermédio - 60 subidas)">
+        <intProp name="ThreadGroup.num_threads">60</intProp>
+        <intProp name="ThreadGroup.ramp_time">12</intProp>
         <longProp name="ThreadGroup.duration">300</longProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
@@ -283,7 +295,7 @@
             <connectTime>true</connectTime>
           </value>
         </objProp>
-        <stringProp name="filename">stress_test_resumo_resultados_${__time(yyyyMMdd-HHmmss)}.csv</stringProp>
+        <stringProp name="filename">middle_resumo_resultados_${__time(yyyyMMdd-HHmmss)}.csv</stringProp>
       </ResultCollector>
       <hashTree/>
       <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree">
@@ -320,7 +332,7 @@
             <connectTime>true</connectTime>
           </value>
         </objProp>
-        <stringProp name="filename">stress_test_tree_resultados_${__time(yyyyMMdd-HHmmss)}.csv</stringProp>
+        <stringProp name="filename">middle_tree_resultados_${__time(yyyyMMdd-HHmmss)}.csv</stringProp>
       </ResultCollector>
       <hashTree/>
     </hashTree>
