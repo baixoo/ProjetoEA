@@ -28,6 +28,7 @@ import pt.notub.zone.entity.Zona;
 import pt.notub.zone.repository.ZonaRepository;
 import pt.notub.trip.repository.MonitorizacaoRepository;
 import pt.notub.trip.service.MonitorizacaoService;
+import pt.notub.network.repository.PontosDePassagemRepository;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -79,6 +80,9 @@ class ViagemServiceTest {
     @Mock
     private MonitorizacaoService monitorizacaoService;
 
+    @Mock
+    private PontosDePassagemRepository pontosDePassagemRepository;
+
     private ViagemService service;
 
     @BeforeEach
@@ -96,7 +100,8 @@ class ViagemServiceTest {
                 utilizadorRepository,
                 servicoPontos,
                 gestorValidacao,
-                notificacaoService);
+                notificacaoService,
+                pontosDePassagemRepository);
     }
 
     @Test

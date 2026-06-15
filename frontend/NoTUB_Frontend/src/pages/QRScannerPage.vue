@@ -179,11 +179,6 @@ const activePassZoneLabel = computed(() => {
 onMounted(async () => {
   await authStore.fetchUser()
 
-  if (authStore.user?.role === 'MOTORISTA') {
-    startScanner()
-    return
-  }
-
   // Check if we are already in an active trip
   const active = await viagensStore.fetchActiveTrip()
   if (active) {
@@ -296,51 +291,6 @@ async function handleScannedCode(text) {
   if (scanLocked.value) return
   if (ignoredScanText.value && ignoredScanText.value === text) return
   scanLocked.value = true
-
-  if (authStore.user?.role === 'MOTORISTA') {
-    let veiculoId = null
-    let matricula = null
-    
-    try {
-      const data = JSON.parse(text)
-      veiculoId = data.veiculoId || data.viagemVeiculoId
-      matricula = data.matricula
-    } catch {
-      matricula = text.trim()
-    }
-    
-    try {
-      scanStatus.value = 'A validar veículo...'
-      const response = await fetch('/api/driver/veiculos', {
-        headers: { Authorization: `Bearer ${authStore.token}` }
-      })
-      if (response.ok) {
-        const vehicles = await response.json()
-        let matched = null
-        if (veiculoId) {
-          matched = vehicles.find(v => Number(v.id) === Number(veiculoId))
-        }
-        if (!matched && matricula) {
-          const cleanMat = matricula.toLowerCase().trim()
-          matched = vehicles.find(v => v.matricula?.toLowerCase().trim() === cleanMat)
-        }
-        
-        if (matched) {
-          await stopScanner()
-          router.push(`/driver?veiculoId=${matched.id}`)
-          return
-        }
-      }
-      
-      scanStatus.value = 'Veículo não encontrado'
-      scanLocked.value = false
-    } catch (e) {
-      console.error(e)
-      scanStatus.value = 'Erro ao processar'
-      scanLocked.value = false
-    }
-    return
-  }
 
   await viagensStore.fetchVehicleTrips()
 

@@ -45,7 +45,7 @@ public class ViagemController {
 
     @PutMapping({"/utilizador/{id}/terminar", "/user/{id}/end"})
     public ResponseEntity<ViagemDTO> terminarViagem(@PathVariable Long id, @RequestBody TerminarViagemRequest request) {
-        return ResponseEntity.ok(viagemService.terminarViagem(id, request.paragemSaidaId()));
+        return ResponseEntity.ok(viagemService.terminarViagem(id, request.pontoPassagemSaidaId()));
     }
 
     @GetMapping({"/veiculo", "/vehicle"})

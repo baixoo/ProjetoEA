@@ -44,6 +44,7 @@ import pt.notub.trip.mapper.ViagemMapper;
 import pt.notub.trip.repository.ViagemUtilizadorRepository;
 import pt.notub.trip.repository.ViagemVeiculoRepository;
 import pt.notub.trip.repository.MonitorizacaoRepository;
+import pt.notub.network.repository.PontosDePassagemRepository; 
 
 // Service
 import pt.notub.user.entity.Utilizador;
@@ -78,6 +79,7 @@ public class ViagemService implements VehicleTripSubject {
     private final ServicoPontos servicoPontos;
     private final GestorValidacao gestorValidacao;
     private final NotificacaoValidacaoService notificacaoService;
+    private final PontosDePassagemRepository pontosDePassagemRepository;
 
 
     public ViagemService(ViagemUtilizadorRepository viagemUtilizadorRepository,
@@ -92,7 +94,8 @@ public class ViagemService implements VehicleTripSubject {
                          UtilizadorRepository utilizadorRepository,
                          ServicoPontos servicoPontos,
                          GestorValidacao gestorValidacao,
-                         NotificacaoValidacaoService notificacaoService) {
+                         NotificacaoValidacaoService notificacaoService,
+                         PontosDePassagemRepository pontosDePassagemRepository) {
         this.viagemUtilizadorRepository = viagemUtilizadorRepository;
         this.viagemVeiculoRepository = viagemVeiculoRepository;
         this.paragemRepository = paragemRepository;
@@ -106,6 +109,7 @@ public class ViagemService implements VehicleTripSubject {
         this.servicoPontos = servicoPontos;
         this.gestorValidacao = gestorValidacao;
         this.notificacaoService = notificacaoService;
+        this.pontosDePassagemRepository = pontosDePassagemRepository;
     }
 
     public List<ViagemDTO> getAllViagensUtilizador() {
@@ -176,9 +180,16 @@ public class ViagemService implements VehicleTripSubject {
         return ViagemMapper.toDTO(saved);
     }
 
-    public ViagemDTO terminarViagem(Long viagemId, Long paragemSaidaId) {
+    public ViagemDTO terminarViagem(Long viagemId, Long pontoPassagemSaidaId) {
         ViagemUtilizador viagem = findViagemUtilizador(viagemId);
-        Paragem paragemSaida = findParagem(paragemSaidaId);
+        PontosDePassagem pontoPassagemSaida = pontosDePassagemRepository.findById(pontoPassagemSaidaId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Ponto de passagem de saída não encontrado"));
+
+
+        Paragem paragemSaida = pontoPassagemSaida.getParagem();
+        if (paragemSaida == null) {
+            throw new RecursoNaoEncontradoException("Paragem de saída não encontrada para o ponto de passagem especificado");
+        }
 
         viagem.setParagemSaida(paragemSaida);
         viagem.setFim(LocalDateTime.now());

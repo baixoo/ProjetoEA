@@ -178,7 +178,6 @@ async function handleScannedCode(text) {
         driverStore.matriculaAtiva = matched.matricula
         
         router.push(`/driver/dashboard`)
-        // router.push(`/driver/dashboard?veiculoId=${matched.id}`)
         return
         }
       
