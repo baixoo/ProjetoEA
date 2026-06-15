@@ -60,7 +60,7 @@ const routes = [
     component: () => import('layouts/MainLayout.vue'),
     children: [
       { path: '', name: 'tickets', component: () => import('pages/TicketsPage.vue'), meta: { activeTab: 'tickets' } }
-    ],
+    ], // query: { minzone: zonaAtual}
     meta: { requiresAuth: true }
   },
   {
