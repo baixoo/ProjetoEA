@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "passe")
 public class Passe extends TituloTransporte {
 
     private LocalDateTime inicio;

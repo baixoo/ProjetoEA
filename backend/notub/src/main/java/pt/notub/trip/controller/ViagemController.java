@@ -38,9 +38,13 @@ public class ViagemController {
     }
 
     @PostMapping({"/utilizador/iniciar", "/user/start"})
-    public ResponseEntity<ViagemDTO> iniciarViagem(@RequestBody IniciarViagemRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(viagemService.iniciarViagem(
-                request.tituloId(), request.paragemEntradaId(), request.viagemVeiculoId()));
+    public ResponseEntity<ViagemDTO> iniciarViagem(@RequestBody IniciarViagemRequest request, @AuthenticatedUser AuthenticatedUserContext utilizador) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(viagemService.iniciarViagem( 
+                utilizador.id(),
+                request.tipoTitulo(), 
+                request.quantidade(), 
+                request.paragemEntradaId(), 
+                request.viagemVeiculoId()));
     }
 
     @PutMapping({"/utilizador/{id}/terminar", "/user/{id}/end"})

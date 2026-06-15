@@ -71,7 +71,7 @@ export const useViagensStore = defineStore('viagens', () => {
     }
   }
 
-  async function startTrip(tituloId, paragemEntradaId, viagemVeiculoId) {
+  async function startTrip({ tipoTitulo, quantidade, paragemEntradaId, viagemVeiculoId }) {
     if (!authStore.token) throw new Error('Não autenticado')
     loading.value = true
     error.value = null
@@ -82,7 +82,7 @@ export const useViagensStore = defineStore('viagens', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authStore.token}`
         },
-        body: JSON.stringify({ tituloId, paragemEntradaId, viagemVeiculoId })
+        body: JSON.stringify({ tipoTitulo, quantidade, paragemEntradaId, viagemVeiculoId })
       })
       if (!response.ok) {
         const text = await response.text()

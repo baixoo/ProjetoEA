@@ -84,7 +84,6 @@
               >
                 <q-icon name="person" size="28px" class="mode-icon" />
                 <span class="mode-title">VIAGEM INDIVIDUAL</span>
-                <!-- <span class="mode-desc"></span> -->
               </button>
 
               <button 
@@ -94,7 +93,7 @@
               >
                 <q-icon name="groups" size="28px" class="mode-icon" />
                 <span class="mode-title">VIAGEM EM GRUPO</span>
-                <span class="mode-desc">  Apenas com Bilhetes.</span>
+                <span class="mode-desc">Apenas com Bilhetes.</span>
               </button>
             </div>
 
@@ -131,10 +130,10 @@
               class="option-card"
               :class="{ 
                 'option-card--selected': selectedType === 'passe',
-                'option-card--disabled': !hasActivePass 
+                'option-card--disabled': !hasActivePass || !passValido
               }"
-              @click="hasActivePass ? selectedType = 'passe' : null"
-              :disabled="submitting || !hasActivePass"
+              @click="(hasActivePass && passValido) ? selectedType = 'passe' : null"
+              :disabled="submitting || !hasActivePass || !passValido"
             >
               <div class="option-icon-container bg-pass">
                 <q-icon name="credit_card" class="option-icon" />
@@ -142,7 +141,9 @@
               <div class="option-details">
                 <span class="option-title">Usar Passe Ativo</span>
                 <span class="option-subtitle">
-                  {{ hasActivePass ? `Zona: ${activePass?.zona?.num || '-'}` : 'Nenhum passe ativo' }}
+                  <template v-if="!hasActivePass">Nenhum passe ativo</template>
+                  <template v-else-if="!passValido">Zona {{ activePass?.zona?.num }} — insuficiente para zona {{ zonaViagem }}</template>
+                  <template v-else>Zona: {{ activePass?.zona?.num }}</template>
                 </span>
               </div>
               <q-icon v-if="selectedType === 'passe'" name="check_circle" class="selected-icon" />
@@ -152,10 +153,10 @@
               class="option-card"
               :class="{ 
                 'option-card--selected': selectedType === 'bilhete',
-                'option-card--disabled': !isTicketOptionValid 
+                'option-card--disabled': !isTicketOptionValid || bilhetesValidosCount === 0
               }"
-              @click="isTicketOptionValid ? selectedType = 'bilhete' : null"
-              :disabled="submitting || !isTicketOptionValid"
+              @click="(isTicketOptionValid && bilhetesValidosCount > 0) ? selectedType = 'bilhete' : null"
+              :disabled="submitting || !isTicketOptionValid || bilhetesValidosCount === 0"
             >
               <div class="option-icon-container bg-ticket">
                 <q-icon name="confirmation_number" class="option-icon" />
@@ -164,10 +165,11 @@
                 <span class="option-title">Usar Bilhetes</span>
                 <span class="option-subtitle">
                   <template v-if="unusedTicketsCount === 0">Sem bilhetes disponíveis</template>
-                  <template v-else-if="travelMode === 'grupo' && unusedTicketsCount < groupSize">
-                    Insuficiente (Tem {{ unusedTicketsCount }} de {{ groupSize }} necessários)
+                  <template v-else-if="bilhetesValidosCount === 0">Sem bilhetes válidos para zona {{ zonaViagem }}</template>
+                  <template v-else-if="travelMode === 'grupo' && bilhetesValidosCount < groupSize">
+                    Insuficiente (Tem {{ bilhetesValidosCount }} de {{ groupSize }} válidos para zona {{ zonaViagem }})
                   </template>
-                  <template v-else>Restam {{ unusedTicketsCount }} bilhetes</template>
+                  <template v-else>Restam {{ bilhetesValidosCount }} bilhetes válidos</template>
                 </span>
               </div>
               <q-icon v-if="selectedType === 'bilhete'" name="check_circle" class="selected-icon" />
@@ -182,7 +184,7 @@
 
             <div v-if="shouldShowShopWarning" class="no-tickets-warning q-mt-md">
               <p class="warning-message">Não possui títulos suficientes para o modo selecionado.</p>
-              <p class="warning-question">Deseja ir à loja adquirir novos bilhetes?</p>
+              <p class="warning-question">Deseja adquirir novos bilhetes?</p>
               <button class="btn-shop q-mt-sm" @click="goToShop">
                 <q-icon name="shopping_bag" class="q-mr-xs" size="18px" />
                 Ir para a Loja
@@ -201,6 +203,31 @@
           </div>
         </template>
       </div>
+
+      <!-- No Valid Tickets Dialog -->
+      <q-dialog v-model="titlesDialogOpen" persistent>
+        <q-card class="titles-dialog-card" style="min-width: 350px;">
+          <q-card-section class="row items-center q-gutter-sm">
+            <q-icon name="confirmation_number" color="primary" size="24px" />
+            <div class="text-h6">Sem títulos válidos</div>
+          </q-card-section>
+
+          <q-card-section class="q-pt-none">
+            <div v-if="tempTravelMode === 'grupo'">
+              Não tem bilhetes suficientes para todos os elementos do grupo.
+            </div>
+            <div v-else>
+              Não tem bilhetes nem passe ativo para embarcar neste autocarro.
+            </div>
+          </q-card-section>
+
+          <q-card-actions align="right" class="q-pa-md q-pt-none">
+            <q-btn flat color="grey-7" label="Cancelar" @click="cancelTitlesDialog" />
+            <q-btn color="primary" label="Comprar títulos" @click="goToTicketsFromDialog" />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+
     </div>
   </q-dialog>
 </template>
@@ -238,6 +265,22 @@
   const tempTravelMode = ref(null) 
   const travelMode = ref(null)   
   const groupSize = ref(2)
+
+  const zonaViagem = computed(() => {
+  const stop = (viagensStore.stops || []).find(s => Number(s.id) === Number(props.paragemEntradaId))
+  return stop?.zonaNum ?? null
+})
+
+const passValido = computed(() => {
+  if (!ticketsStore.activePass?.zona?.num) return false
+  return ticketsStore.activePass.zona.num >= zonaViagem.value
+})
+
+const bilhetesValidosCount = computed(() => {
+  return (ticketsStore.tickets || []).filter(
+    t => !t.usado && t.zona.num >= zonaViagem.value
+  ).length
+})
 
   const linhaNome = computed(() => {
     const vt = (viagensStore.vehicleTrips || []).find(v => v.id == props.viagemVeiculoId)
@@ -319,32 +362,31 @@
   const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
   const unusedTicketsCount = computed(() => unusedTickets.value.length)
 
+  const titlesDialogOpen = ref(false)
+  const titlesDialogOption = ref('NO_TITLES') // 'NO_TITLES' ou 'LOW_ZONE'
+
+  function cancelTitlesDialog() {
+    titlesDialogOpen.value = false
+    closeDialog()
+  }
+
+  function goToTicketsFromDialog() {
+    titlesDialogOpen.value = false
+    closeDialog()
+    router.push('/tickets')
+  }
+
 function confirmTravelMode() {
-
   const stop = viagensStore.stops.find(s => Number(s.id) === Number(props.paragemEntradaId))
-
-  if (!stop) {
-    console.error(`Erro: Paragem com ID ${props.paragemEntradaId} não foi encontrada na store.`, viagensStore.stops);
-    errorMsg.value = "Erro ao carregar os dados da paragem selecionada.";
-    return;
-  }
-
   const zonaViagem = stop?.zonaNum ?? null
-
-  if (zonaViagem === null) {
-    console.error("Erro: A paragem foi encontrada, mas não tem nenhuma zona associada:", stop);
-    errorMsg.value = "Esta paragem não tem uma zona válida configurada.";
-    return;
-  }
 
   if (tempTravelMode.value === 'individual') {
     const passOk = ticketsStore.activePass?.zona?.num >= zonaViagem
     const ticketOk = (ticketsStore.tickets || []).some(t => !t.usado && t.zona.num >= zonaViagem)
 
-    console.log('Validando modo individual para zona:', zonaViagem)
-    console.log('results:', { passOk, ticketOk })
     if (!passOk && !ticketOk) {
-      errorMsg.value = `Não tem títulos válidos para a zona ${zonaViagem}.`
+      titlesDialogOption.value = 'NO_TITLES'
+      titlesDialogOpen.value = true  
       return
     }
   }
@@ -353,11 +395,9 @@ function confirmTravelMode() {
     const validTickets = (ticketsStore.tickets || []).filter(
       t => !t.usado && t.zona.num >= zonaViagem
     )
-
-    console.log('Validando modo individual para zona:', zonaViagem)
-    console.log('results:', {validTickets})
     if (validTickets.length < groupSize.value) {
-      errorMsg.value = `Precisa de ${groupSize.value} bilhetes para zona ${zonaViagem}. Neste momento tem ${validTickets.length} válidos.`
+      titlesDialogOption.value = 'NO_TITLES'
+      titlesDialogOpen.value = true  
       return
     }
   }
@@ -415,21 +455,15 @@ function confirmTravelMode() {
     submitting.value = true
     errorMsg.value = ''
     try {
-      if (selectedType.value === 'passe') {
-        await viagensStore.startTrip(activePass.value.id, props.paragemEntradaId, props.viagemVeiculoId)
-      } else if (selectedType.value === 'bilhete') {
-        if (travelMode.value === 'grupo' && unusedTicketsCount.value < groupSize.value) {
-          throw new Error('Não tem bilhetes suficientes para todo o grupo.')
-        }
+      const qtdAValidar = travelMode.value === 'grupo' ? groupSize.value : ticketQty.value
 
-        const qtdAValidar = travelMode.value === 'grupo' ? groupSize.value : ticketQty.value
+      await viagensStore.startTrip({
+        tipoTitulo: selectedType.value.toUpperCase(), // 'PASSE' ou 'BILHETE'
+        quantidade: selectedType.value === 'passe' ? 1 : qtdAValidar,
+        paragemEntradaId: props.paragemEntradaId,
+        viagemVeiculoId: props.viagemVeiculoId
+      })
 
-        for (let i = 0; i < qtdAValidar; i++) {
-          const ticket = unusedTickets.value[i]
-          if (!ticket) break
-          await viagensStore.startTrip(ticket.id, props.paragemEntradaId, props.viagemVeiculoId)
-        }
-      }
       emit('tripStarted', { message: 'Viagem iniciada com sucesso!' })
       isOpen.value = false
       router.push('/traveling')
