@@ -26,19 +26,35 @@
       </div>
 
       <q-dialog v-model="titlesDialogOpen" persistent>
-        <q-card class="titles-dialog-card">
+        <q-card class="titles-dialog-card" style="min-width: 350px;">
+          
           <q-card-section class="row items-center q-gutter-sm">
-            <q-icon name="confirmation_number" color="primary" size="24px" />
-            <div class="text-h6">Sem títulos válidos</div>
+            <q-icon 
+              :name="opcaoSelecionada === 'LOW_ZONE' ? 'warning' : 'confirmation_number'" 
+              color="primary" size="24px" 
+            />
+            <div class="text-h6">
+              {{ opcaoSelecionada === 'LOW_ZONE' ? 'Zona incorreta' : 'Sem títulos válidos' }}
+            </div>
           </q-card-section>
 
-          <q-card-section>
-            <div>Nao tem bilhetes nem passe ativo para embarcar neste autocarro.</div>
+          <q-card-section class="q-pt-none">
+            <div v-if="opcaoSelecionada === 'LOW_ZONE'">
+              A zona do título é inferior à zona atual da viagem.
+            </div>
+            <div v-else>
+              Não tem bilhetes nem passe ativo para embarcar neste autocarro.
+            </div>
           </q-card-section>
 
           <q-card-actions align="right" class="q-pa-md q-pt-none">
             <q-btn flat color="grey-7" label="Cancelar" @click="cancelTitlesDialog" />
-            <q-btn color="primary" label="Comprar títulos" @click="goToTicketsFromDialog" />
+            
+            <q-btn 
+              color="primary" 
+              :label="opcaoSelecionada === 'LOW_ZONE' ? 'Comprar zona superior' : 'Comprar títulos'" 
+              @click="handleDialogAction" 
+            />
           </q-card-actions>
         </q-card>
       </q-dialog>
@@ -144,7 +160,9 @@ const boardingOpen = ref(false)
 const selectedVehicleTrip = ref(null)
 const selectedStop = ref(null)
 const newPlateRead = ref(null)
+
 const titlesDialogOpen = ref(false)
+const opcaoSelecionada = ref('NO_TITLES') // 'LOW_ZONE' or 'NO_TITLES'
 
 const scannerRunning = ref(false)
 const scannerError = ref(null)
@@ -175,6 +193,7 @@ const activePassZoneLabel = computed(() => {
 
 onMounted(async () => {
   await authStore.fetchUser()
+
   const active = await viagensStore.fetchActiveTrip()
   if (active) {
     router.push('/traveling')
@@ -368,11 +387,23 @@ async function triggerBoarding() {
   
   if (!hasTickets && !hasPass) {
     ignoredScanText.value = lastScannedText.value
+    opcaoSelecionada.value = "NO_TITLES"
     titlesDialogOpen.value = true
     stopScanner()
     return
   }
   
+  const zonaViagem = getZonaAtualViagem()
+  const zonaTitulo = getZonaTitulo()
+
+  if (zonaViagem && zonaTitulo && zonaTitulo < zonaViagem) {
+    ignoredScanText.value = lastScannedText.value
+    opcaoSelecionada.value = "LOW_ZONE"
+    titlesDialogOpen.value = true
+    stopScanner()
+    return
+  }
+
   if (newPlateRead.value) {
     await detectCurrentStop()
     newPlateRead.value = false
@@ -388,17 +419,38 @@ async function triggerBoarding() {
   })
 }
 
+function getZonaAtualViagem() {
+  const stop = (viagensStore.stops || []).find(s => s.id === selectedStop.value)
+  return stop?.zona?.num || null
+}
+
+function getZonaTitulo() {
+  if (ticketsStore.activePass?.zona) {
+    return ticketsStore.activePass.zona.num
+  }
+  const unusedTickets = (ticketsStore.tickets || []).filter(t => !t.usado)
+  if (unusedTickets.length > 0) {
+    return Math.max(...unusedTickets.map(t => t.zona.num))
+  }
+  return null
+}
+
+function handleDialogAction() {
+  titlesDialogOpen.value = false
+  scanLocked.value = false
+  ignoredScanText.value = ''
+  if (opcaoSelecionada.value === 'NO_TITLES') {
+    router.push('/tickets')
+  } else {
+    router.push('/tickets?minzone=' + getZonaAtualViagem())
+  }
+}
+
 function cancelTitlesDialog() {
   titlesDialogOpen.value = false
   scanLocked.value = false
   ignoredScanText.value = ''
   startScanner()
-}
-
-function goToTicketsFromDialog() {
-  titlesDialogOpen.value = false
-  scanLocked.value = false
-  router.push('/tickets')
 }
 
 async function detectCurrentStop() {
