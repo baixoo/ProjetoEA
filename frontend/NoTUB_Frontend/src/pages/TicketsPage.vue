@@ -2,8 +2,8 @@
   <q-page class="tickets-page">
     <div class="tickets-container">
       <div class="page-header q-mb-md">
-        <h1 class="page-title">Loja de Titulos</h1>
-        <p class="page-subtitle">Compre bilhetes e passes de forma rapida e segura</p>
+        <h1 class="page-title">Loja de Títulos</h1>
+        <p class="page-subtitle">Compre bilhetes e passes de forma rápida e segura</p>
       </div>
 
       <!-- Shop Offerings List -->
@@ -16,7 +16,7 @@
             </div>
             <div class="offer-info">
               <h3 class="offer-name">Bilhete Simples</h3>
-              <p class="offer-desc">Valido para 1 viagem na rede NoTUB</p>
+              <p class="offer-desc">Válido para 1 viagem na rede NoTUB</p>
             </div>
             <div class="offer-price-action">
               <button class="btn-add" @click="openCheckout('ticket_single')">
@@ -155,6 +155,7 @@
 
         <!-- Product Summary -->
         <div class="checkout-summary-card q-mb-md">
+          <div class="summary-top-row">
           <div class="summary-details">
             <span class="product-name">{{ currentProduct.name }}</span>
             <span class="product-price-base">{{ checkoutUnitPrice != null ? checkoutUnitPrice.toFixed(2) + '€ / unid' : '...' }}</span>
@@ -163,10 +164,14 @@
             <span class="product-category-label">Tarifa aplicada:</span>
             <span class="product-category-value">{{ userCategoryLabel }}</span>
           </div>
-          <div v-if="currentProduct.type === 'ticket'" class="quantity-selector">
+          </div>
+          <div v-if="currentProduct.type === 'ticket'" class="quantity-row">
+        <span class="quantity-label">Quantidade</span>
+            <div class="quantity-selector">
             <q-btn round flat dense icon="remove" color="primary" @click="decreaseQty" :disabled="quantity <= 1" />
             <span class="quantity-value">{{ quantity }}</span>
             <q-btn round flat dense icon="add" color="primary" @click="increaseQty" />
+          </div>
           </div>
         </div>
 
@@ -679,8 +684,13 @@ function closeSuccess() {
   border-radius: 10px;
   padding: 12px 16px;
   display: flex;
+  flex-direction: column;
+}
+
+.summary-top-row {
+  display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .summary-details {
@@ -699,6 +709,26 @@ function closeSuccess() {
   font-family: 'Inter', sans-serif;
   font-size: 12px;
   color: #6c757d;
+}
+
+.summary-user-type {
+  align-items: flex-end;
+}
+
+.quantity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e9ecef;
+}
+
+.quantity-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
 }
 
 .quantity-selector {

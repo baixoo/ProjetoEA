@@ -7,6 +7,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pt.notub.network.dto.LinhaDTO;
 import pt.notub.network.dto.LinhaRequest;
+import pt.notub.network.dto.LinhaSummaryDTO;
 import pt.notub.network.entity.Linha;
 import pt.notub.network.entity.Trajeto;
 import pt.notub.network.repository.LinhaRepository;
@@ -69,6 +70,21 @@ class TransportNetworkServiceTest {
         assertEquals(1, result.size());
         assertEquals(1, result.get(1L).size());
         assertEquals(10L, result.get(1L).get(0).getId());
+    }
+
+    @Test
+    void getLinhaSummaries_returnsOnlyEssentialFields() {
+        LinhaSummaryDTO summary = new LinhaSummaryDTO(7L, "Linha 7");
+        when(linhaRepository.findAllSummaries()).thenReturn(List.of(summary));
+
+        var result = service.getLinhaSummaries();
+
+        verify(linhaRepository).findAllSummaries();
+        verify(linhaRepository, never()).findAll();
+        verifyNoInteractions(trajetoRepository);
+        assertEquals(1, result.size());
+        assertEquals(7L, result.get(0).getId());
+        assertEquals("Linha 7", result.get(0).getNome());
     }
 
     @Test

@@ -162,7 +162,7 @@ let allLinhas = []
 
 onMounted(async () => {
   try {
-    const response = await fetch('/api/network/linhas', {
+    const response = await fetch('/api/network/linhas/resumo', {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
     if (response.ok) {
