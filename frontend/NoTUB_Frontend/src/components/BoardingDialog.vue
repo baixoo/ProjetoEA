@@ -319,21 +319,53 @@
   const unusedTickets = computed(() => (ticketsStore.tickets || []).filter(t => !t.usado))
   const unusedTicketsCount = computed(() => unusedTickets.value.length)
 
-  function confirmTravelMode() {
-    travelMode.value = tempTravelMode.value
-    travelModeSelected.value = true
-    errorMsg.value = ''
-    selectedType.value = null
-    
-    if (travelMode.value === 'grupo') {
-      if (isTicketOptionValid.value) {
-        selectedType.value = 'bilhete'
-        ticketQty.value = groupSize.value 
-      }
-    } else {
-      ticketQty.value = 1
+function confirmTravelMode() {
+
+  const stop = viagensStore.stops.find(s => Number(s.id) === Number(props.paragemEntradaId))
+
+  if (!stop) {
+    console.error(`Erro: Paragem com ID ${props.paragemEntradaId} não foi encontrada na store.`, viagensStore.stops);
+    errorMsg.value = "Erro ao carregar os dados da paragem selecionada.";
+    return;
+  }
+
+  const zonaViagem = stop?.zonaNum ?? null
+
+  if (zonaViagem === null) {
+    console.error("Erro: A paragem foi encontrada, mas não tem nenhuma zona associada:", stop);
+    errorMsg.value = "Esta paragem não tem uma zona válida configurada.";
+    return;
+  }
+
+  if (tempTravelMode.value === 'individual') {
+    const passOk = ticketsStore.activePass?.zona?.num >= zonaViagem
+    const ticketOk = (ticketsStore.tickets || []).some(t => !t.usado && t.zona.num >= zonaViagem)
+
+    console.log('Validando modo individual para zona:', zonaViagem)
+    console.log('results:', { passOk, ticketOk })
+    if (!passOk && !ticketOk) {
+      errorMsg.value = `Não tem títulos válidos para a zona ${zonaViagem}.`
+      return
     }
   }
+
+  if (tempTravelMode.value === 'grupo') {
+    const validTickets = (ticketsStore.tickets || []).filter(
+      t => !t.usado && t.zona.num >= zonaViagem
+    )
+
+    console.log('Validando modo individual para zona:', zonaViagem)
+    console.log('results:', {validTickets})
+    if (validTickets.length < groupSize.value) {
+      errorMsg.value = `Precisa de ${groupSize.value} bilhetes para zona ${zonaViagem}. Neste momento tem ${validTickets.length} válidos.`
+      return
+    }
+  }
+
+  travelMode.value = tempTravelMode.value
+  travelModeSelected.value = true
+  errorMsg.value = ''
+}
 
   async function loadTitulos() {
     loading.value = true
@@ -432,9 +464,10 @@
   watch(isOpen, (val) => emit('update:modelValue', val))
 
   onMounted(() => { 
-    if (isOpen.value) {
+      if (isOpen.value) {
       loadTitulos()
       loadZonas()
+      viagensStore.fetchStops()
     }
   })
   </script>
