@@ -99,7 +99,7 @@ export const useViagensStore = defineStore('viagens', () => {
     }
   }
 
-  async function endTrip(tripId, paragemSaidaId) {
+  async function endTrip(tripId, pontoPassagemSaidaId) {
     if (!authStore.token) throw new Error('Não autenticado')
     loading.value = true
     error.value = null
@@ -110,14 +110,13 @@ export const useViagensStore = defineStore('viagens', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${authStore.token}`
         },
-        body: JSON.stringify({ paragemSaidaId })
+        body: JSON.stringify({ pontoPassagemSaidaId })
       })
       if (!response.ok) {
         const text = await response.text()
         throw new Error(text || 'Falha ao terminar viagem')
       }
       const trip = await response.json()
-      // activeTrip.value.estado = 'END'
       return trip
     } catch (e) {
       error.value = e.message

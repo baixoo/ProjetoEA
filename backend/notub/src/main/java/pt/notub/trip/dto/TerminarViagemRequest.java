@@ -1,4 +1,4 @@
 package pt.notub.trip.dto;
 
-public record TerminarViagemRequest(Long paragemSaidaId) {
+public record TerminarViagemRequest(Long pontoPassagemSaidaId) {
 }

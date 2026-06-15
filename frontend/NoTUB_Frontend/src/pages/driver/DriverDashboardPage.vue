@@ -223,52 +223,8 @@
               <div class="metric-label">Lotação Atual</div>
             </div>
           </div>
-
-          <!-- <div class="feed-card">
-            <div class="feed-header">
-              <q-icon name="wifi_tethering" size="18px" color="primary" />
-              <span>Validações em tempo real</span>
-            </div>
-
-            <div class="feed-body">
-              <transition-group name="feed-slide" tag="div" class="feed-list">
-                <div
-                  v-for="n in driverStore.notifications"
-                  :key="n.id"
-                  class="feed-item"
-                  :class="n.valido ? 'feed-valid' : 'feed-invalid'"
-                >
-                  <div class="feed-dot" :class="n.valido ? 'green' : 'red'"></div>
-                  <div class="feed-details">
-                    <span class="feed-passenger">{{ n.nomePassageiro }}</span>
-                    <span class="feed-ticket">{{ n.tituloTipo }}</span>
-                  </div>
-                  <div class="feed-time">
-                    {{ formatTime(n.timestamp) }}
-                  </div>
-                </div>
-              </transition-group>
-
-              <div v-if="driverStore.notifications.length === 0" class="feed-empty">
-                <q-icon name="sensors" size="36px" color="grey-4" />
-                <p>A aguardar validações a bordo...</p>
-              </div>
-            </div>
-
-            <div class="feed-footer" v-if="driverStore.notifications.length > 0">
-              <button class="clear-feed-btn" @click="driverStore.clearNotifications()">
-                LIMPAR FEED
-              </button>
-            </div>
-          </div> -->
-
         </div>
-
       </div>
-
-      <!-- <footer class="realtime-footer">
-        <span>Monitorização em tempo real. ✨</span>
-      </footer> -->
     </div>
   </q-page>
 </template>
