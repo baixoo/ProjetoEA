@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.*;
 import pt.notub.network.dto.HorarioDTO;
 import pt.notub.network.dto.HorarioParagemDTO;
 import pt.notub.network.dto.LinhaDTO;
+import pt.notub.network.dto.LinhaSummaryDTO;
 import pt.notub.network.dto.ParagemDTO;
 import pt.notub.network.dto.ParagemProximasPassagensDTO;
 import pt.notub.network.dto.PontoPassagemDTO;
@@ -41,6 +42,11 @@ public class TransportNetworkController {
     @GetMapping({"/linhas", "/lines"})
     public ResponseEntity<List<LinhaDTO>> getLinhas() {
         return ResponseEntity.ok(networkService.getAllLinhas());
+    }
+
+    @GetMapping({"/linhas/resumo", "/lines/summary"})
+    public ResponseEntity<List<LinhaSummaryDTO>> getLinhaSummaries() {
+        return ResponseEntity.ok(networkService.getLinhaSummaries());
     }
 
     @GetMapping({"/linhas/{id}", "/lines/{id}"})

@@ -6,6 +6,7 @@ import pt.notub.common.exception.PedidoInvalidoException;
 import pt.notub.common.exception.RecursoNaoEncontradoException;
 import pt.notub.network.dto.LinhaDTO;
 import pt.notub.network.dto.LinhaRequest;
+import pt.notub.network.dto.LinhaSummaryDTO;
 import pt.notub.network.dto.ParagemDTO;
 import pt.notub.network.dto.ParagemRequest;
 import pt.notub.network.dto.PontoPassagemDTO;
@@ -65,6 +66,10 @@ public class TransportNetworkService {
 
     public List<LinhaDTO> getAllLinhas() {
         return LinhaMapper.toDTOList(linhaRepository.findAll(), getTrajetosByLinhaMap());
+    }
+
+    public List<LinhaSummaryDTO> getLinhaSummaries() {
+        return linhaRepository.findAllSummaries();
     }
 
     public LinhaDTO getLinhaById(Long id) {
