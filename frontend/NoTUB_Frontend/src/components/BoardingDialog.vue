@@ -175,11 +175,11 @@
               <q-icon v-if="selectedType === 'bilhete'" name="check_circle" class="selected-icon" />
             </button>
 
-            <div v-if="selectedType === 'bilhete' && travelMode === 'individual' && unusedTicketsCount > 1" class="qty-row q-mt-sm">
-              <span class="qty-label">Quantidade de Bilhetes:</span>
-              <q-btn round flat dense icon="remove" size="sm" @click="ticketQty = Math.max(1, ticketQty - 1)" />
-              <span class="qty-value">{{ ticketQty }}</span>
-              <q-btn round flat dense icon="add" size="sm" @click="ticketQty = Math.min(unusedTicketsCount, ticketQty + 1)" />
+            <div v-if="selectedType === 'bilhete' && travelMode === 'grupo'" class="qty-row q-mt-sm">
+              <span class="qty-label">Número de Pessoas:</span>
+              <q-btn round flat dense icon="remove" size="sm" @click="groupSize = Math.max(2, groupSize - 1)" />
+              <span class="qty-value">{{ groupSize }}</span>
+              <q-btn round flat dense icon="add" size="sm" @click="groupSize = Math.min(bilhetesValidosCount, groupSize + 1)" />
             </div>
 
             <div v-if="shouldShowShopWarning" class="no-tickets-warning q-mt-md">
